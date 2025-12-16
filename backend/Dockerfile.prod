@@ -1,0 +1,31 @@
+﻿FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies INCLUDING ca-certificates for SSL
+RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
+    ca-certificates \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
+
+# Copy and install requirements
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application
+COPY . .
+
+# Create directories
+RUN mkdir -p /tmp/chromadb /app/logs && \
+    useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app /tmp/chromadb
+
+USER appuser
+
+EXPOSE 8000
+
+# Production server
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

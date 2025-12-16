@@ -6,6 +6,15 @@ A production-ready multi-agent system that generates personalized travel itinera
 
 ---
 
+## 🌐 Live Application
+
+- **Frontend**: https://d1nrqhtd83kmw6.cloudfront.net
+- **Backend API**: https://d3ihmux7ocq5bh.cloudfront.net
+- **API Documentation**: https://d3ihmux7ocq5bh.cloudfront.net/docs
+- **Health Check**: https://d3ihmux7ocq5bh.cloudfront.net/health
+
+---
+
 ## 🎥 Demo Video
 
 📹 **[Watch Demo Video (3-5 min)](YOUR_LOOM_OR_YOUTUBE_LINK_HERE)**
@@ -24,18 +33,88 @@ A production-ready multi-agent system that generates personalized travel itinera
 
 ---
 
+## 🏆 What Makes MiniQuest Unique
+
+Unlike traditional travel planning tools, MiniQuest:
+
+1. **Real-Time Intelligence**: Uses Tavily API to fetch current venue information (hours, prices, reviews) 
+   rather than relying on stale databases.
+
+2. **Multi-Agent Specialization**: 7 distinct agents with clear responsibilities vs monolithic systems. 
+   Each agent is independently testable and optimizable.
+
+3. **Production-Grade Performance**: 
+   - Parallel research: 60-75% speed improvement
+   - Smart caching: 90%+ hit rate
+   - Async operations throughout
+
+4. **Learning System**: RAG-based personalization learns from user preferences over time, 
+   improving recommendations with each interaction.
+
+5. **Complete User Journey**: From query to saved itinerary with Google Maps integration, 
+   not just a list of recommendations.
+
+---
+
+## 🔍 Tavily API Integration
+
+### Search API
+```python
+# Used in: TavilyResearchAgent
+response = tavily_client.search(
+    query=f"{venue_name} {location} hours prices reviews",
+    search_depth="advanced",
+    max_results=5
+)
+# Returns: Web pages with venue information
+```
+
+### Extract API
+```python
+# Deep content extraction
+response = tavily_client.extract(
+    urls=search_results_urls,
+    include_raw_content=False
+)
+# Returns: Structured data (hours, prices, descriptions)
+```
+
+### API Call Optimization
+- **Parallel Execution**: 8 venues researched simultaneously
+- **Smart Caching**: Results cached for 24 hours
+- **Rate Limiting**: Respects 100 req/min limit
+- **Error Handling**: Graceful degradation on API failures
+
+### Example Flow
+```
+User: "Coffee shops in Boston"
+  ↓
+Tavily Search: "Coffee shops Boston hours prices reviews"
+  ↓
+Returns: 5 web pages per venue
+  ↓
+Tavily Extract: Deep dive into top results
+  ↓
+Returns: Structured data (hours, prices, tips)
+  ↓
+Research Summary Agent: Synthesizes findings
+  ↓
+Final Result: "Open 7am-6pm, $3-7 range, known for cappuccinos"
+```
+
+### Performance Metrics
+- Average searches per adventure: 10
+- Average extracts per adventure: 10
+- Total Tavily calls: ~20 per generation
+- With caching: ~2-3 calls per generation (90% hit rate)
+
+---
+
 ## 🏗️ Architecture
 
 ### System Overview
-```
-User → React Frontend → FastAPI Backend → LangGraph Coordinator
-                                              ↓
-                    [Intent Parser] → [Location Parser] → [Venue Scout]
-                           ↓                                    ↓
-                    [Tavily Research] ← [Research Summary]     ↓
-                           ↓                                    ↓
-                    [Routing Agent] → [Adventure Creator] → Results
-```
+
+<img src="images/SystemArchitecture.png" alt="Architecture" width="300" />
 
 ### Technology Stack
 
@@ -395,9 +474,6 @@ docker push ECR_URL/miniquest-backend:latest
 # Deploy using ECS task definition
 aws ecs update-service --cluster miniquest --service miniquest-svc --force-new-deployment
 ```
-
-**Live Deployment:** [YOUR_AWS_URL_HERE]
-
 ---
 
 ## 🧪 Testing
@@ -495,6 +571,24 @@ eb logs
 # AWS ECS
 aws logs tail /ecs/miniquest-backend --follow
 ```
+---
+
+## ⚠️ Known Limitations & Future Work
+
+### Current Limitations
+1. **Google Maps API**: Limited to 60 requests/minute
+2. **Tavily Rate Limits**: 100 searches/minute on free tier
+3. **ChromaDB**: In-memory only (resets on container restart)
+4. **Single-language**: English only currently
+
+### Planned Improvements
+- [ ] Multi-language support
+- [ ] Real-time collaboration (shared itineraries)
+- [ ] Mobile app (React Native)
+- [ ] Persistent ChromaDB (EFS/S3 backed)
+- [ ] Weather integration
+- [ ] Budget tracking
+- [ ] Booking integration (OpenTable, etc.)
 
 ---
 
@@ -522,8 +616,9 @@ MIT License - See LICENSE file for details
 ## 👤 Author
 
 **[Your Name]**
-- GitHub: [@YOUR_USERNAME](https://github.com/YOUR_USERNAME)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/YOUR_PROFILE)
+- GitHub: [@lambdabypi](https://github.com/lambdabypi)
+- Email: shreyas.atneu@gmail.com
+- LinkedIn: [LinkedIn](https://www.linkedin.com/in/shreyas-sreenivas-9452a9169/)
 
 ---
 

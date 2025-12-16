@@ -1,4 +1,4 @@
-﻿# backend/Dockerfile - Updated for Clean Architecture
+﻿# backend/Dockerfile.dev - Updated for Clean Architecture
 FROM python:3.11-slim
 
 WORKDIR /app
