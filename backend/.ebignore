@@ -1,13 +1,12 @@
 ﻿__pycache__/
 *.pyc
-*.pyo
 .env
 .pytest_cache/
 logs/
 chromadb/
+chromadb_backup/
 .vscode/
 *.log
-.coverage
 tests/
-Dockerfile.dev
-Dockerfile.aws
+.git/
+.gitignore
