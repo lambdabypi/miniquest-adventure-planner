@@ -1,0 +1,13 @@
+﻿__pycache__/
+*.pyc
+*.pyo
+.env
+.pytest_cache/
+logs/
+chromadb/
+.vscode/
+*.log
+.coverage
+tests/
+Dockerfile.dev
+Dockerfile.aws

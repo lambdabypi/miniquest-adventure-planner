@@ -1,35 +1,26 @@
-﻿# backend/Dockerfile - Updated for Clean Architecture
-FROM python:3.11-slim
+﻿FROM python:3.11-slim
 
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-	curl \
-	build-essential \
-	&& rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y curl build-essential && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Copy requirements and install
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application
 COPY . .
 
-# Create necessary directories
+# Create directories
 RUN mkdir -p /app/logs /app/chromadb
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser && \
-	chown -R appuser:appuser /app
-
+# Non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
+# Expose port
 EXPOSE 8000
 
-# Health check updated for new API structure
-HEALTHCHECK --interval=30s --timeout=10s \
-	CMD curl -f http://localhost:8000/health || exit 1
-
-# Updated CMD to use the clean main.py structure
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Start application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
