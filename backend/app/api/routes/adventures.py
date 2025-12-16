@@ -2,7 +2,7 @@
 """Adventure generation endpoints - LIGHTWEIGHT QUERY HISTORY"""
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from typing import Dict
+from typing import Dict, List
 import logging
 from datetime import datetime
 
@@ -16,6 +16,34 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/adventures", tags=["adventures"])
 
+def _get_recommended_services(scope_issue: str) -> List[Dict]:
+    """Get recommended external services based on scope issue"""
+    
+    recommendations = {
+        "multi_day_trip": [
+            {"name": "TripAdvisor", "url": "https://www.tripadvisor.com", "description": "Comprehensive trip planning"},
+            {"name": "Google Travel", "url": "https://www.google.com/travel", "description": "Integrated planning"},
+            {"name": "Roadtrippers", "url": "https://roadtrippers.com", "description": "Road trip planning"}
+        ],
+        "international_travel": [
+            {"name": "TripAdvisor", "url": "https://www.tripadvisor.com", "description": "Global travel"},
+            {"name": "Lonely Planet", "url": "https://www.lonelyplanet.com", "description": "Travel guides"},
+            {"name": "Rick Steves", "url": "https://www.ricksteves.com", "description": "European travel"}
+        ],
+        "accommodation_planning": [
+            {"name": "Booking.com", "url": "https://www.booking.com", "description": "Hotel booking"},
+            {"name": "Airbnb", "url": "https://www.airbnb.com", "description": "Unique stays"},
+            {"name": "Hotels.com", "url": "https://www.hotels.com", "description": "Hotel deals"}
+        ],
+        "trip_budget_detected": [
+            {"name": "TripAdvisor", "url": "https://www.tripadvisor.com", "description": "Full-trip planning"},
+            {"name": "Expedia", "url": "https://www.expedia.com", "description": "Package deals"},
+            {"name": "Kayak", "url": "https://www.kayak.com", "description": "Price comparison"}
+        ]
+    }
+    
+    return recommendations.get(scope_issue, recommendations["multi_day_trip"])
+
 @router.post("", response_model=AdventureResponse)
 async def create_adventures(
     request: AdventureRequest,
@@ -24,32 +52,12 @@ async def create_adventures(
     coordinator: LangGraphCoordinator = Depends(get_coordinator),
     mongodb_client: MongoDBClient = Depends(get_mongodb_client)
 ):
-    """
-    Generate adventures using OPTIMIZED multi-agent workflow
-    
-    Features:
-    - RAG personalization based on user history
-    - Parallel venue research (60-75% faster)
-    - Research result caching (90%+ faster on hits)
-    - Async adventure creation (20-30% faster)
-    - ✅ LIGHTWEIGHT: Only metadata saved (privacy-friendly)
-    
-    Privacy:
-    - Only query metadata saved automatically
-    - Full adventures saved ONLY when user clicks "Save"
-    - 90% less storage vs saving everything
-    
-    Performance:
-    - Cold cache: ~4s (80% faster than baseline)
-    - Warm cache: ~1.5s (92% faster than baseline)
-    """
     try:
-        # Extract user ID for personalization
         user_id = current_user.get("user_id")
         
         logger.info(f"🚀 OPTIMIZED adventure request from user {user_id}: {request.user_input[:50]}...")
         
-        # Execute OPTIMIZED workflow with user_id for personalization
+        # Execute workflow
         adventures, metadata = await coordinator.generate_adventures(
             user_input=request.user_input,
             user_address=request.user_address,
@@ -59,14 +67,52 @@ async def create_adventures(
         # Check for clarification needed
         error_data = metadata.get("error")
         if isinstance(error_data, dict) and error_data.get("type") == "clarification_needed":
-            logger.info(f"🤔 Returning clarification request: {error_data.get('message')}")
+            
+            # ✅ NEW: Handle unrelated queries
+            if error_data.get("unrelated_query"):
+                logger.info(f"🤷 Unrelated query: {error_data.get('query_type')}")
+                
+                return AdventureResponse(
+                    success=False,
+                    adventures=[],
+                    metadata={
+                        "clarification_needed": True,
+                        "unrelated_query": True,
+                        "clarification_message": error_data.get("clarification_message"),
+                        "suggestions": error_data.get("suggestions", [])
+                    },
+                    message="Query not related to adventure planning"
+                )
+            
+            # ✅ Handle out-of-scope requests
+            if error_data.get("out_of_scope"):
+                logger.info(f"🚫 Out of scope: {error_data.get('scope_issue')}")
+                
+                return AdventureResponse(
+                    success=False,
+                    adventures=[],
+                    metadata={
+                        "out_of_scope": True,
+                        "scope_issue": error_data.get("scope_issue"),
+                        "clarification_message": error_data.get("clarification_message"),
+                        "suggestions": error_data.get("suggestions", []),
+                        "recommended_services": _get_recommended_services(
+                            error_data.get("scope_issue", "multi_day_trip")
+                        ),
+                        "clarification_needed": False
+                    },
+                    message="Request outside MiniQuest's scope"
+                )
+            
+            # Handle regular clarification (too vague)
+            logger.info(f"🤔 Clarification needed: {error_data.get('clarification_message')}")
             
             return AdventureResponse(
                 success=False,
                 adventures=[],
                 metadata={
                     "clarification_needed": True,
-                    "clarification_message": error_data.get("message"),
+                    "clarification_message": error_data.get("clarification_message"),
                     "suggestions": error_data.get("suggestions", [])
                 },
                 message="Clarification needed"
@@ -258,3 +304,49 @@ async def save_query_metadata(
         # Log error but don't fail the request (background task)
         logger.error(f"❌ Failed to save query metadata: {e}")
         logger.error(f"   User: {user_id}, Input: {user_input[:50]}...")
+
+@router.get("/about")
+async def get_about_info():
+    """Get MiniQuest scope and mission information"""
+    
+    return {
+        "mission": "Make spontaneous local exploration effortless",
+        "tagline": "Discover personalized 2-6 hour adventures powered by 7 AI agents",
+        "scope": {
+            "what_we_do": [
+                "Short, spontaneous adventures (2-6 hours)",
+                "Local exploration in your city or while traveling",
+                "Curated itineraries based on your interests",
+                "Real-time research on venues and activities",
+                "Budget-friendly options ($30-150)",
+                "Same-day or 'things to do today' planning"
+            ],
+            "what_we_dont_do": [
+                "Multi-day trip planning",
+                "Accommodation booking",
+                "International travel itineraries",
+                "Transportation booking",
+                "Extended vacation planning"
+            ]
+        },
+        "perfect_for": [
+            "Weekend city exploration",
+            "Afternoon coffee & culture",
+            "Museum-hopping days",
+            "Dinner + evening plans",
+            "Walking tours",
+            "Photo expedition days"
+        ],
+        "features": [
+            "7 AI agents working in parallel",
+            "Live venue research from Tavily",
+            "Google Maps integration",
+            "Personalized recommendations",
+            "Smart routing and directions"
+        ],
+        "recommended_for_trips": {
+            "multi_day": ["TripAdvisor", "Google Travel", "Roadtrippers"],
+            "international": ["TripAdvisor", "Lonely Planet", "Rick Steves"],
+            "accommodation": ["Booking.com", "Airbnb", "Hotels.com"]
+        }
+    }

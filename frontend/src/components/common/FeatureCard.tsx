@@ -18,7 +18,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description }) =
 	return (
 		<div
 			className={`feature-card ${isHovered ? 'feature-card-hover' : ''}`}
-			onMouseEnter={() => setIsHovered(true)}
+			onMouseEnter={() => setIsHovered(false)}
 			onMouseLeave={() => setIsHovered(false)}
 		>
 			<div className="feature-card-icon">{icon}</div>

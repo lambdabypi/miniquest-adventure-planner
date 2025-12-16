@@ -1,4 +1,4 @@
-// frontend/src/components/NavigationBar.tsx
+// frontend/src/components/NavigationBar.tsx - UPDATED WITH ABOUT LINK
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -29,28 +29,37 @@ const NavigationBar: React.FC = () => {
 					</div>
 
 					{/* Navigation Links */}
-					{isAuthenticated && (
-						<div style={navLinksStyle}>
-							<NavLink
-								icon="📍"
-								label="Adventures"
-								onClick={() => navigate('/app')}
-								active={isActive('/app')}
-							/>
-							<NavLink
-								icon="📊"
-								label="Analytics"
-								onClick={() => navigate('/analytics')}
-								active={isActive('/analytics')}
-							/>
-							<NavLink
-								icon="💾"
-								label="Saved"
-								onClick={() => navigate('/saved-adventures')}
-								active={isActive('/saved-adventures')}
-							/>
-						</div>
-					)}
+					<div style={navLinksStyle}>
+						{isAuthenticated && (
+							<>
+								<NavLink
+									icon="📍"
+									label="Adventures"
+									onClick={() => navigate('/app')}
+									active={isActive('/app')}
+								/>
+								<NavLink
+									icon="📊"
+									label="Analytics"
+									onClick={() => navigate('/analytics')}
+									active={isActive('/analytics')}
+								/>
+								<NavLink
+									icon="💾"
+									label="Saved"
+									onClick={() => navigate('/saved-adventures')}
+									active={isActive('/saved-adventures')}
+								/>
+							</>
+						)}
+						{/* ✅ NEW: About Link (always visible) */}
+						<NavLink
+							icon="ℹ️"
+							label="About"
+							onClick={() => navigate('/about')}
+							active={isActive('/about')}
+						/>
+					</div>
 
 					{/* User Section */}
 					<div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -171,7 +180,7 @@ const logoutButtonStyle: React.CSSProperties = {
 };
 
 const authButtonStyle: React.CSSProperties = {
-	padding: '10px 50px',
+	padding: '10px 20px',
 	fontSize: '0.95rem',
 	fontWeight: '600',
 	color: 'black',

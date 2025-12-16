@@ -1,4 +1,4 @@
-﻿// frontend/src/App.tsx
+﻿// frontend/src/App.tsx - UPDATED WITH ABOUT ROUTE
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -9,6 +9,7 @@ import RegisterPage from './pages/RegisterPage';
 import AdventuresPage from './pages/AdventuresPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SavedAdventuresPage from './pages/SavedAdventuresPage';
+import AboutPage from './pages/AboutPage';  // ✅ NEW IMPORT
 import './App.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -76,6 +77,9 @@ function App() {
               }
             />
 
+            {/* ✅ NEW: About Page (public route) */}
+            <Route path="/about" element={<AboutPage />} />
+
             {/* Protected Routes */}
             <Route
               path="/app"
@@ -109,7 +113,7 @@ function App() {
           </Routes>
         </div>
       </BrowserRouter>
-    </AuthProvider >
+    </AuthProvider>
   );
 }
 

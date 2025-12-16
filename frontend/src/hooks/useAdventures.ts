@@ -10,6 +10,15 @@ export const useAdventures = () => {
 	const [clarificationNeeded, setClarificationNeeded] = useState(false);
 	const [clarificationMessage, setClarificationMessage] = useState('');
 	const [suggestions, setSuggestions] = useState<string[]>([]);
+
+	// Out-of-scope states
+	const [outOfScope, setOutOfScope] = useState(false);
+	const [scopeIssue, setScopeIssue] = useState<string | null>(null);
+	const [recommendedServices, setRecommendedServices] = useState<any[]>([]);
+
+	// ✅ NEW: Unrelated query state
+	const [unrelatedQuery, setUnrelatedQuery] = useState(false);
+
 	const [researchStats, setResearchStats] = useState<ResearchStats>({
 		totalInsights: 0,
 		avgConfidence: 0,
@@ -32,6 +41,10 @@ export const useAdventures = () => {
 		setClarificationNeeded(false);
 		setClarificationMessage('');
 		setSuggestions([]);
+		setOutOfScope(false);
+		setScopeIssue(null);
+		setRecommendedServices([]);
+		setUnrelatedQuery(false);  // ✅ NEW
 		setResearchStats({ totalInsights: 0, avgConfidence: 0 });
 
 		try {
@@ -45,10 +58,53 @@ export const useAdventures = () => {
 			const response = await adventuresApi.generateAdventures(requestData);
 
 			console.log('📥 Response received:', response);
-			console.log('📊 Metadata:', response.metadata);
+			console.log('📊 Full metadata:', JSON.stringify(response.metadata, null, 2));
 
-			// ✅ CRITICAL FIX: Check for clarification in metadata
-			if (response.metadata?.clarification_needed) {
+			// ✅ PRIORITY 1: Check for unrelated queries FIRST
+			if (response.metadata?.unrelated_query === true) {
+				console.log('🤷 UNRELATED QUERY DETECTED');
+				console.log('Message:', response.metadata.clarification_message);
+
+				setUnrelatedQuery(true);
+				setClarificationMessage(
+					response.metadata.clarification_message ||
+					"I'm MiniQuest, your local adventure planning assistant! I help you discover places to explore. Ask me about museums, restaurants, parks, or other activities!"
+				);
+				setSuggestions(response.metadata.suggestions || [
+					"Museums and coffee shops in Boston",
+					"Parks and restaurants near me",
+					"Art galleries and wine bars"
+				]);
+
+				setOutOfScope(false);
+				setClarificationNeeded(false);
+
+				setLoading(false);
+				return;  // ✅ RETURN EARLY
+			}
+
+			// ✅ PRIORITY 2: Check out-of-scope
+			if (response.metadata?.out_of_scope === true) {
+				console.log('🚫 OUT OF SCOPE DETECTED');
+				console.log('Scope issue:', response.metadata.scope_issue);
+				console.log('Message:', response.metadata.clarification_message);
+				console.log('Recommended services:', response.metadata.recommended_services);
+
+				setOutOfScope(true);
+				setScopeIssue(response.metadata.scope_issue || 'multi_day_trip');
+				setClarificationMessage(response.metadata.clarification_message || 'This request is outside MiniQuest\'s scope');
+				setSuggestions(response.metadata.suggestions || []);
+				setRecommendedServices(response.metadata.recommended_services || []);
+
+				setClarificationNeeded(false);
+				setUnrelatedQuery(false);
+
+				setLoading(false);
+				return;  // ✅ RETURN EARLY
+			}
+
+			// ✅ PRIORITY 3: Check for regular clarification (too vague)
+			if (response.metadata?.clarification_needed === true) {
 				console.log('🤔 Clarification needed detected');
 				console.log('Message:', response.metadata.clarification_message);
 				console.log('Suggestions:', response.metadata.suggestions);
@@ -56,11 +112,15 @@ export const useAdventures = () => {
 				setClarificationNeeded(true);
 				setClarificationMessage(response.metadata.clarification_message || 'Please provide more details');
 				setSuggestions(response.metadata.suggestions || []);
+
+				setOutOfScope(false);
+				setUnrelatedQuery(false);
+
 				setLoading(false);
-				return;
+				return;  // ✅ RETURN EARLY
 			}
 
-			// ✅ Handle successful response
+			// ✅ PRIORITY 4: Handle successful response
 			if (response.success && response.adventures && response.adventures.length > 0) {
 				console.log('✅ Adventures generated:', response.adventures.length);
 				setAdventures(response.adventures);
@@ -68,6 +128,11 @@ export const useAdventures = () => {
 				const stats = calculateResearchStats(response.adventures);
 				setResearchStats(stats);
 				console.log('📊 Research stats:', stats);
+
+				// Clear all error states
+				setOutOfScope(false);
+				setClarificationNeeded(false);
+				setUnrelatedQuery(false);
 			} else {
 				console.warn('⚠️ No adventures in response');
 				setError('No adventures could be generated');
@@ -93,6 +158,10 @@ export const useAdventures = () => {
 		clarificationNeeded,
 		clarificationMessage,
 		suggestions,
+		outOfScope,
+		scopeIssue,
+		recommendedServices,
+		unrelatedQuery,  // ✅ NEW - Export this!
 		researchStats,
 		generateAdventures,
 	};

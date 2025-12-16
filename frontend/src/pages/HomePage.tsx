@@ -5,13 +5,24 @@
 
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import BackgroundOrbs from '../components/common/BackgroundOrbs';
 import GlassCard from '../components/common/GlassCard';
 import FeatureCard from '../components/common/FeatureCard';
 import TechBadge from '../components/common/TechBadge';
+import GlassButton from '../components/common/GlassButton';
 
 const HomePage: React.FC = () => {
 	const { isAuthenticated, user } = useAuth();
+	const navigate = useNavigate();
+
+	const handleGetStarted = () => {
+		if (isAuthenticated) {
+			navigate('/app');
+		} else {
+			navigate('/login');
+		}
+	};
 
 	return (
 		<div className="page-container-center">
@@ -28,16 +39,17 @@ const HomePage: React.FC = () => {
 					<FeatureCard icon="🤖" title="Multi-Agent AI" />
 					<FeatureCard icon="📚" title="Live Research" />
 					<FeatureCard icon="🗺️" title="Smart Routes" />
-					<FeatureCard icon="📍" title="Auto-Location" />
+					<FeatureCard icon="🧠" title="Personalized" />
 				</div>
 
 				{/* CTA Button */}
-				<a
-					href={isAuthenticated ? '/app' : '/login'}
+				<GlassButton
+					variant="secondary"
+					onClick={handleGetStarted}
 					className="cta-button"
 				>
 					{isAuthenticated ? 'Start Your Adventure' : 'Get Started'} →
-				</a>
+				</GlassButton>
 
 				{/* Tech Stack */}
 				<div className="tech-stack">

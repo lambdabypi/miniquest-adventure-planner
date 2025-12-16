@@ -1,10 +1,11 @@
-// frontend/src/pages/AdventuresPage.tsx - REFACTORED WITH EXTRACTED COMPONENTS
+// frontend/src/pages/AdventuresPage.tsx - COMPLETE WITH ALL STATES
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdventures } from '../hooks/useAdventures';
 import { useChatHistory } from '../hooks/useChatHistory';
 import EnhancedAdventureCard from '../components/EnhancedAdventureCard';
 import ChatSidebar from '../components/ChatSidebar';
+import OutOfScopeMessage from '../components/OutOfScopeMessage';
 
 interface ChatMessage {
 	id: string;
@@ -16,7 +17,7 @@ interface ChatMessage {
 type LayoutMode = 'chat-left' | 'chat-right';
 
 // ========================================
-// CHAT PANEL COMPONENT (EXTRACTED)
+// CHAT PANEL COMPONENT
 // ========================================
 interface ChatPanelProps {
 	layoutMode: LayoutMode;
@@ -73,7 +74,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 		overflow: 'hidden',
 		position: 'relative',
 	}}>
-		{/* Chat History Sidebar */}
 		<ChatSidebar
 			conversations={conversations}
 			currentConversationId={currentConversationId}
@@ -84,7 +84,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 			layoutMode={layoutMode}
 		/>
 
-		{/* Header */}
 		<div style={{
 			padding: '20px',
 			borderBottom: '1px solid #e2e8f0',
@@ -103,7 +102,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 			)}
 		</div>
 
-		{/* Chat Messages */}
 		<div style={{
 			flex: 1,
 			overflowY: 'auto',
@@ -166,7 +164,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 			<div ref={chatEndRef} />
 		</div>
 
-		{/* Suggestion Buttons */}
 		{activeSuggestions.length > 0 && !loading && (
 			<div style={{
 				padding: '12px 15px',
@@ -211,14 +208,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 			</div>
 		)}
 
-		{/* Input Area */}
 		<div style={{
 			padding: '15px',
 			borderTop: '1px solid #e2e8f0',
 			background: '#ffffff',
 			flexShrink: 0,
 		}}>
-			{/* Location */}
 			<div style={{ marginBottom: '10px', fontSize: '0.8rem' }}>
 				{!showLocationEdit ? (
 					<div style={{ color: '#64748b', display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -272,7 +267,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 				)}
 			</div>
 
-			{/* Input */}
 			<div style={{ display: 'flex', gap: '8px' }}>
 				<input
 					type="text"
@@ -312,7 +306,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 );
 
 // ========================================
-// ADVENTURES PANEL COMPONENT (EXTRACTED)
+// ADVENTURES PANEL COMPONENT
 // ========================================
 interface AdventuresPanelProps {
 	user: any;
@@ -320,8 +314,16 @@ interface AdventuresPanelProps {
 	adventures: any[];
 	loading: boolean;
 	researchStats: any;
+	outOfScope: boolean;
+	scopeIssue: string | null;
+	clarificationNeeded: boolean;
+	unrelatedQuery: boolean;  // ✅ NEW
+	clarificationMessage: string;
+	suggestions: string[];
+	recommendedServices: any[];
 	toggleLayout: () => void;
 	handleAdventureSaved: (id: string, name: string) => void;
+	handleSuggestionClick: (suggestion: string) => void;
 }
 
 const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
@@ -330,15 +332,22 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 	adventures,
 	loading,
 	researchStats,
+	outOfScope,
+	scopeIssue,
+	clarificationNeeded,
+	unrelatedQuery,
+	clarificationMessage,
+	suggestions,
+	recommendedServices,
 	toggleLayout,
 	handleAdventureSaved,
+	handleSuggestionClick,
 }) => (
 	<div style={{
 		overflowY: 'auto',
 		padding: '20px',
 		height: '100%',
 	}}>
-		{/* Header Bar with Layout Toggle */}
 		<div style={{
 			display: 'flex',
 			justifyContent: 'space-between',
@@ -358,7 +367,6 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 				</div>
 			</div>
 
-			{/* Layout Toggle Button */}
 			<button
 				onClick={toggleLayout}
 				style={{
@@ -388,8 +396,132 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			</button>
 		</div>
 
-		{/* Adventures */}
-		{adventures.length > 0 && (
+		{/* ✅ PRIORITY 1: Unrelated Query */}
+		{unrelatedQuery === true && !loading && (
+			<div style={{
+				background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+				color: 'white',
+				borderRadius: '12px',
+				padding: '30px',
+				marginBottom: '20px',
+				textAlign: 'center',
+			}}>
+				<div style={{ fontSize: '3rem', marginBottom: '15px' }}>🤖</div>
+				<h2 style={{ fontSize: '1.5rem', marginBottom: '15px', fontWeight: '600' }}>
+					Not About Adventures!
+				</h2>
+				<p style={{ fontSize: '1rem', marginBottom: '25px', opacity: 0.95, lineHeight: '1.6' }}>
+					{clarificationMessage}
+				</p>
+
+				{suggestions && suggestions.length > 0 && (
+					<div style={{
+						background: 'rgba(255,255,255,0.15)',
+						backdropFilter: 'blur(10px)',
+						padding: '20px',
+						borderRadius: '12px',
+						border: '1px solid rgba(255,255,255,0.3)'
+					}}>
+						<h3 style={{ fontSize: '1.1rem', marginBottom: '15px', fontWeight: '600' }}>
+							💡 Try asking about places like:
+						</h3>
+						<div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+							{suggestions.map((suggestion, idx) => (
+								<button
+									key={idx}
+									onClick={() => handleSuggestionClick(suggestion)}
+									style={{
+										background: 'rgba(255,255,255,0.9)',
+										color: '#1e293b',
+										border: 'none',
+										padding: '12px 16px',
+										borderRadius: '8px',
+										fontSize: '0.95rem',
+										cursor: 'pointer',
+										transition: 'all 0.2s',
+										textAlign: 'left',
+										fontWeight: '500',
+									}}
+									onMouseEnter={(e) => {
+										e.currentTarget.style.background = 'white';
+										e.currentTarget.style.transform = 'translateX(5px)';
+									}}
+									onMouseLeave={(e) => {
+										e.currentTarget.style.background = 'rgba(255,255,255,0.9)';
+										e.currentTarget.style.transform = 'translateX(0)';
+									}}
+								>
+									→ {suggestion}
+								</button>
+							))}
+						</div>
+					</div>
+				)}
+			</div>
+		)}
+
+		{/* ✅ PRIORITY 2: Out-of-Scope Message */}
+		{outOfScope === true && !unrelatedQuery && !loading && (
+			<OutOfScopeMessage
+				scopeIssue={scopeIssue || 'multi_day_trip'}
+				message={clarificationMessage || 'This request is outside MiniQuest\'s scope'}
+				suggestions={suggestions || []}
+				recommendedServices={recommendedServices || []}
+				onSuggestionClick={handleSuggestionClick}
+			/>
+		)}
+
+		{/* ✅ PRIORITY 3: Clarification Needed (Too Vague) */}
+		{clarificationNeeded === true && !outOfScope && !unrelatedQuery && !loading && (
+			<div style={{
+				background: '#fffbeb',
+				border: '1px solid #fbbf24',
+				borderRadius: '12px',
+				padding: '20px',
+				marginBottom: '20px',
+			}}>
+				<div style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '10px', color: '#92400e' }}>
+					🤔 {clarificationMessage}
+				</div>
+				{suggestions && suggestions.length > 0 && (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '15px' }}>
+						<div style={{ fontSize: '0.85rem', color: '#92400e', fontWeight: '600', marginBottom: '4px' }}>
+							💡 Try these instead:
+						</div>
+						{suggestions.map((suggestion, idx) => (
+							<button
+								key={idx}
+								onClick={() => handleSuggestionClick(suggestion)}
+								style={{
+									background: 'white',
+									border: '1px solid #fbbf24',
+									borderRadius: '8px',
+									padding: '10px 14px',
+									textAlign: 'left',
+									cursor: 'pointer',
+									fontSize: '0.9rem',
+									color: '#1e293b',
+									transition: 'all 0.2s',
+								}}
+								onMouseEnter={(e) => {
+									e.currentTarget.style.background = '#fef3c7';
+									e.currentTarget.style.borderColor = '#f59e0b';
+								}}
+								onMouseLeave={(e) => {
+									e.currentTarget.style.background = 'white';
+									e.currentTarget.style.borderColor = '#fbbf24';
+								}}
+							>
+								→ {suggestion}
+							</button>
+						))}
+					</div>
+				)}
+			</div>
+		)}
+
+		{/* ✅ PRIORITY 4: Adventures Display */}
+		{adventures.length > 0 && !outOfScope && !unrelatedQuery && (
 			<>
 				<div style={{
 					marginBottom: '15px',
@@ -420,8 +552,8 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			</>
 		)}
 
-		{/* Empty State */}
-		{!loading && adventures.length === 0 && (
+		{/* ✅ PRIORITY 5: Empty State */}
+		{!loading && adventures.length === 0 && !outOfScope && !clarificationNeeded && !unrelatedQuery && (
 			<div style={{
 				textAlign: 'center',
 				padding: '60px 20px',
@@ -455,11 +587,9 @@ const AdventuresPage: React.FC = () => {
 	const chatEndRef = useRef<HTMLDivElement>(null);
 	const locationInputRef = useRef<HTMLInputElement>(null);
 
-	// Generation tracking (prevents duplication)
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [lastGenerationId, setLastGenerationId] = useState<string | null>(null);
 
-	// Layout toggle
 	const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => {
 		const saved = localStorage.getItem('miniquest_layout_mode');
 		return (saved as LayoutMode) || 'chat-left';
@@ -472,6 +602,10 @@ const AdventuresPage: React.FC = () => {
 		clarificationNeeded,
 		clarificationMessage,
 		suggestions,
+		outOfScope,
+		scopeIssue,
+		recommendedServices,
+		unrelatedQuery,  // ✅ NEW
 		researchStats,
 		generateAdventures
 	} = useAdventures();
@@ -486,22 +620,18 @@ const AdventuresPage: React.FC = () => {
 		setCurrentConversationId,
 	} = useChatHistory();
 
-	// Save layout preference
 	useEffect(() => {
 		localStorage.setItem('miniquest_layout_mode', layoutMode);
 	}, [layoutMode]);
 
-	// Toggle layout
 	const toggleLayout = () => {
 		setLayoutMode(prev => prev === 'chat-left' ? 'chat-right' : 'chat-left');
 	};
 
-	// Load conversation history on mount
 	useEffect(() => {
 		loadConversations(20);
 	}, [loadConversations]);
 
-	// Welcome message - ONLY for new chats
 	useEffect(() => {
 		if (!currentConversationId && chatMessages.length === 0) {
 			setChatMessages([{
@@ -513,12 +643,10 @@ const AdventuresPage: React.FC = () => {
 		}
 	}, [user, currentConversationId]);
 
-	// Auto-scroll chat
 	useEffect(() => {
 		chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 	}, [chatMessages, loading]);
 
-	// Auto-save conversation when messages change
 	useEffect(() => {
 		if (chatMessages.length > 1 && isGenerating) {
 			const saveChat = async () => {
@@ -529,10 +657,60 @@ const AdventuresPage: React.FC = () => {
 		}
 	}, [chatMessages, location, queryId, autoSaveConversation, isGenerating]);
 
-	// Handle clarification - ONLY during active generation
+	// ✅ NEW: Handle unrelated queries
 	useEffect(() => {
-		if (clarificationNeeded && !loading && isGenerating) {
+		if (unrelatedQuery === true && !loading && isGenerating) {
+			const genId = `unrelated_${Date.now()}`;
+
+			console.log('🤷 Unrelated query detected in effect');
+
+			if (lastGenerationId !== genId) {
+				setLastGenerationId(genId);
+
+				// Add chat message for unrelated query
+				setChatMessages(prev => [...prev, {
+					id: genId,
+					type: 'assistant',
+					content: clarificationMessage || "I'm MiniQuest, your local adventure planning assistant! Ask me about museums, restaurants, parks, or other fun places to explore.",
+					timestamp: new Date()
+				}]);
+
+				setActiveSuggestions(suggestions || []);
+				setIsGenerating(false);
+			}
+		}
+	}, [unrelatedQuery, loading, clarificationMessage, suggestions, isGenerating]);
+
+	// ✅ Handle out-of-scope
+	useEffect(() => {
+		if (outOfScope === true && !unrelatedQuery && !loading && isGenerating) {
+			const genId = `outofscope_${Date.now()}`;
+
+			console.log('🚫 Out-of-scope detected in effect');
+
+			if (lastGenerationId !== genId) {
+				setLastGenerationId(genId);
+
+				// Add chat message for out-of-scope
+				setChatMessages(prev => [...prev, {
+					id: genId,
+					type: 'assistant',
+					content: `🚫 ${clarificationMessage || 'This request is outside MiniQuest\'s scope. Check the right panel for recommendations.'}`,
+					timestamp: new Date()
+				}]);
+
+				setActiveSuggestions(suggestions || []);
+				setIsGenerating(false);
+			}
+		}
+	}, [outOfScope, unrelatedQuery, loading, clarificationMessage, suggestions, isGenerating]);
+
+	// ✅ Handle clarification needed (too vague)
+	useEffect(() => {
+		if (clarificationNeeded === true && !outOfScope && !unrelatedQuery && !loading && isGenerating) {
 			const genId = Date.now().toString();
+
+			console.log('🤔 Clarification needed in effect');
 
 			if (lastGenerationId !== genId) {
 				setLastGenerationId(genId);
@@ -542,12 +720,13 @@ const AdventuresPage: React.FC = () => {
 					content: clarificationMessage,
 					timestamp: new Date()
 				}]);
-				setActiveSuggestions(suggestions);
+				setActiveSuggestions(suggestions || []);
+				setIsGenerating(false);
 			}
 		}
-	}, [clarificationNeeded, loading, clarificationMessage, suggestions, isGenerating]);
+	}, [clarificationNeeded, outOfScope, unrelatedQuery, loading, clarificationMessage, suggestions, isGenerating]);
 
-	// Handle success - ONLY during active generation
+	// ✅ Handle successful adventures
 	useEffect(() => {
 		if (adventures.length > 0 && !loading && isGenerating) {
 			const genId = `success_${adventures.length}_${Date.now()}`;
@@ -565,7 +744,6 @@ const AdventuresPage: React.FC = () => {
 		}
 	}, [adventures, loading, researchStats, isGenerating]);
 
-	// Load previous conversation WITHOUT triggering effects
 	const handleLoadConversation = async (conversationId: string) => {
 		setIsGenerating(false);
 		setActiveSuggestions([]);
@@ -585,7 +763,6 @@ const AdventuresPage: React.FC = () => {
 		}
 	};
 
-	// Start new chat
 	const handleNewChat = () => {
 		setIsGenerating(false);
 		setActiveSuggestions([]);
@@ -600,7 +777,6 @@ const AdventuresPage: React.FC = () => {
 		setQueryId(null);
 	};
 
-	// Delete conversation
 	const handleDeleteConversation = async (conversationId: string) => {
 		await deleteConversation(conversationId);
 		if (conversationId === currentConversationId) {
@@ -608,7 +784,6 @@ const AdventuresPage: React.FC = () => {
 		}
 	};
 
-	// Mark as generating when sending
 	const handleSend = () => {
 		if (!input.trim() || loading) return;
 
@@ -626,7 +801,6 @@ const AdventuresPage: React.FC = () => {
 		setInput('');
 	};
 
-	// Mark as generating when clicking suggestion
 	const handleSuggestionClick = (suggestion: string) => {
 		const userMessage: ChatMessage = {
 			id: Date.now().toString(),
@@ -641,7 +815,6 @@ const AdventuresPage: React.FC = () => {
 		generateAdventures(suggestion, location);
 	};
 
-	// Handle Adventure Save
 	const handleAdventureSaved = (adventureId: string, adventureName: string) => {
 		console.log('Adventure saved:', adventureId);
 
@@ -660,9 +833,6 @@ const AdventuresPage: React.FC = () => {
 		}, 5000);
 	};
 
-	// ========================================
-	// MAIN RENDER
-	// ========================================
 	return (
 		<div style={{
 			display: 'grid',
@@ -672,7 +842,6 @@ const AdventuresPage: React.FC = () => {
 			position: 'relative',
 			overflow: 'hidden',
 		}}>
-			{/* Save Success Notification */}
 			{showSaveNotification && (
 				<div style={{
 					position: 'fixed',
@@ -717,7 +886,6 @@ const AdventuresPage: React.FC = () => {
 				</div>
 			)}
 
-			{/* Dynamic Layout Based on Mode */}
 			{layoutMode === 'chat-left' ? (
 				<>
 					<ChatPanel
@@ -748,8 +916,16 @@ const AdventuresPage: React.FC = () => {
 						adventures={adventures}
 						loading={loading}
 						researchStats={researchStats}
+						outOfScope={outOfScope}
+						scopeIssue={scopeIssue}
+						clarificationNeeded={clarificationNeeded}
+						unrelatedQuery={unrelatedQuery}
+						clarificationMessage={clarificationMessage}
+						suggestions={suggestions}
+						recommendedServices={recommendedServices}
 						toggleLayout={toggleLayout}
 						handleAdventureSaved={handleAdventureSaved}
+						handleSuggestionClick={handleSuggestionClick}
 					/>
 				</>
 			) : (
@@ -760,8 +936,16 @@ const AdventuresPage: React.FC = () => {
 						adventures={adventures}
 						loading={loading}
 						researchStats={researchStats}
+						outOfScope={outOfScope}
+						scopeIssue={scopeIssue}
+						clarificationNeeded={clarificationNeeded}
+						unrelatedQuery={unrelatedQuery}
+						clarificationMessage={clarificationMessage}
+						suggestions={suggestions}
+						recommendedServices={recommendedServices}
 						toggleLayout={toggleLayout}
 						handleAdventureSaved={handleAdventureSaved}
+						handleSuggestionClick={handleSuggestionClick}
 					/>
 					<ChatPanel
 						layoutMode={layoutMode}
@@ -788,7 +972,6 @@ const AdventuresPage: React.FC = () => {
 				</>
 			)}
 
-			{/* Layout Indicator Badge */}
 			<div style={{
 				position: 'fixed',
 				bottom: '20px',
@@ -809,7 +992,6 @@ const AdventuresPage: React.FC = () => {
 				{layoutMode === 'chat-left' ? '💬 Chat Left | 🗺️ Adventures Right' : '🗺️ Adventures Left | 💬 Chat Right'}
 			</div>
 
-			{/* Animation keyframes */}
 			<style>{`
 				@keyframes slideIn {
 					from {
