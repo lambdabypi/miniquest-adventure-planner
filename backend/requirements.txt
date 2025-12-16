@@ -1,0 +1,39 @@
+﻿# Core FastAPI (Latest stable)
+fastapi
+uvicorn[standard]
+pydantic
+pydantic[email]
+pydantic-settings
+
+# Assignment Requirements (Latest)
+tavily-python
+openai
+langgraph
+langchain
+langchain-openai
+
+# Google Maps
+googlemaps
+
+# Database
+pymongo
+redis
+motor
+
+# Authentication (for enhanced version)
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==4.0.1
+python-multipart
+email-validator
+
+# RAG System (ChromaDB for enhanced version)
+chromadb
+
+# Utilities
+python-dotenv
+requests
+
+# Development
+pytest
+pytest-asyncio

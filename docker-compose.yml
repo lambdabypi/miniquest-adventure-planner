@@ -1,0 +1,100 @@
+﻿# docker-compose.yml - Simplified for MongoDB Atlas
+version: '3.8'
+
+services:
+  # ========================================
+  # BACKEND API
+  # ========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: miniquest_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app:cached
+      - backend_logs:/app/logs
+      - chromadb_data:/app/chromadb
+      - /app/__pycache__
+      - /app/.pytest_cache
+    networks:
+      - miniquest-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service=backend"
+        tag: "{{.Name}}/{{.ID}}"
+
+  # ========================================
+  # FRONTEND (React + Vite)
+  # ========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: miniquest_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./frontend:/app:cached
+      - frontend_node_modules:/app/node_modules
+      - /app/dist
+      - /app/.vite
+      - frontend_vite_cache:/tmp/vite-cache
+    depends_on:
+      - backend
+    networks:
+      - miniquest-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+        labels: "service=frontend"
+
+# ========================================
+# VOLUMES
+# ========================================
+volumes:
+  backend_logs:
+    driver: local
+  frontend_node_modules:
+    driver: local
+  frontend_vite_cache:
+    driver: local
+  chromadb_data:
+    driver: local
+
+# ========================================
+# NETWORKS
+# ========================================
+networks:
+  miniquest-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

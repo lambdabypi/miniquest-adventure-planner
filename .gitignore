@@ -1,0 +1,92 @@
+﻿# ========================================
+# ENVIRONMENT & SECRETS
+# ========================================
+.env
+.env.local
+.env.production
+*.env
+!.env.example
+
+# ========================================
+# PYTHON / BACKEND
+# ========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+logs/
+*.log
+
+# Database files
+*.db
+*.sqlite3
+chromadb/
+
+# ========================================
+# NODE / FRONTEND
+# ========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+.cache/
+.vite/
+.parcel-cache/
+
+# ========================================
+# IDEs
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# ========================================
+# OS
+# ========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+esd.yml
+Thumbs.db
+desktop.ini
+
+# ========================================
+# DOCKER
+# ========================================
+.docker/
+*.env.docker
+
+# ========================================
+# TESTING
+# ========================================
+.pytest_cache/
+.coverage
+coverage/
+*.cover
+.hypothesis/
+
+# ========================================
+# OTHER
+# ========================================
+*.bak
+*.tmp
+*.temp
+.dev.bat
+dev.bat
