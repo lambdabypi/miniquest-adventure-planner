@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/adventures", tags=["adventures"])
 
 # ========================================
-# ✅ NEW: SSE STREAMING ENDPOINT
+# ✅ SSE STREAMING ENDPOINT - FIXED
 # ========================================
 
 @router.post("/generate-stream")
@@ -95,7 +95,7 @@ async def create_adventures_stream(
             # Add progress log to metadata
             metadata["progress_log"] = progress_log
             
-            # Handle errors
+            # ✅ FIXED: Handle errors with default messages
             error_data = metadata.get("error")
             if isinstance(error_data, dict) and error_data.get("type") == "clarification_needed":
                 
@@ -105,25 +105,40 @@ async def create_adventures_stream(
                     "progress_log": progress_log
                 }
                 
+                # ✅ FIXED: Unrelated queries with default message
                 if error_data.get("unrelated_query"):
                     error_metadata.update({
                         "unrelated_query": True,
-                        "clarification_message": error_data.get("clarification_message"),
-                        "suggestions": error_data.get("suggestions", [])
+                        "clarification_message": error_data.get("clarification_message") or 
+                            "I'm MiniQuest, your local adventure planning assistant! I help you discover places to explore. Ask me about museums, restaurants, parks, or other activities!",
+                        "suggestions": error_data.get("suggestions") or [
+                            "Museums and coffee shops in Boston",
+                            "Parks and restaurants near me",
+                            "Art galleries and wine bars"
+                        ],
+                        "query_type": error_data.get("query_type")
                     })
+                # ✅ FIXED: Out-of-scope with default message
                 elif error_data.get("out_of_scope"):
                     error_metadata.update({
                         "out_of_scope": True,
                         "scope_issue": error_data.get("scope_issue", "multi_day_trip"),
                         "detected_city": error_data.get("detected_city"),
-                        "clarification_message": error_data.get("clarification_message"),
+                        "clarification_message": error_data.get("clarification_message") or 
+                            "This request is outside MiniQuest's scope. We focus on short 2-6 hour local adventures in Boston and New York.",
                         "suggestions": error_data.get("suggestions", []),
                         "recommended_services": _get_recommended_services(error_data.get("scope_issue", "multi_day_trip"))
                     })
+                # ✅ FIXED: Regular clarification with default message
                 else:
                     error_metadata.update({
-                        "clarification_message": error_data.get("clarification_message"),
-                        "suggestions": error_data.get("suggestions", [])
+                        "clarification_message": error_data.get("clarification_message") or 
+                            "Please provide more details about what you'd like to explore.",
+                        "suggestions": error_data.get("suggestions") or [
+                            "Museums and coffee shops in Boston",
+                            "Parks and restaurants in New York",
+                            "Art galleries and wine bars"
+                        ]
                     })
                 
                 # Send final error response
@@ -132,9 +147,10 @@ async def create_adventures_stream(
                     "success": False,
                     "adventures": [],
                     "metadata": error_metadata,
-                    "message": error_data.get("clarification_message", "Clarification needed")
+                    "message": error_metadata.get("clarification_message", "Clarification needed")
                 }
                 
+                logger.info(f"📤 Sending clarification response: {error_metadata.get('clarification_message', 'N/A')[:50]}...")
                 yield f"data: {json.dumps(final_response)}\n\n".encode('utf-8')
                 return
             
