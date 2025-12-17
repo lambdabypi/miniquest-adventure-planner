@@ -102,13 +102,6 @@ Write-Host "================================================" -ForegroundColor C
 Write-Host "`nLive Site:" -ForegroundColor White
 Write-Host "  $SITE_URL" -ForegroundColor Cyan
 
-Write-Host "`nWhat was deployed:" -ForegroundColor White
-Write-Host "  - OutOfScopeMessage component" -ForegroundColor Gray
-Write-Host "  - AboutPage component" -ForegroundColor Gray
-Write-Host "  - Updated AdventuresPage" -ForegroundColor Gray
-Write-Host "  - Updated NavigationBar" -ForegroundColor Gray
-Write-Host "  - Enhanced useAdventures hook" -ForegroundColor Gray
-
 Write-Host "`nTesting:" -ForegroundColor White
 Write-Host "  1. Wait 1-2 minutes for cache" -ForegroundColor Gray
 Write-Host "  2. Test: Chicago for 1 week with $2000" -ForegroundColor Gray

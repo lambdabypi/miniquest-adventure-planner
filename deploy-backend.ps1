@@ -135,11 +135,6 @@ Write-Host "`n================================================" -ForegroundColor
 Write-Host "Deployment Complete" -ForegroundColor Green
 Write-Host "================================================" -ForegroundColor Cyan
 
-Write-Host "`nWhat was deployed:" -ForegroundColor White
-Write-Host "  - Intent Parser with scope detection" -ForegroundColor Gray
-Write-Host "  - Adventures route with out-of-scope handling" -ForegroundColor Gray
-Write-Host "  - New /about endpoint" -ForegroundColor Gray
-
 Write-Host "`nUseful commands:" -ForegroundColor White
 Write-Host "  aws logs tail $LOG_GROUP --follow" -ForegroundColor Gray
 

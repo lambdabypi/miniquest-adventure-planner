@@ -153,31 +153,9 @@ Write-Host "================================================" -ForegroundColor M
 
 Write-Host "`nTotal Time: $([math]::Round($duration.TotalMinutes, 1)) minutes" -ForegroundColor White
 
-Write-Host "`nWhat Was Deployed:" -ForegroundColor White
-if (-Not $FrontendOnly) {
-    Write-Host "  Backend:" -ForegroundColor Cyan
-    Write-Host "    - Intent Parser (scope detection)" -ForegroundColor Gray
-    Write-Host "    - Adventures route (out-of-scope)" -ForegroundColor Gray
-    Write-Host "    - /about endpoint" -ForegroundColor Gray
-}
-if (-Not $BackendOnly) {
-    Write-Host "  Frontend:" -ForegroundColor Cyan
-    Write-Host "    - OutOfScopeMessage component" -ForegroundColor Gray
-    Write-Host "    - AboutPage component" -ForegroundColor Gray
-    Write-Host "    - Updated AdventuresPage" -ForegroundColor Gray
-    Write-Host "    - Updated NavigationBar" -ForegroundColor Gray
-}
-
 Write-Host "`nLive URLs:" -ForegroundColor White
 Write-Host "  Frontend: https://d1nrqhtd83kmw6.cloudfront.net" -ForegroundColor Cyan
 Write-Host "  About:    https://d1nrqhtd83kmw6.cloudfront.net/about" -ForegroundColor Cyan
-
-Write-Host "`nTesting Checklist:" -ForegroundColor White
-Write-Host "  [ ] Test: Chicago for 1 week with $2000" -ForegroundColor Gray
-Write-Host "  [ ] Verify gradient card appears" -ForegroundColor Gray
-Write-Host "  [ ] Click TripAdvisor link" -ForegroundColor Gray
-Write-Host "  [ ] Visit /about page" -ForegroundColor Gray
-Write-Host "  [ ] Test: Museums in Chicago" -ForegroundColor Gray
 
 Write-Host "`nNext Steps:" -ForegroundColor White
 Write-Host "  1. Wait 2 minutes for services" -ForegroundColor Gray
