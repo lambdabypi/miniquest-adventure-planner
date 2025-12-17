@@ -1,25 +1,19 @@
-// frontend/src/api/client.ts
-/**
- * Axios client configuration with improved error handling
- */
-
+// frontend/src/api/client.ts - FIXED TOKEN EXPIRATION HANDLING
 import axios from 'axios';
 
-// ✅ In development, use relative URLs so proxy works
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export const apiClient = axios.create({
 	baseURL: API_BASE,
-	timeout: 200000, // 200 second timeout for adventure generation
+	timeout: 200000,
 	headers: {
 		'Content-Type': 'application/json',
 	},
 });
 
-// Request interceptor (for auth tokens)
+// Request interceptor
 apiClient.interceptors.request.use(
 	(config) => {
-		// Add auth token if available
 		const token = localStorage.getItem('auth_token');
 		if (token) {
 			config.headers.Authorization = `Bearer ${token}`;
@@ -31,29 +25,57 @@ apiClient.interceptors.request.use(
 	}
 );
 
-// Response interceptor (for error handling)
+// ✅ FIXED: Better token expiration handling
 apiClient.interceptors.response.use(
 	(response) => response,
 	(error) => {
 		console.error('API Error:', error.response?.data || error.message);
 
-		// ✅ Handle 401 Unauthorized
+		// ✅ Handle 401 Unauthorized (token expired/invalid)
 		if (error.response?.status === 401) {
+			const isAuthRequest = error.config?.url?.includes('/auth/');
 			const isLoginRequest = error.config?.url?.includes('/auth/login');
+			const isRegisterRequest = error.config?.url?.includes('/auth/register');
 
-			// If it's not a login request, it means the session expired
-			if (!isLoginRequest) {
-				console.log('Session expired - clearing auth');
+			// ✅ Only auto-logout if NOT a login/register attempt
+			if (!isLoginRequest && !isRegisterRequest) {
+				console.log('🔒 Session expired - logging out...');
+
+				// Clear auth state
 				localStorage.removeItem('auth_token');
 				localStorage.removeItem('user_data');
 
-				// Store message for login page to display
-				sessionStorage.setItem('session_expired', 'Your session has expired. Please log in again.');
+				// Set session expired flag for login page
+				sessionStorage.setItem('session_expired', 'true');
+				sessionStorage.setItem('session_expired_message',
+					'Your session has expired. Please log in again.');
 
-				// Redirect to login
+				// ✅ Redirect to login (not home)
 				window.location.href = '/login';
+
+				// Return rejected promise to stop further processing
+				return Promise.reject(new Error('Session expired'));
 			}
-			// If it IS a login request, let the form handle the error
+			// If it's a login/register request, let the form handle the error
+		}
+
+		// ✅ Handle 403 Forbidden (access denied)
+		if (error.response?.status === 403) {
+			console.log('🚫 Access denied');
+
+			// Clear auth state
+			localStorage.removeItem('auth_token');
+			localStorage.removeItem('user_data');
+
+			// Set access denied flag
+			sessionStorage.setItem('session_expired', 'true');
+			sessionStorage.setItem('session_expired_message',
+				'Access denied. Please log in again.');
+
+			// Redirect to login
+			window.location.href = '/login';
+
+			return Promise.reject(new Error('Access denied'));
 		}
 
 		return Promise.reject(error);

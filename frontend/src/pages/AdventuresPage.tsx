@@ -1,7 +1,7 @@
-// frontend/src/pages/AdventuresPage.tsx - WITH PROGRESS TRACKING (Using Updated Hook)
+// frontend/src/pages/AdventuresPage.tsx - COMPLETE WITH HYBRID LOCATION SYSTEM
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useAdventures } from '../hooks/useAdventures';  // ✅ Use updated hook
+import { useAdventures } from '../hooks/useAdventures';
 import { useChatHistory } from '../hooks/useChatHistory';
 import EnhancedAdventureCard from '../components/EnhancedAdventureCard';
 import ChatSidebar from '../components/ChatSidebar';
@@ -18,7 +18,7 @@ interface ChatMessage {
 type LayoutMode = 'chat-left' | 'chat-right';
 
 // ========================================
-// CHAT PANEL COMPONENT (unchanged)
+// CHAT PANEL COMPONENT - WITH HYBRID LOCATION
 // ========================================
 interface ChatPanelProps {
 	layoutMode: LayoutMode;
@@ -30,17 +30,21 @@ interface ChatPanelProps {
 	input: string;
 	location: string;
 	showLocationEdit: boolean;
+	customAddress: string;
+	isManualAddress: boolean;
 	locationInputRef: React.RefObject<HTMLInputElement>;
 	chatEndRef: React.RefObject<HTMLDivElement>;
 	user: any;
 	setInput: (value: string) => void;
-	setLocation: (value: string) => void;
 	setShowLocationEdit: (value: boolean) => void;
+	setCustomAddress: (value: string) => void;
 	handleSend: () => void;
 	handleSuggestionClick: (suggestion: string) => void;
 	handleLoadConversation: (id: string) => void;
 	handleNewChat: () => void;
 	handleDeleteConversation: (id: string) => void;
+	handleManualAddressSet: () => void;
+	handleResetToAuto: () => void;
 }
 
 const ChatPanel: React.FC<ChatPanelProps> = ({
@@ -53,17 +57,21 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 	input,
 	location,
 	showLocationEdit,
+	customAddress,
+	isManualAddress,
 	locationInputRef,
 	chatEndRef,
 	user,
 	setInput,
-	setLocation,
 	setShowLocationEdit,
+	setCustomAddress,
 	handleSend,
 	handleSuggestionClick,
 	handleLoadConversation,
 	handleNewChat,
 	handleDeleteConversation,
+	handleManualAddressSet,
+	handleResetToAuto,
 }) => (
 	<div style={{
 		background: 'white',
@@ -209,85 +217,192 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 			</div>
 		)}
 
+		{/* ✅ HYBRID LOCATION SECTION */}
 		<div style={{
 			padding: '15px',
 			borderTop: '1px solid #e2e8f0',
 			background: '#ffffff',
 			flexShrink: 0,
 		}}>
-			<div style={{ marginBottom: '10px', fontSize: '0.8rem' }}>
-				{!showLocationEdit ? (
-					<>
-						<div style={{
-							fontSize: '0.7rem',
-							color: '#64748b',
-							marginBottom: '4px',
-							fontStyle: 'italic'
-						}}>
-							💡 Used for routing between venues & finding nearby places (Only Boston and New York)
-						</div>
-						<div style={{ color: '#64748b', display: 'flex', gap: '6px', alignItems: 'center' }}>
-							<span>📍 {location}</span>
+			{!showLocationEdit ? (
+				// Display Mode
+				<div style={{ marginBottom: '10px' }}>
+					<div style={{
+						padding: '10px 12px',
+						background: isManualAddress
+							? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)'
+							: location.includes('Boston')
+								? 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)'
+								: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+						border: isManualAddress
+							? '2px solid #f59e0b'
+							: location.includes('Boston')
+								? '1px solid #93c5fd'
+								: '1px solid #fcd34d',
+						borderRadius: '8px',
+						marginBottom: '8px',
+					}}>
+						<div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+							<span style={{ fontSize: '1.2rem' }}>
+								{isManualAddress ? '📍' : location.includes('Boston') ? '🏛️' : '🗽'}
+							</span>
+							<div style={{ flex: 1 }}>
+								<div style={{
+									fontSize: '0.7rem',
+									fontWeight: '600',
+									color: isManualAddress ? '#92400e' : location.includes('Boston') ? '#1e40af' : '#92400e',
+									marginBottom: '3px',
+								}}>
+									{isManualAddress ? '📍 Manual Address' : '🤖 Smart Detection'}
+								</div>
+								<div style={{
+									fontSize: '0.85rem',
+									fontWeight: '600',
+									color: '#1e293b',
+								}}>
+									{location}
+								</div>
+							</div>
 							<button
 								onClick={() => setShowLocationEdit(true)}
 								style={{
-									background: 'none',
-									border: 'none',
-									color: '#2563eb',
+									background: 'rgba(255, 255, 255, 0.8)',
+									border: '1px solid rgba(0, 0, 0, 0.1)',
+									borderRadius: '6px',
+									padding: '6px 10px',
 									cursor: 'pointer',
 									fontSize: '0.75rem',
-									textDecoration: 'underline',
-									padding: 0,
+									fontWeight: '600',
+									color: '#475569',
+									transition: 'all 0.2s',
 								}}
-								title='Change your location for routing and local recommendations'
+								onMouseEnter={(e) => {
+									e.currentTarget.style.background = 'white';
+									e.currentTarget.style.borderColor = '#3b82f6';
+									e.currentTarget.style.color = '#3b82f6';
+								}}
+								onMouseLeave={(e) => {
+									e.currentTarget.style.background = 'rgba(255, 255, 255, 0.8)';
+									e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.1)';
+									e.currentTarget.style.color = '#475569';
+								}}
 							>
-								change
+								{isManualAddress ? '✏️ Edit' : '📍 Set Custom'}
 							</button>
 						</div>
-					</>
-				) : (
-					<>
+					</div>
+
+					<div style={{
+						fontSize: '0.7rem',
+						color: '#64748b',
+						fontStyle: 'italic',
+						padding: '0 4px',
+					}}>
+						{isManualAddress ? (
+							<>
+								Using your address for routing. <button
+									onClick={handleResetToAuto}
+									style={{
+										background: 'none',
+										border: 'none',
+										color: '#3b82f6',
+										cursor: 'pointer',
+										textDecoration: 'underline',
+										fontSize: '0.7rem',
+										padding: 0,
+									}}
+								>
+									Switch to auto-detect
+								</button>
+							</>
+						) : (
+							'💡 I\'ll detect the city from your query (or set a custom address above)'
+						)}
+					</div>
+				</div>
+			) : (
+				// Edit Mode
+				<div style={{ marginBottom: '10px' }}>
+					<div style={{
+						background: '#f0f9ff',
+						border: '1px solid #bae6fd',
+						borderRadius: '8px',
+						padding: '12px',
+						marginBottom: '8px',
+					}}>
+						<div style={{
+							fontSize: '0.8rem',
+							fontWeight: '600',
+							color: '#0369a1',
+							marginBottom: '8px',
+						}}>
+							📍 Set Custom Address
+						</div>
 						<div style={{
 							fontSize: '0.7rem',
 							color: '#64748b',
-							marginBottom: '4px',
-							fontStyle: 'italic'
+							marginBottom: '10px',
+							lineHeight: '1.4',
 						}}>
-							💡 Used for routing between venues & finding nearby places (Only Boston and New York)
+							Enter your starting address for accurate routing between venues.
+							<strong style={{ color: '#0369a1' }}> Address must be in Boston, MA or New York, NY area.</strong>
 						</div>
-						<div style={{ display: 'flex', gap: '4px' }}>
+						<div style={{ display: 'flex', gap: '6px' }}>
 							<input
 								ref={locationInputRef}
 								type="text"
-								value={location}
-								onChange={(e) => setLocation(e.target.value)}
+								value={customAddress}
+								onChange={(e) => setCustomAddress(e.target.value)}
+								onKeyPress={(e) => e.key === 'Enter' && handleManualAddressSet()}
+								placeholder="e.g., 123 Main St, Boston, MA"
 								autoFocus
 								style={{
 									flex: 1,
-									padding: '6px 10px',
-									border: '1px solid #e2e8f0',
+									padding: '8px 12px',
+									border: '2px solid #3b82f6',
 									borderRadius: '6px',
-									fontSize: '0.8rem',
+									fontSize: '0.85rem',
+									outline: 'none',
 								}}
 							/>
 							<button
-								onClick={() => setShowLocationEdit(false)}
+								onClick={handleManualAddressSet}
+								disabled={!customAddress.trim()}
 								style={{
-									padding: '6px 10px',
-									background: '#16a34a',
+									padding: '8px 14px',
+									background: customAddress.trim() ? '#16a34a' : '#cbd5e0',
 									color: 'white',
 									border: 'none',
 									borderRadius: '6px',
-									fontSize: '0.75rem',
+									fontSize: '0.8rem',
+									fontWeight: '600',
+									cursor: customAddress.trim() ? 'pointer' : 'not-allowed',
+								}}
+							>
+								✓ Set
+							</button>
+							<button
+								onClick={() => {
+									setShowLocationEdit(false);
+									setCustomAddress('');
+								}}
+								style={{
+									padding: '8px 14px',
+									background: '#ef4444',
+									color: 'white',
+									border: 'none',
+									borderRadius: '6px',
+									fontSize: '0.8rem',
+									fontWeight: '600',
 									cursor: 'pointer',
 								}}
 							>
-								✓
+								✕
 							</button>
 						</div>
-					</>
-				)}
-			</div>
+					</div>
+				</div>
+			)}
 
 			<div style={{ display: 'flex', gap: '8px' }}>
 				<input
@@ -295,7 +410,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 					value={input}
 					onChange={(e) => setInput(e.target.value)}
 					onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-					placeholder="What to explore?"
+					placeholder={
+						isManualAddress
+							? "What would you like to explore?"
+							: "e.g., 'coffee shops in Boston' or 'museums in NYC'"
+					}
 					disabled={loading}
 					style={{
 						flex: 1,
@@ -424,7 +543,6 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			</button>
 		</div>
 
-		{/* ✅ PROGRESS TRACKER - Show when loading */}
 		{loading && (
 			<ProgressTracker
 				currentProgress={currentProgress}
@@ -433,7 +551,6 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			/>
 		)}
 
-		{/* Unrelated Query Message */}
 		{unrelatedQuery === true && !loading && (
 			<div style={{
 				background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
@@ -496,7 +613,6 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			</div>
 		)}
 
-		{/* Out-of-Scope Message */}
 		{outOfScope === true && !unrelatedQuery && !loading && (
 			<OutOfScopeMessage
 				scopeIssue={scopeIssue || 'multi_day_trip'}
@@ -508,7 +624,6 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			/>
 		)}
 
-		{/* Clarification Needed */}
 		{clarificationNeeded === true && !outOfScope && !unrelatedQuery && !loading && (
 			<div style={{
 				background: '#fffbeb',
@@ -557,7 +672,6 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			</div>
 		)}
 
-		{/* Adventures Display */}
 		{adventures.length > 0 && !outOfScope && !unrelatedQuery && (
 			<>
 				<div style={{
@@ -589,7 +703,6 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			</>
 		)}
 
-		{/* Empty State */}
 		{!loading && adventures.length === 0 && !outOfScope && !clarificationNeeded && !unrelatedQuery && (
 			<div style={{
 				textAlign: 'center',
@@ -609,14 +722,20 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 );
 
 // ========================================
-// MAIN ADVENTURES PAGE COMPONENT
+// MAIN ADVENTURES PAGE COMPONENT - WITH HYBRID LOCATION
 // ========================================
 const AdventuresPage: React.FC = () => {
 	const { user } = useAuth();
 	const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 	const [input, setInput] = useState('');
+
+	// ✅ Hybrid Location System
 	const [location, setLocation] = useState('Boston, MA');
+	const [detectedCity, setDetectedCity] = useState<'boston' | 'new-york'>('boston');
 	const [showLocationEdit, setShowLocationEdit] = useState(false);
+	const [customAddress, setCustomAddress] = useState('');
+	const [isManualAddress, setIsManualAddress] = useState(false);
+
 	const [activeSuggestions, setActiveSuggestions] = useState<string[]>([]);
 	const [queryId, setQueryId] = useState<string | null>(null);
 	const [showSaveNotification, setShowSaveNotification] = useState(false);
@@ -632,7 +751,6 @@ const AdventuresPage: React.FC = () => {
 		return (saved as LayoutMode) || 'chat-left';
 	});
 
-	// ✅ Use updated hook with progress tracking
 	const {
 		adventures,
 		loading,
@@ -645,8 +763,8 @@ const AdventuresPage: React.FC = () => {
 		recommendedServices,
 		unrelatedQuery,
 		metadata,
-		progressUpdates,  // ✅ Now available
-		currentProgress,  // ✅ Now available
+		progressUpdates,
+		currentProgress,
 		researchStats,
 		generateAdventures,
 		generateAdventuresWithStreaming,
@@ -662,6 +780,125 @@ const AdventuresPage: React.FC = () => {
 		deleteConversation,
 		setCurrentConversationId,
 	} = useChatHistory();
+
+	// ✅ City detection function
+	const detectCityFromQuery = (query: string): 'boston' | 'new-york' => {
+		const lowerQuery = query.toLowerCase();
+
+		const nyPatterns = [
+			'new york', 'ny', 'nyc', 'manhattan', 'brooklyn', 'queens',
+			'bronx', 'staten island', 'harlem', 'chelsea', 'soho',
+			'tribeca', 'greenwich village', 'east village', 'upper east',
+			'upper west', 'midtown', 'downtown manhattan', 'financial district'
+		];
+
+		const bostonPatterns = [
+			'boston', 'cambridge', 'back bay', 'beacon hill', 'north end',
+			'south end', 'fenway', 'seaport', 'charlestown', 'allston',
+			'brighton', 'jamaica plain', 'roxbury', 'dorchester'
+		];
+
+		const hasNY = nyPatterns.some(pattern => lowerQuery.includes(pattern));
+		const hasBoston = bostonPatterns.some(pattern => lowerQuery.includes(pattern));
+
+		if (hasNY && !hasBoston) return 'new-york';
+		if (hasBoston && !hasNY) return 'boston';
+
+		return detectedCity;
+	};
+
+	// ✅ Update location (respects manual override)
+	const updateLocationForCity = (city: 'boston' | 'new-york') => {
+		if (isManualAddress) return;
+
+		setDetectedCity(city);
+		setLocation(city === 'boston' ? 'Boston, MA' : 'New York, NY');
+	};
+
+	// ✅ Validate address is in Boston or NYC
+	const validateAddress = (address: string): { valid: boolean; city?: 'boston' | 'new-york'; error?: string } => {
+		const lowerAddr = address.toLowerCase().trim();
+
+		// Check for Boston patterns
+		const bostonPatterns = [
+			'boston, ma', 'boston ma', 'boston,ma',
+			'boston, massachusetts', 'boston massachusetts',
+			'boston, usa', 'cambridge, ma', 'cambridge ma'
+		];
+
+		// Check for NYC patterns
+		const nycPatterns = [
+			'new york, ny', 'new york ny', 'new york,ny',
+			'new york, new york', 'nyc', 'ny, ny',
+			'new york, usa', 'brooklyn, ny', 'brooklyn ny',
+			'manhattan, ny', 'manhattan ny', 'queens, ny'
+		];
+
+		const hasBoston = bostonPatterns.some(pattern => lowerAddr.includes(pattern));
+		const hasNYC = nycPatterns.some(pattern => lowerAddr.includes(pattern));
+
+		if (hasBoston) {
+			return { valid: true, city: 'boston' };
+		} else if (hasNYC) {
+			return { valid: true, city: 'new-york' };
+		} else {
+			return {
+				valid: false,
+				error: 'Address must be in Boston, MA or New York, NY area'
+			};
+		}
+	};
+
+	// ✅ Manual address handler with validation
+	const handleManualAddressSet = () => {
+		if (!customAddress.trim()) return;
+
+		// Validate address
+		const validation = validateAddress(customAddress);
+
+		if (!validation.valid) {
+			// Show error message
+			setChatMessages(prev => [...prev, {
+				id: Date.now().toString(),
+				type: 'assistant',
+				content: `❌ ${validation.error}
+
+Please enter an address in:
+• Boston, MA (e.g., "123 Beacon St, Boston, MA")
+• New York, NY (e.g., "456 5th Ave, New York, NY")`,
+				timestamp: new Date()
+			}]);
+			return;
+		}
+
+		// Set location and update city
+		setLocation(customAddress);
+		setDetectedCity(validation.city!);
+		setIsManualAddress(true);
+		setShowLocationEdit(false);
+
+		const cityName = validation.city === 'boston' ? 'Boston' : 'New York';
+		setChatMessages(prev => [...prev, {
+			id: Date.now().toString(),
+			type: 'assistant',
+			content: `✅ Using your custom address in ${cityName}: "${customAddress}" for routing between venues.`,
+			timestamp: new Date()
+		}]);
+	};
+
+	// ✅ Reset to auto mode
+	const handleResetToAuto = () => {
+		setIsManualAddress(false);
+		setCustomAddress('');
+		setLocation(detectedCity === 'boston' ? 'Boston, MA' : 'New York, NY');
+
+		setChatMessages(prev => [...prev, {
+			id: Date.now().toString(),
+			type: 'assistant',
+			content: `🤖 Switched back to smart city detection. I'll automatically detect the city from your queries.`,
+			timestamp: new Date()
+		}]);
+	};
 
 	useEffect(() => {
 		localStorage.setItem('miniquest_layout_mode', layoutMode);
@@ -689,7 +926,6 @@ const AdventuresPage: React.FC = () => {
 		}
 	}, [chatMessages, location, queryId, autoSaveConversation, isGenerating]);
 
-	// Handle unrelated queries
 	useEffect(() => {
 		if (unrelatedQuery === true && !loading && isGenerating) {
 			const genId = `unrelated_${Date.now()}`;
@@ -707,7 +943,6 @@ const AdventuresPage: React.FC = () => {
 		}
 	}, [unrelatedQuery, loading, clarificationMessage, suggestions, isGenerating]);
 
-	// Handle out-of-scope
 	useEffect(() => {
 		if (outOfScope === true && !unrelatedQuery && !loading && isGenerating) {
 			const genId = `outofscope_${Date.now()}`;
@@ -725,7 +960,6 @@ const AdventuresPage: React.FC = () => {
 		}
 	}, [outOfScope, unrelatedQuery, loading, clarificationMessage, suggestions, isGenerating]);
 
-	// Handle clarification needed
 	useEffect(() => {
 		if (clarificationNeeded === true && !outOfScope && !unrelatedQuery && !loading && isGenerating) {
 			const genId = Date.now().toString();
@@ -743,7 +977,6 @@ const AdventuresPage: React.FC = () => {
 		}
 	}, [clarificationNeeded, outOfScope, unrelatedQuery, loading, clarificationMessage, suggestions, isGenerating]);
 
-	// Handle successful adventures
 	useEffect(() => {
 		if (adventures.length > 0 && !loading && isGenerating) {
 			const genId = `success_${adventures.length}_${Date.now()}`;
@@ -790,7 +1023,20 @@ const AdventuresPage: React.FC = () => {
 		setChatMessages([{
 			id: `welcome_${Date.now()}`,
 			type: 'assistant',
-			content: `Hi ${user?.username}! Tell me what you'd like to explore in Boston or New York, and I'll create personalized adventures with live research from 7 AI agents.`,
+			content: `Hi ${user?.username}! 👋
+
+I help you discover amazing places in Boston and New York City!
+
+🤖 Smart Mode: Just mention the city in your query
+• "Coffee shops in Boston"
+• "Museums in Manhattan"
+• I'll automatically detect and search the right city!
+
+📍 Manual Mode: Need a specific address for routing?
+• Click the location badge below to set a custom address
+• Perfect for starting from your hotel, home, or office
+
+Let's explore! 🗺️✨`,
 			timestamp: new Date()
 		}]);
 
@@ -805,8 +1051,14 @@ const AdventuresPage: React.FC = () => {
 		}
 	};
 
+	// ✅ handleSend with hybrid logic
 	const handleSend = () => {
 		if (!input.trim() || loading) return;
+
+		if (!isManualAddress) {
+			const city = detectCityFromQuery(input);
+			updateLocationForCity(city);
+		}
 
 		const userMessage: ChatMessage = {
 			id: Date.now().toString(),
@@ -819,12 +1071,17 @@ const AdventuresPage: React.FC = () => {
 		setActiveSuggestions([]);
 		setIsGenerating(true);
 
-		// ✅ USE SSE STREAMING instead of regular generation
 		generateAdventuresWithStreaming(input, location);
 		setInput('');
 	};
 
+	// ✅ handleSuggestionClick with hybrid logic
 	const handleSuggestionClick = (suggestion: string) => {
+		if (!isManualAddress) {
+			const city = detectCityFromQuery(suggestion);
+			updateLocationForCity(city);
+		}
+
 		const userMessage: ChatMessage = {
 			id: Date.now().toString(),
 			type: 'user',
@@ -836,7 +1093,6 @@ const AdventuresPage: React.FC = () => {
 		setActiveSuggestions([]);
 		setIsGenerating(true);
 
-		// ✅ USE SSE STREAMING instead of regular generation
 		generateAdventuresWithStreaming(suggestion, location);
 	};
 
@@ -858,12 +1114,26 @@ const AdventuresPage: React.FC = () => {
 		}, 5000);
 	};
 
+	// ✅ Updated welcome message
 	useEffect(() => {
 		if (chatMessages.length === 0) {
 			setChatMessages([{
 				id: `initial_${Date.now()}`,
 				type: 'assistant',
-				content: `Hi ${user?.username}! Tell me what you'd like to explore in Boston or New York, and I'll create personalized adventures with live research from 7 AI agents.`,
+				content: `Hi ${user?.username}! 👋
+
+I help you discover amazing places in Boston and New York City!
+
+🤖 Smart Mode: Just mention the city in your query
+• "Coffee shops in Boston"
+• "Museums in Manhattan"
+• I'll automatically detect and search the right city!
+
+📍 Manual Mode: Need a specific address for routing?
+• Click the location badge below to set a custom address
+• Perfect for starting from your hotel, home, or office
+
+Let's explore! 🗺️✨`,
 				timestamp: new Date()
 			}]);
 		}
@@ -934,17 +1204,21 @@ const AdventuresPage: React.FC = () => {
 						input={input}
 						location={location}
 						showLocationEdit={showLocationEdit}
+						customAddress={customAddress}
+						isManualAddress={isManualAddress}
 						locationInputRef={locationInputRef}
 						chatEndRef={chatEndRef}
 						user={user}
 						setInput={setInput}
-						setLocation={setLocation}
 						setShowLocationEdit={setShowLocationEdit}
+						setCustomAddress={setCustomAddress}
 						handleSend={handleSend}
 						handleSuggestionClick={handleSuggestionClick}
 						handleLoadConversation={handleLoadConversation}
 						handleNewChat={handleNewChat}
 						handleDeleteConversation={handleDeleteConversation}
+						handleManualAddressSet={handleManualAddressSet}
+						handleResetToAuto={handleResetToAuto}
 					/>
 					<AdventuresPanel
 						user={user}
@@ -999,17 +1273,21 @@ const AdventuresPage: React.FC = () => {
 						input={input}
 						location={location}
 						showLocationEdit={showLocationEdit}
+						customAddress={customAddress}
+						isManualAddress={isManualAddress}
 						locationInputRef={locationInputRef}
 						chatEndRef={chatEndRef}
 						user={user}
 						setInput={setInput}
-						setLocation={setLocation}
 						setShowLocationEdit={setShowLocationEdit}
+						setCustomAddress={setCustomAddress}
 						handleSend={handleSend}
 						handleSuggestionClick={handleSuggestionClick}
 						handleLoadConversation={handleLoadConversation}
 						handleNewChat={handleNewChat}
 						handleDeleteConversation={handleDeleteConversation}
+						handleManualAddressSet={handleManualAddressSet}
+						handleResetToAuto={handleResetToAuto}
 					/>
 				</>
 			)}

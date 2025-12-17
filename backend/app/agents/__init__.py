@@ -29,7 +29,6 @@ from .scouting import VenueScoutAgent
 
 # Legacy agents (for backward compatibility - can be removed later)
 from .google_maps_enhancer import GoogleMapsEnhancer
-from .venue_matching_agent import VenueMatchingAgent
 
 __all__ = [
     # Base
@@ -52,5 +51,4 @@ __all__ = [
     
     # Legacy (backward compatibility)
     'GoogleMapsEnhancer',
-    'VenueMatchingAgent'
 ]

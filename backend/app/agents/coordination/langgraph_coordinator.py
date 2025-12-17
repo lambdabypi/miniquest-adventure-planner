@@ -1,15 +1,17 @@
 # backend/app/agents/coordination/langgraph_coordinator.py
-"""LangGraph coordinator - WITH REAL-TIME PROGRESS TRACKING"""
+"""LangGraph coordinator - WITH GOOGLE MAPS ROUTE OPTIMIZATION"""
 
 from langgraph.graph import StateGraph, END
 from openai import AsyncOpenAI
 import logging
 from datetime import datetime
-from typing import Optional, Tuple, List, Dict, AsyncGenerator, Callable
+from typing import Optional, Tuple, List, Dict, Callable
 import os
 import time
 import re
 import asyncio
+import googlemaps
+import urllib.parse
 
 from .workflow_state import AdventureState
 from ..location import LocationParserAgent
@@ -18,17 +20,18 @@ from ..scouting import VenueScoutAgent
 from ..research import TavilyResearchAgent, ResearchSummaryAgent
 from ..routing import EnhancedRoutingAgent
 from ..creation import AdventureCreatorAgent
+from ...core.config import settings
 
 logger = logging.getLogger(__name__)
 
 class LangGraphCoordinator:
     """
-    OPTIMIZED LangGraph coordinator WITH PROGRESS STREAMING
+    OPTIMIZED LangGraph coordinator WITH GOOGLE MAPS ROUTE OPTIMIZATION
     - Parallel venue research (60-75% faster)
     - Research result caching (90%+ faster on hits)
     - Async adventure creation (20-30% faster)
     - RAG personalization
-    - Complete route generation
+    - ✅ Google Maps route optimization (optimal waypoint ordering)
     - ✅ Real-time progress tracking
     """
     
@@ -40,8 +43,16 @@ class LangGraphCoordinator:
         self.rag_system = rag_system
         self.enable_cache = enable_cache
         
-        # ✅ NEW: Progress callback for streaming
+        # Progress callback for streaming
         self.progress_callback = None
+        
+        # ✅ Initialize Google Maps for route optimization
+        if settings.GOOGLE_MAPS_KEY:
+            self.gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_KEY)
+            self.route_optimization_enabled = True
+        else:
+            self.gmaps = None
+            self.route_optimization_enabled = False
         
         self._validate_api_keys()
         self._initialize_agents()
@@ -50,11 +61,11 @@ class LangGraphCoordinator:
         # Performance tracking
         self.timing_data = {}
         
-        self.logger.info("✅ OPTIMIZED LangGraph Coordinator with Progress Tracking initialized")
+        self.logger.info("✅ OPTIMIZED LangGraph Coordinator with Google Maps Optimization initialized")
         self.logger.info("   - Parallel research: ENABLED")
         self.logger.info(f"   - Research caching: {'ENABLED' if enable_cache else 'DISABLED'}")
         self.logger.info("   - Async adventure creation: ENABLED")
-        self.logger.info("   - Complete routing: ENABLED")
+        self.logger.info(f"   - Google Maps route optimization: {'ENABLED' if self.route_optimization_enabled else 'DISABLED'}")
         self.logger.info("   - Real-time progress: ENABLED")
         if rag_system:
             self.logger.info("   - RAG personalization: ENABLED")
@@ -73,13 +84,12 @@ class LangGraphCoordinator:
         self.tavily_key = tavily_key
     
     def _initialize_agents(self):
-        """Initialize all workflow agents - OPTIMIZED"""
+        """Initialize all workflow agents"""
         
         self.location_parser = LocationParserAgent()
         self.intent_parser = IntentParserAgent()
         self.venue_scout = VenueScoutAgent()
         
-        # ✅ OPTIMIZED: Parallel + Cached research agent
         self.research_agent = TavilyResearchAgent(
             tavily_api_key=self.tavily_key,
             use_cache=self.enable_cache
@@ -146,28 +156,311 @@ class LangGraphCoordinator:
     # ========================================
     
     def _emit_progress(self, update: Dict):
-        """
-        ✅ Emit progress update to callback
-        
-        Update format:
-        {
-            "step": "scout_venues",
-            "agent": "VenueScout",
-            "status": "in_progress" | "complete" | "error",
-            "message": "Finding 8 venues in Boston...",
-            "progress": 0.43,  # 0.0 to 1.0
-            "details": {...}   # Optional extra data
-        }
-        """
+        """Emit progress update to callback"""
         if self.progress_callback:
             try:
-                # Run callback (handle both sync and async)
                 if asyncio.iscoroutinefunction(self.progress_callback):
                     asyncio.create_task(self.progress_callback(update))
                 else:
                     self.progress_callback(update)
             except Exception as e:
                 self.logger.error(f"Progress callback error: {e}")
+    
+    # ========================================
+    # GOOGLE MAPS ROUTE OPTIMIZATION
+    # ========================================
+    
+    async def _get_optimized_route_from_google(
+        self, 
+        origin: str,
+        locations: List[Dict],
+        mode: str = "walking"
+    ) -> Tuple[Optional[str], Optional[List[Dict]], Optional[Dict]]:
+        """
+        ✅ Use Google Maps Directions API to optimize waypoint order
+        
+        Returns: (optimized_url, optimized_locations, route_details)
+        """
+        if not self.route_optimization_enabled or not locations:
+            return None, locations, None
+        
+        try:
+            logger.info(f"🗺️ Using Google Maps to optimize {len(locations)} waypoints")
+            
+            # Extract addresses
+            location_addresses = [loc.get('address') for loc in locations if loc.get('address')]
+            
+            if not location_addresses:
+                logger.warning("No valid addresses for Google optimization")
+                return None, locations, None
+            
+            # Prepare for Google Directions API
+            destination = location_addresses[-1]
+            waypoints = location_addresses[:-1] if len(location_addresses) > 1 else []
+            
+            logger.info(f"   Origin: {origin}")
+            logger.info(f"   Waypoints: {len(waypoints)}")
+            logger.info(f"   Destination: {destination}")
+            
+            # ✅ Call Google Maps Directions with optimize_waypoints=True
+            result = self.gmaps.directions(
+                origin=origin,
+                destination=destination,
+                waypoints=waypoints,
+                optimize_waypoints=True,  # ✅ Google optimizes the order!
+                mode=mode,
+                units="metric"
+            )
+            
+            if not result or not result[0]:
+                logger.warning("Google Maps returned no results")
+                return None, locations, None
+            
+            # Extract optimized waypoint order
+            optimized_order = result[0].get("waypoint_order", [])
+            
+            logger.info(f"   ✅ Google optimized order: {optimized_order}")
+            
+            # Reorder locations based on Google's optimization
+            optimized_locations = []
+            
+            # Add waypoints in optimized order
+            for idx in optimized_order:
+                if idx < len(locations) - 1:
+                    optimized_locations.append(locations[idx])
+            
+            # Add destination last
+            optimized_locations.append(locations[-1])
+            
+            # Extract route details
+            route_details = {
+                "total_distance_km": sum(
+                    leg.get("distance", {}).get("value", 0) 
+                    for leg in result[0].get("legs", [])
+                ) / 1000,
+                "total_duration_min": sum(
+                    leg.get("duration", {}).get("value", 0) 
+                    for leg in result[0].get("legs", [])
+                ) / 60,
+                "optimization_savings": self._calculate_optimization_savings(
+                    optimized_order
+                )
+            }
+            
+            # Build optimized route URL
+            optimized_url = self._build_google_maps_url_from_directions(
+                origin, optimized_locations, mode
+            )
+            
+            logger.info(f"   🎯 Optimized route:")
+            logger.info(f"      Distance: {route_details['total_distance_km']:.1f} km")
+            logger.info(f"      Duration: {route_details['total_duration_min']:.0f} min")
+            logger.info(f"      Order: {' → '.join([l.get('name', 'Unknown') for l in optimized_locations])}")
+            
+            return optimized_url, optimized_locations, route_details
+            
+        except Exception as e:
+            logger.error(f"Google Maps optimization failed: {e}")
+            return None, locations, None
+    
+    def _calculate_optimization_savings(self, optimized_order: List[int]) -> str:
+        """Calculate how much reordering was done"""
+        try:
+            if optimized_order == list(range(len(optimized_order))):
+                return "No reordering needed (already optimal)"
+            
+            reordered_count = sum(1 for i, idx in enumerate(optimized_order) if i != idx)
+            return f"Reordered {reordered_count} waypoints for efficiency"
+        except:
+            return "Optimized"
+    
+    def _build_google_maps_url_from_directions(self, origin: str, locations: List[Dict], mode: str) -> str:
+        """Build Google Maps URL from optimized locations"""
+        if not locations:
+            return None
+        
+        destination = locations[-1].get('address')
+        waypoints = [loc.get('address') for loc in locations[:-1]]
+        
+        encoded_origin = urllib.parse.quote(origin)
+        encoded_dest = urllib.parse.quote(destination)
+        
+        if waypoints:
+            encoded_waypoints = [urllib.parse.quote(wp) for wp in waypoints if wp]
+            waypoints_param = "&waypoints=" + "|".join(encoded_waypoints)
+        else:
+            waypoints_param = ""
+        
+        return (f"https://www.google.com/maps/dir/?api=1"
+                f"&origin={encoded_origin}"
+                f"&destination={encoded_dest}"
+                f"{waypoints_param}"
+                f"&travelmode={mode}")
+    
+    def _reorder_steps_by_locations(self, steps: List[Dict], optimized_locations: List[Dict]) -> List[Dict]:
+        """Reorder adventure steps to match optimized location order"""
+        if not steps or not optimized_locations:
+            return steps
+        
+        # Create mapping of venue names to steps
+        step_map = {}
+        for step in steps:
+            activity = step.get("activity", "").lower()
+            for loc in optimized_locations:
+                loc_name = loc.get("name", "").lower()
+                if loc_name in activity:
+                    step_map[loc.get("name")] = step
+                    break
+        
+        # Rebuild steps in optimized order
+        reordered = []
+        base_hour = 9  # Start at 9 AM
+        
+        for i, loc in enumerate(optimized_locations):
+            step = step_map.get(loc.get("name"))
+            if step:
+                # Update time progressively (2 hours per stop)
+                hour = base_hour + (i * 2)
+                am_pm = 'PM' if hour >= 12 else 'AM'
+                display_hour = hour % 12 if hour % 12 != 0 else 12
+                step["time"] = f"{display_hour}:00 {am_pm}"
+                reordered.append(step)
+        
+        return reordered if reordered else steps
+    
+    # ========================================
+    # MAIN ROUTING METHOD (GOOGLE OPTIMIZED)
+    # ========================================
+    
+    async def _add_individual_routing_to_adventures(
+        self, 
+        adventures: list, 
+        all_enhanced_locations: list,
+        user_address: Optional[str],
+        target_location: str
+    ) -> list:
+        """✅ Generate GOOGLE-OPTIMIZED routes for each adventure"""
+        
+        logger.info(f"🗺️ Generating GOOGLE-OPTIMIZED routes for {len(adventures)} adventures")
+        
+        for idx, adventure in enumerate(adventures):
+            try:
+                self._emit_progress({
+                    "step": "create_adventures",
+                    "agent": "RoutingAgent",
+                    "status": "in_progress",
+                    "message": f"Optimizing route for '{adventure.get('title')}' ({idx+1}/{len(adventures)})",
+                    "progress": 0.92 + (0.08 * (idx / len(adventures))),
+                    "details": {"adventure": adventure.get("title"), "route_number": idx + 1}
+                })
+                
+                # Get venue names
+                venues_from_array = adventure.get("venues_used", [])
+                venues_from_steps = self._extract_venues_from_steps(adventure.get("steps", []))
+                
+                # Deduplicate
+                seen = set()
+                all_venue_names = []
+                for venue in venues_from_array + venues_from_steps:
+                    venue_lower = venue.lower().strip()
+                    if venue_lower not in seen:
+                        seen.add(venue_lower)
+                        all_venue_names.append(venue)
+                
+                logger.info(f"📍 '{adventure.get('title')}': {len(all_venue_names)} total stops")
+                
+                if not all_venue_names:
+                    logger.warning(f"   ⚠️ No venues found for routing")
+                    continue
+                
+                # Match venues to locations
+                adventure_locations = self._match_venues_to_locations(
+                    all_venue_names, all_enhanced_locations
+                )
+                
+                logger.info(f"   ✅ Matched {len(adventure_locations)}/{len(all_venue_names)} venues")
+                
+                if adventure_locations and len(adventure_locations) > 1:
+                    # ✅ USE GOOGLE MAPS OPTIMIZATION
+                    origin = user_address or target_location
+                    
+                    optimized_url, optimized_locations, route_details = await self._get_optimized_route_from_google(
+                        origin=origin,
+                        locations=adventure_locations,
+                        mode="walking"
+                    )
+                    
+                    if optimized_url and optimized_locations:
+                        # Use Google-optimized route
+                        adventure["map_url"] = optimized_url
+                        adventure["routing_info"] = {
+                            "routing_available": True,
+                            "optimized": True,
+                            "optimization_method": "google_maps_directions_api",
+                            "recommended_mode": "walking",
+                            "total_stops": len(optimized_locations),
+                            "matched_stops": len(optimized_locations),
+                            "requested_stops": len(all_venue_names),
+                            "route_details": route_details
+                        }
+                        
+                        # ✅ Reorder steps to match Google's optimized route
+                        adventure["steps"] = self._reorder_steps_by_locations(
+                            adventure.get("steps", []),
+                            optimized_locations
+                        )
+                        
+                        logger.info(f"   🎯 Google-optimized: {route_details.get('optimization_savings')}")
+                        logger.info(f"   📏 Distance: {route_details.get('total_distance_km', 0):.1f} km")
+                        logger.info(f"   ⏱️ Duration: {route_details.get('total_duration_min', 0):.0f} min")
+                    else:
+                        # Fallback to regular routing
+                        logger.warning(f"   ⚠️ Google optimization failed, using fallback")
+                        city_name = self._extract_city_name(target_location)
+                        
+                        routing_result = await self.routing_agent.generate_intelligent_route(
+                            locations=adventure_locations,
+                            user_address=user_address,
+                            target_location=city_name,
+                            user_preferences={}
+                        )
+                        
+                        if routing_result.get("primary_route_url"):
+                            adventure["map_url"] = routing_result["primary_route_url"]
+                            adventure["routing_info"] = {
+                                "routing_available": True,
+                                "optimized": False,
+                                "optimization_method": "basic_fallback",
+                                "recommended_mode": routing_result.get("recommended_travel_mode", "walking"),
+                                "total_stops": len(adventure_locations)
+                            }
+                
+                elif adventure_locations:
+                    # Single location - no optimization needed
+                    city_name = self._extract_city_name(target_location)
+                    
+                    routing_result = await self.routing_agent.generate_intelligent_route(
+                        locations=adventure_locations,
+                        user_address=user_address,
+                        target_location=city_name,
+                        user_preferences={}
+                    )
+                    
+                    if routing_result.get("primary_route_url"):
+                        adventure["map_url"] = routing_result["primary_route_url"]
+                        adventure["routing_info"] = {
+                            "routing_available": True,
+                            "optimized": False,
+                            "optimization_method": "single_destination",
+                            "total_stops": 1
+                        }
+                else:
+                    logger.warning(f"   ⚠️ Could not match any venues to locations")
+                    
+            except Exception as e:
+                logger.error(f"Routing error for '{adventure.get('title')}': {e}")
+        
+        return adventures
     
     # ========================================
     # MAIN ENTRY POINTS
@@ -224,23 +517,10 @@ class LangGraphCoordinator:
         user_id: Optional[str] = None,
         progress_callback: Optional[Callable] = None
     ) -> Tuple[List[Dict], Dict]:
-        """
-        ✅ NEW: Generate adventures with real-time progress streaming
-        
-        progress_callback will be called with updates like:
-        {
-            "step": "scout_venues",
-            "agent": "VenueScout",
-            "status": "in_progress",
-            "message": "Finding venues...",
-            "progress": 0.43,
-            "details": {...}
-        }
-        """
+        """Generate adventures with real-time progress streaming"""
         
         self.progress_callback = progress_callback
         
-        # Initial progress
         self._emit_progress({
             "step": "initialize",
             "agent": "Coordinator",
@@ -261,7 +541,6 @@ class LangGraphCoordinator:
         try:
             final_state = await self.workflow.ainvoke(initial_state)
             
-            # Handle errors
             error = final_state.get("error")
             if isinstance(error, dict) and error.get("type") == "clarification_needed":
                 self._emit_progress({
@@ -289,7 +568,6 @@ class LangGraphCoordinator:
             total_time = time.time() - start_time
             metadata = self._build_completion_metadata(final_state, total_time)
             
-            # Final completion
             self._emit_progress({
                 "step": "complete",
                 "agent": "Coordinator",
@@ -359,7 +637,6 @@ class LangGraphCoordinator:
             "target_location": final_state.get("target_location")
         })
         
-        # Performance metrics
         performance = {
             "total_time_seconds": total_time,
             "timing_breakdown": self.timing_data,
@@ -367,12 +644,11 @@ class LangGraphCoordinator:
                 "parallel_research": True,
                 "research_caching": self.enable_cache,
                 "async_adventure_creation": True,
-                "complete_routing": True,
+                "google_route_optimization": self.route_optimization_enabled,
                 "progress_tracking": True
             }
         }
         
-        # Add cache stats if available
         if hasattr(self.research_agent, 'get_cache_stats'):
             cache_stats = self.research_agent.get_cache_stats()
             performance["cache_stats"] = cache_stats
@@ -387,7 +663,6 @@ class LangGraphCoordinator:
         
         metadata["performance"] = performance
         
-        # Personalization info
         if final_state.get("user_personalization"):
             metadata["personalization_applied"] = True
             metadata["user_history"] = {
@@ -400,10 +675,6 @@ class LangGraphCoordinator:
     # ========================================
     # HELPER METHODS
     # ========================================
-    
-    def _update_progress(self, step: float, agent: str, message: str):
-        """Log progress"""
-        self.logger.info(f"📊 Progress: [{step}/7] {agent}: {message}")
     
     def _track_timing(self, operation: str, elapsed: float):
         """Track operation timing"""
@@ -492,80 +763,6 @@ class LangGraphCoordinator:
         
         return venues
     
-    async def _add_individual_routing_to_adventures(
-        self, 
-        adventures: list, 
-        all_enhanced_locations: list,
-        user_address: Optional[str],
-        target_location: str
-    ) -> list:
-        """Generate routes including ALL stops from itinerary"""
-        
-        logger.info(f"🗺️ Generating COMPLETE routes for {len(adventures)} adventures")
-        
-        for idx, adventure in enumerate(adventures):
-            try:
-                # Emit progress for each adventure route
-                self._emit_progress({
-                    "step": "create_adventures",
-                    "agent": "RoutingAgent",
-                    "status": "in_progress",
-                    "message": f"Generating route for '{adventure.get('title')}' ({idx+1}/{len(adventures)})",
-                    "progress": 0.92 + (0.08 * (idx / len(adventures))),
-                    "details": {"adventure": adventure.get("title"), "route_number": idx + 1}
-                })
-                
-                venues_from_array = adventure.get("venues_used", [])
-                venues_from_steps = self._extract_venues_from_steps(adventure.get("steps", []))
-                
-                seen = set()
-                all_venue_names = []
-                for venue in venues_from_array + venues_from_steps:
-                    venue_lower = venue.lower().strip()
-                    if venue_lower not in seen:
-                        seen.add(venue_lower)
-                        all_venue_names.append(venue)
-                
-                logger.info(f"📍 '{adventure.get('title')}': {len(all_venue_names)} total stops")
-                
-                if not all_venue_names:
-                    logger.warning(f"   ⚠️ No venues found for routing")
-                    continue
-                
-                adventure_locations = self._match_venues_to_locations(
-                    all_venue_names, all_enhanced_locations
-                )
-                
-                logger.info(f"   ✅ Matched {len(adventure_locations)}/{len(all_venue_names)} venues to locations")
-                
-                if adventure_locations:
-                    city_name = self._extract_city_name(target_location)
-                    
-                    routing_result = await self.routing_agent.generate_intelligent_route(
-                        locations=adventure_locations,
-                        user_address=user_address,
-                        target_location=city_name,
-                        user_preferences={}
-                    )
-                    
-                    if routing_result.get("primary_route_url"):
-                        adventure["map_url"] = routing_result["primary_route_url"]
-                        adventure["routing_info"] = {
-                            "routing_available": True,
-                            "recommended_mode": routing_result.get("recommended_travel_mode", "walking"),
-                            "total_stops": len(adventure_locations),
-                            "matched_stops": len(adventure_locations),
-                            "requested_stops": len(all_venue_names)
-                        }
-                        logger.info(f"   🗺️ Route created with {len(adventure_locations)} stops")
-                else:
-                    logger.warning(f"   ⚠️ Could not match any venues to locations")
-                    
-            except Exception as e:
-                logger.error(f"Routing error for '{adventure.get('title')}': {e}")
-        
-        return adventures
-    
     def _match_venues_to_locations(self, venues_used: List[str], locations: list) -> list:
         """Match venue names to locations with fuzzy matching"""
         matched = []
@@ -620,11 +817,11 @@ class LangGraphCoordinator:
         return matched
     
     # ========================================
-    # WORKFLOW NODE IMPLEMENTATIONS WITH PROGRESS
+    # WORKFLOW NODES
     # ========================================
     
     async def _parse_location_node(self, state: AdventureState) -> AdventureState:
-        """Node 1/7 - WITH PROGRESS"""
+        """Node 1/7"""
         start_time = time.time()
         
         self._emit_progress({
@@ -663,7 +860,7 @@ class LangGraphCoordinator:
         return state
     
     async def _get_personalization_node(self, state: AdventureState) -> AdventureState:
-        """Node 1.5/7 - WITH PROGRESS"""
+        """Node 1.5/7"""
         start_time = time.time()
         
         self._emit_progress({
@@ -725,7 +922,7 @@ class LangGraphCoordinator:
         return state
     
     async def _parse_intent_node(self, state: AdventureState) -> AdventureState:
-        """Node 2/7 - WITH PROGRESS"""
+        """Node 2/7"""
         start_time = time.time()
         
         self._emit_progress({
@@ -801,7 +998,7 @@ class LangGraphCoordinator:
         return state
     
     async def _scout_venues_node(self, state: AdventureState) -> AdventureState:
-        """Node 3/7 - WITH PROGRESS"""
+        """Node 3/7"""
         start_time = time.time()
         
         self._emit_progress({
@@ -845,7 +1042,7 @@ class LangGraphCoordinator:
         return state
     
     async def _research_venues_node(self, state: AdventureState) -> AdventureState:
-        """Node 4/7 - WITH DETAILED PROGRESS"""
+        """Node 4/7"""
         start_time = time.time()
         
         venues = state.get("scouted_venues", [])
@@ -894,7 +1091,7 @@ class LangGraphCoordinator:
         return state
     
     async def _summarize_research_node(self, state: AdventureState) -> AdventureState:
-        """Node 5/7 - WITH PROGRESS"""
+        """Node 5/7"""
         start_time = time.time()
         
         self._emit_progress({
@@ -933,7 +1130,7 @@ class LangGraphCoordinator:
         return state
     
     async def _enhance_routing_node(self, state: AdventureState) -> AdventureState:
-        """Node 6/7 - WITH PROGRESS"""
+        """Node 6/7"""
         start_time = time.time()
         
         self._emit_progress({
@@ -969,7 +1166,7 @@ class LangGraphCoordinator:
         return state
     
     async def _create_adventures_node(self, state: AdventureState) -> AdventureState:
-        """Node 7/7 - WITH PROGRESS"""
+        """Node 7/7"""
         start_time = time.time()
         
         self._emit_progress({
@@ -998,7 +1195,7 @@ class LangGraphCoordinator:
                     "step": "create_adventures",
                     "agent": "AdventureCreator",
                     "status": "in_progress",
-                    "message": f"Generating routes for {len(adventures)} adventures...",
+                    "message": f"Generating optimized routes for {len(adventures)} adventures...",
                     "progress": 0.92,
                     "details": {"adventure_count": len(adventures)}
                 })
@@ -1016,7 +1213,7 @@ class LangGraphCoordinator:
                     "step": "create_adventures",
                     "agent": "AdventureCreator",
                     "status": "complete",
-                    "message": f"Created {len(adventures)} complete adventures with routes",
+                    "message": f"Created {len(adventures)} complete adventures with optimized routes",
                     "progress": 1.0,
                     "details": {"adventure_count": len(adventures)}
                 })
