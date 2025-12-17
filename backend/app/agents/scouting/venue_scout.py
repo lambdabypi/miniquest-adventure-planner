@@ -118,7 +118,9 @@ class VenueScoutAgent(BaseAgent):
             return await self._knowledge_based_search(preferences, location, user_query)
     
     def _search_nearby_by_preference(self, lat: float, lng: float, preference: str, location: str) -> List[Dict]:
-        """Search Google Places for venues matching preference"""
+        """
+        ✅ FIXED: Search Google Places and filter out closed venues
+        """
         
         # Map preference to Google Places types
         place_type = self._preference_to_place_type(preference)
@@ -133,10 +135,20 @@ class VenueScoutAgent(BaseAgent):
             )
             
             venues = []
-            for place in places_result.get('results', [])[:5]:  # Top 5 per preference
+            for place in places_result.get('results', [])[:10]:  # Get more to account for filtering
+                # ✅ CHECK BUSINESS STATUS EARLY
+                business_status = place.get('business_status')
+                if business_status in ['CLOSED_PERMANENTLY', 'CLOSED_TEMPORARILY']:
+                    logger.warning(f"⚠️ Skipping closed venue: {place.get('name')} ({business_status})")
+                    continue
+                
                 venue = self._convert_google_place_to_venue(place, location, preference)
                 if venue:
                     venues.append(venue)
+                
+                # Stop if we have enough valid venues
+                if len(venues) >= 5:
+                    break
             
             return venues
             
@@ -165,10 +177,18 @@ class VenueScoutAgent(BaseAgent):
             return 'point_of_interest'  # Generic catch-all
     
     def _convert_google_place_to_venue(self, place: Dict, location: str, preference: str) -> Optional[Dict]:
-        """Convert Google Place to venue format"""
+        """
+        ✅ FIXED: Convert Google Place to venue format with business_status
+        """
         try:
             name = place.get('name', '')
             if not name or len(name) < 3:
+                return None
+            
+            # ✅ DOUBLE-CHECK: Ensure not closed (defensive programming)
+            business_status = place.get('business_status')
+            if business_status in ['CLOSED_PERMANENTLY', 'CLOSED_TEMPORARILY']:
+                logger.warning(f"⚠️ Filtering closed venue in conversion: {name}")
                 return None
             
             # Get address
@@ -191,6 +211,7 @@ class VenueScoutAgent(BaseAgent):
                 "google_place_id": place.get('place_id', ''),
                 "google_rating": place.get('rating'),
                 "google_user_ratings_total": place.get('user_ratings_total', 0),
+                "business_status": business_status or "OPERATIONAL",  # ✅ Track status
                 "proximity_based": True
             }
             
@@ -332,7 +353,9 @@ class VenueScoutAgent(BaseAgent):
         return has_numbers or has_address_term
     
     def _build_scout_prompt(self, preferences: List[str], location: str, user_query: str) -> str:
-        """Build scouting prompt for knowledge-based search"""
+        """
+        ✅ FIXED: Build scouting prompt with stronger closure warnings
+        """
         return f"""You are a local expert for {location} with CURRENT knowledge as of {self.current_year}.
 Find 8-10 diverse, well-known venues that are CURRENTLY OPERATING for: {preferences}.
 
@@ -340,12 +363,20 @@ USER LOCATION: {location}
 USER REQUEST: "{user_query}"
 USER INTERESTS: {preferences}
 
-🚨 REQUIREMENTS:
-1. **ONLY venues that are CURRENTLY OPEN** in {self.current_year}
-2. **DIVERSE types** - mix of museums, cafes, parks, restaurants
-3. **WELL-ESTABLISHED** venues with good reputations
+🚨 CRITICAL REQUIREMENTS:
+1. **ONLY venues that are CURRENTLY OPEN AND OPERATIONAL** in {self.current_year}
+2. **NEVER suggest permanently closed venues** - double-check before including
+3. **NEVER suggest temporarily closed venues** - verify they are accepting visitors
+4. **DIVERSE types** - mix of museums, cafes, parks, restaurants, bars, galleries
+5. **WELL-ESTABLISHED** venues with good reputations and active operations
 
-Return ONLY valid JSON array of 8-10 diverse venues:
+⚠️ COMMON MISTAKES TO AVOID:
+- DO NOT include venues that closed in recent years
+- DO NOT include venues "under renovation" unless they have partial access
+- DO NOT include venues that have moved/relocated without noting the new location
+- DO NOT include seasonal venues outside their operating season
+
+Return ONLY valid JSON array of 8-10 diverse, OPERATING venues:
 [
   {{
     "name": "Museum of Fine Arts, Boston",
@@ -355,13 +386,24 @@ Return ONLY valid JSON array of 8-10 diverse venues:
     "category": "art",
     "current_status_confidence": "High",
     "establishment_type": "Institution"
+  }},
+  {{
+    "name": "Thinking Cup",
+    "address_hint": "165 Tremont St",
+    "neighborhood": "Downtown",
+    "type": "coffee_shop",
+    "category": "coffee",
+    "current_status_confidence": "High",
+    "establishment_type": "Business"
   }}
 ]
 
-Focus on well-known, currently operating venues in {self.current_year}."""
+Focus ONLY on venues you are confident are currently operating in {self.current_year}."""
     
     def _validate_venue(self, venue: Dict) -> bool:
-        """Validate venue with current data requirements"""
+        """
+        ✅ FIXED: Validate venue with stricter closure checking
+        """
         required_fields = ['name', 'type', 'category']
         for field in required_fields:
             if not venue.get(field):
@@ -369,9 +411,13 @@ Focus on well-known, currently operating venues in {self.current_year}."""
         
         name = venue.get('name', '').lower()
         
-        # Check for closure indicators
-        closure_indicators = ['closed', 'former', 'old', 'previous', 'was', 'used to be']
+        # ✅ EXPANDED: More closure indicators
+        closure_indicators = [
+            'closed', 'former', 'old', 'previous', 'was', 'used to be',
+            'defunct', 'abandoned', 'no longer', 'shut down', 'discontinued'
+        ]
         if any(indicator in name for indicator in closure_indicators):
+            logger.warning(f"❌ Rejecting venue with closure indicator: {venue.get('name')}")
             return False
         
         # Google Places results are pre-validated
@@ -380,7 +426,11 @@ Focus on well-known, currently operating venues in {self.current_year}."""
         
         # For OpenAI results, check confidence
         confidence = venue.get('current_status_confidence', '').lower()
-        return confidence in ['high', 'medium']
+        if confidence not in ['high', 'medium']:
+            logger.warning(f"⚠️ Rejecting low-confidence venue: {venue.get('name')}")
+            return False
+        
+        return True
     
     def _enhance_venue(self, venue: Dict, location: str) -> Dict:
         """Enhance venue with validation context"""

@@ -1,7 +1,8 @@
-﻿# backend/app/main.py - WITH RAG INTEGRATION + OPTIMIZATIONS
+﻿# backend/app/main.py - WITH RAG INTEGRATION + OPTIMIZATIONS + CORS FIX
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
 import sys
@@ -129,16 +130,82 @@ app = FastAPI(
 )
 
 # ========================================
-# MIDDLEWARE
+# MIDDLEWARE - CORS FIX FOR CLOUDFRONT
 # ========================================
 
+# ✅ FIX 1: Add explicit CORS headers middleware FIRST (before CORSMiddleware)
+@app.middleware("http")
+async def add_cors_headers(request, call_next):
+    """Handle CORS headers explicitly for all requests"""
+    
+    # Handle OPTIONS preflight requests
+    if request.method == "OPTIONS":
+        return JSONResponse(
+            content={},
+            headers={
+                "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Max-Age": "3600",
+            },
+            status_code=200
+        )
+    
+    # Process the request
+    response = await call_next(request)
+    
+    # Add CORS headers to response
+    origin = request.headers.get("origin", "")
+    
+    # Allow both CloudFront distributions and localhost
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+    else:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Expose-Headers"] = "*"
+    
+    return response
+
+# ✅ FIX 2: Then add CORSMiddleware as backup
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://d1nrqhtd83kmw6.cloudfront.net",  # Frontend CloudFront
+        "https://d3ihmux7ocq5bh.cloudfront.net",  # Backend CloudFront
+        "http://localhost:3000",
+        "http://localhost:8000"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
 )
+
+# ========================================
+# EXPLICIT OPTIONS HANDLER
+# ========================================
+
+# ✅ FIX 3: Explicit OPTIONS handler for all paths
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str):
+    """Handle OPTIONS requests for CORS preflight"""
+    return JSONResponse(
+        content={},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "3600",
+        },
+        status_code=200
+    )
 
 # ========================================
 # ROUTES
@@ -253,7 +320,8 @@ async def root():
             "rag_personalization": "ENABLED",
             "parallel_research": "ENABLED (60-75% faster)",
             "research_caching": "ENABLED (90%+ faster on hits)",
-            "async_adventures": "ENABLED (20-30% faster)"
+            "async_adventures": "ENABLED (20-30% faster)",
+            "cors_fixed": "ENABLED (CloudFront compatible)"
         },
         "endpoints": {
             "adventures": "/api/adventures",

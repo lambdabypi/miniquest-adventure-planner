@@ -49,8 +49,8 @@ const AboutPage: React.FC = () => {
 				</h2>
 				<div style={{ fontSize: '16px', lineHeight: '1.8', color: '#334155' }}>
 					<p style={{ marginBottom: '20px' }}>
-						MiniQuest helps you discover spontaneous, personalized local adventures —
-						perfect for when you have <strong>2-6 hours</strong> and want to explore something new.
+						MiniQuest helps you discover spontaneous, personalized local adventures in New York or Boston,
+						perfect for when you have <strong>1-6 hours</strong> and want to explore something new.
 					</p>
 					<ul style={{
 						listStyle: 'none',
@@ -61,7 +61,7 @@ const AboutPage: React.FC = () => {
 					}}>
 						{[
 							'Short, spontaneous adventures (2-6 hours)',
-							'Local exploration in your city',
+							'Local exploration in your chosen city',
 							'Curated itineraries based on interests',
 							'Real-time research on 70+ venues',
 							'Budget-friendly options ($30-150)',
@@ -180,28 +180,6 @@ const AboutPage: React.FC = () => {
 						</div>
 					))}
 				</div>
-			</section>
-
-			{/* Mission Statement */}
-			<section style={{
-				background: 'white',
-				padding: '40px',
-				borderRadius: '16px',
-				boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-				borderLeft: '4px solid #667eea'
-			}}>
-				<p style={{
-					fontSize: '18px',
-					fontStyle: 'italic',
-					color: '#334155',
-					lineHeight: '1.8',
-					margin: 0
-				}}>
-					<strong style={{ color: '#667eea' }}>Our Mission:</strong> Make spontaneous local
-					exploration effortless. Whether you're in your hometown or visiting a new city,
-					MiniQuest finds the perfect 2-6 hour adventure tailored to your interests,
-					energy level, and budget.
-				</p>
 			</section>
 		</div>
 	);

@@ -40,11 +40,11 @@ class GoogleMapsEnhancer:
             'rating': None,
             'photos': [],
             'reviews': [],
-            'business_status': None,  # ✅ NEW: Track closure status
-            'is_closed': False  # ✅ NEW: Flag for filtering
+            'business_status': None,  # ✅ Track closure status
+            'is_closed': False  # ✅ Flag for filtering
         }
         
-        # Get coordinates
+        # Get coordinates from initial result
         if 'geometry' in place:
             location = place['geometry'].get('location', {})
             details_data['lat'] = location.get('lat')
@@ -55,7 +55,7 @@ class GoogleMapsEnhancer:
             try:
                 detailed_result = self.gmaps.place(
                     place_id=details_data['place_id'],
-                    fields=['rating', 'photo', 'review', 'formatted_address', 'geometry', 'business_status']  # ✅ ADD business_status
+                    fields=['rating', 'photo', 'review', 'formatted_address', 'geometry', 'business_status']
                 )
                 
                 place_details = detailed_result.get('result', {})
@@ -92,7 +92,9 @@ class GoogleMapsEnhancer:
         return details_data
 
     async def enhance_locations(self, tavily_locations: List[TavilyLocation]) -> List[GoogleMapsLocation]:
-        """Enhance venues with Google Maps data using improved search"""
+        """
+        ✅ FIXED: Enhance venues with Google Maps data and filter closed venues
+        """
         
         enhanced_locations = []
         
@@ -104,6 +106,11 @@ class GoogleMapsEnhancer:
             try:
                 # Use improved Google search with multiple strategies
                 google_data = await self._smart_google_search(tavily_loc)
+                
+                # ✅ SKIP CLOSED VENUES
+                if google_data.get('is_closed'):
+                    logger.warning(f"❌ Skipping closed venue: {tavily_loc.name}")
+                    continue
                 
                 enhanced_loc = GoogleMapsLocation(
                     # Tavily data (primary)
@@ -286,7 +293,7 @@ class GoogleMapsEnhancer:
             logger.error(f"Legacy routing error: {e}")
             return None
     
-    # Enhanced Google Places Search (existing logic)
+    # Enhanced Google Places Search
     async def _smart_google_search(self, tavily_loc: TavilyLocation) -> Dict:
         """
         ✅ FIXED: Use multiple search strategies and filter closed venues
@@ -301,8 +308,8 @@ class GoogleMapsEnhancer:
             'reviews': [],
             'verified_address': None,
             'search_success': False,
-            'business_status': None,  # ✅ NEW
-            'is_closed': False  # ✅ NEW
+            'business_status': None,
+            'is_closed': False
         }
         
         venue_name = tavily_loc.name
@@ -473,54 +480,6 @@ class GoogleMapsEnhancer:
             score -= 0.2  # Too generic
         
         return max(score, 0.0)
-    
-    async def _get_place_details(self, place: Dict) -> Dict:
-        """Get detailed place information"""
-        
-        details_data = {
-            'place_id': place.get('place_id'),
-            'verified_address': place.get('formatted_address'),
-            'lat': None,
-            'lon': None,
-            'rating': None,
-            'photos': [],
-            'reviews': []
-        }
-        
-        # Get coordinates
-        if 'geometry' in place:
-            location = place['geometry'].get('location', {})
-            details_data['lat'] = location.get('lat')
-            details_data['lon'] = location.get('lng')
-        
-        # Get additional details
-        if details_data['place_id']:
-            try:
-                detailed_result = self.gmaps.place(
-                    place_id=details_data['place_id'],
-                    fields=['rating', 'photo', 'review', 'formatted_address', 'geometry']
-                )
-                
-                place_details = detailed_result.get('result', {})
-                
-                details_data['rating'] = place_details.get('rating')
-                details_data['photos'] = self._get_photo_urls(place_details.get('photos', []))
-                details_data['reviews'] = self._format_reviews(place_details.get('reviews', []))
-                
-                # Update address with more detailed version if available
-                if place_details.get('formatted_address'):
-                    details_data['verified_address'] = place_details['formatted_address']
-                
-                # Update coordinates if more precise
-                if place_details.get('geometry', {}).get('location'):
-                    loc = place_details['geometry']['location']
-                    details_data['lat'] = loc.get('lat')
-                    details_data['lon'] = loc.get('lng')
-                
-            except Exception as e:
-                logger.warning(f"Could not get detailed place info: {e}")
-        
-        return details_data
     
     # Helper methods for basic routing (fallback)
     def _build_basic_route_url(self, addresses: List[str], user_address: Optional[str]) -> Optional[str]:

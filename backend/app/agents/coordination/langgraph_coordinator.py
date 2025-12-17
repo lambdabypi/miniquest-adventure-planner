@@ -1,14 +1,15 @@
 # backend/app/agents/coordination/langgraph_coordinator.py
-"""LangGraph coordinator - OPTIMIZED with Parallel Research + Caching + Async + Complete Routing"""
+"""LangGraph coordinator - WITH REAL-TIME PROGRESS TRACKING"""
 
 from langgraph.graph import StateGraph, END
 from openai import AsyncOpenAI
 import logging
 from datetime import datetime
-from typing import Optional, Tuple, List, Dict
+from typing import Optional, Tuple, List, Dict, AsyncGenerator, Callable
 import os
 import time
 import re
+import asyncio
 
 from .workflow_state import AdventureState
 from ..location import LocationParserAgent
@@ -22,13 +23,13 @@ logger = logging.getLogger(__name__)
 
 class LangGraphCoordinator:
     """
-    OPTIMIZED LangGraph coordinator with:
+    OPTIMIZED LangGraph coordinator WITH PROGRESS STREAMING
     - Parallel venue research (60-75% faster)
     - Research result caching (90%+ faster on hits)
     - Async adventure creation (20-30% faster)
     - RAG personalization
-    - ✅ FIXED: Complete route generation (includes ALL itinerary stops)
-    - Performance tracking
+    - Complete route generation
+    - ✅ Real-time progress tracking
     """
     
     def __init__(self, rag_system=None, enable_cache=True):
@@ -39,6 +40,9 @@ class LangGraphCoordinator:
         self.rag_system = rag_system
         self.enable_cache = enable_cache
         
+        # ✅ NEW: Progress callback for streaming
+        self.progress_callback = None
+        
         self._validate_api_keys()
         self._initialize_agents()
         self.workflow = self._build_workflow()
@@ -46,11 +50,12 @@ class LangGraphCoordinator:
         # Performance tracking
         self.timing_data = {}
         
-        self.logger.info("✅ OPTIMIZED LangGraph Coordinator initialized")
+        self.logger.info("✅ OPTIMIZED LangGraph Coordinator with Progress Tracking initialized")
         self.logger.info("   - Parallel research: ENABLED")
         self.logger.info(f"   - Research caching: {'ENABLED' if enable_cache else 'DISABLED'}")
         self.logger.info("   - Async adventure creation: ENABLED")
-        self.logger.info("   - Complete routing: ENABLED (includes ALL stops)")
+        self.logger.info("   - Complete routing: ENABLED")
+        self.logger.info("   - Real-time progress: ENABLED")
         if rag_system:
             self.logger.info("   - RAG personalization: ENABLED")
     
@@ -64,7 +69,6 @@ class LangGraphCoordinator:
         if not tavily_key:
             raise ValueError("TAVILY_API_KEY required")
         
-        # Store for agents
         self.openai_key = openai_key
         self.tavily_key = tavily_key
     
@@ -137,19 +141,50 @@ class LangGraphCoordinator:
         
         return "continue"
     
+    # ========================================
+    # PROGRESS TRACKING
+    # ========================================
+    
+    def _emit_progress(self, update: Dict):
+        """
+        ✅ Emit progress update to callback
+        
+        Update format:
+        {
+            "step": "scout_venues",
+            "agent": "VenueScout",
+            "status": "in_progress" | "complete" | "error",
+            "message": "Finding 8 venues in Boston...",
+            "progress": 0.43,  # 0.0 to 1.0
+            "details": {...}   # Optional extra data
+        }
+        """
+        if self.progress_callback:
+            try:
+                # Run callback (handle both sync and async)
+                if asyncio.iscoroutinefunction(self.progress_callback):
+                    asyncio.create_task(self.progress_callback(update))
+                else:
+                    self.progress_callback(update)
+            except Exception as e:
+                self.logger.error(f"Progress callback error: {e}")
+    
+    # ========================================
+    # MAIN ENTRY POINTS
+    # ========================================
+    
     async def generate_adventures(
         self, 
         user_input: str, 
         user_address: Optional[str] = None,
         user_id: Optional[str] = None
     ) -> Tuple[List[Dict], Dict]:
-        """Main entry point - OPTIMIZED"""
+        """Main entry point - OPTIMIZED (without progress streaming)"""
         
         self.logger.info(f"🔄 Starting OPTIMIZED workflow: '{user_input[:50]}...'")
         if user_id:
             self.logger.info(f"👤 User: {user_id}")
         
-        # Track total time
         start_time = time.time()
         self.timing_data = {}
         
@@ -166,16 +201,11 @@ class LangGraphCoordinator:
                 return [], {"error": final_state["error"]}
             
             adventures = final_state.get("final_adventures", [])
-            
-            # Calculate total time
             total_time = time.time() - start_time
-            
-            # Build metadata with performance stats
             metadata = self._build_completion_metadata(final_state, total_time)
             
             self.logger.info(f"✅ OPTIMIZED workflow complete: {len(adventures)} adventures in {total_time:.2f}s")
             
-            # Log cache performance
             cache_stats = metadata.get("performance", {}).get("cache_stats", {})
             if cache_stats:
                 self.logger.info(f"   Cache: {cache_stats.get('hit_rate', '0%')} hit rate, "
@@ -186,6 +216,110 @@ class LangGraphCoordinator:
         except Exception as e:
             self.logger.error(f"❌ Failed: {e}")
             return [], {"error": str(e)}
+    
+    async def generate_adventures_with_progress(
+        self, 
+        user_input: str, 
+        user_address: Optional[str] = None,
+        user_id: Optional[str] = None,
+        progress_callback: Optional[Callable] = None
+    ) -> Tuple[List[Dict], Dict]:
+        """
+        ✅ NEW: Generate adventures with real-time progress streaming
+        
+        progress_callback will be called with updates like:
+        {
+            "step": "scout_venues",
+            "agent": "VenueScout",
+            "status": "in_progress",
+            "message": "Finding venues...",
+            "progress": 0.43,
+            "details": {...}
+        }
+        """
+        
+        self.progress_callback = progress_callback
+        
+        # Initial progress
+        self._emit_progress({
+            "step": "initialize",
+            "agent": "Coordinator",
+            "status": "in_progress",
+            "message": "Starting adventure generation...",
+            "progress": 0.0
+        })
+        
+        self.logger.info(f"🔄 Starting OPTIMIZED workflow WITH PROGRESS: '{user_input[:50]}...'")
+        if user_id:
+            self.logger.info(f"👤 User: {user_id}")
+        
+        start_time = time.time()
+        self.timing_data = {}
+        
+        initial_state = self._create_initial_state(user_input, user_address, user_id)
+        
+        try:
+            final_state = await self.workflow.ainvoke(initial_state)
+            
+            # Handle errors
+            error = final_state.get("error")
+            if isinstance(error, dict) and error.get("type") == "clarification_needed":
+                self._emit_progress({
+                    "step": "complete",
+                    "agent": "Coordinator",
+                    "status": "clarification_needed",
+                    "message": error.get("message", "Need more information"),
+                    "progress": 1.0,
+                    "error": error
+                })
+                return [], {"error": error}
+            
+            if final_state.get("error"):
+                self._emit_progress({
+                    "step": "complete",
+                    "agent": "Coordinator",
+                    "status": "error",
+                    "message": f"Error: {final_state['error']}",
+                    "progress": 1.0,
+                    "error": final_state["error"]
+                })
+                return [], {"error": final_state["error"]}
+            
+            adventures = final_state.get("final_adventures", [])
+            total_time = time.time() - start_time
+            metadata = self._build_completion_metadata(final_state, total_time)
+            
+            # Final completion
+            self._emit_progress({
+                "step": "complete",
+                "agent": "Coordinator",
+                "status": "complete",
+                "message": f"✅ Created {len(adventures)} adventures in {total_time:.1f}s",
+                "progress": 1.0,
+                "details": {
+                    "adventure_count": len(adventures),
+                    "total_time": total_time,
+                    "cache_stats": metadata.get("performance", {}).get("cache_stats", {})
+                }
+            })
+            
+            self.logger.info(f"✅ OPTIMIZED workflow complete: {len(adventures)} adventures in {total_time:.2f}s")
+            
+            return adventures, metadata
+            
+        except Exception as e:
+            self.logger.error(f"❌ Workflow error: {e}")
+            self._emit_progress({
+                "step": "complete",
+                "agent": "Coordinator",
+                "status": "error",
+                "message": f"Failed: {str(e)}",
+                "progress": 1.0,
+                "error": str(e)
+            })
+            return [], {"error": str(e)}
+        finally:
+            self.progress_callback = None
     
     def _create_initial_state(
         self, 
@@ -208,14 +342,17 @@ class LangGraphCoordinator:
             final_adventures=[],
             metadata={"workflow_start": datetime.now().isoformat()},
             performance_metrics={},
-            error=None
+            error=None,
+            progress_updates=[],
+            current_step=None,
+            current_agent=None,
+            step_progress=None
         )
     
     def _build_completion_metadata(self, final_state: dict, total_time: float) -> dict:
         """Build metadata with performance stats"""
         metadata = final_state.get("metadata", {})
         
-        # Basic metadata
         metadata.update({
             "workflow_success": True,
             "total_adventures": len(final_state.get("final_adventures", [])),
@@ -230,7 +367,8 @@ class LangGraphCoordinator:
                 "parallel_research": True,
                 "research_caching": self.enable_cache,
                 "async_adventure_creation": True,
-                "complete_routing": True
+                "complete_routing": True,
+                "progress_tracking": True
             }
         }
         
@@ -239,7 +377,6 @@ class LangGraphCoordinator:
             cache_stats = self.research_agent.get_cache_stats()
             performance["cache_stats"] = cache_stats
             
-            # Calculate cache hit rate percentage
             hits = cache_stats.get('hits', 0)
             misses = cache_stats.get('misses', 0)
             total = hits + misses
@@ -280,11 +417,9 @@ class LangGraphCoordinator:
         
         parts = [p.strip() for p in location.split(',')]
         
-        # Already "City, State"
         if len(parts) == 2 and not any(char.isdigit() for char in parts[0]):
             return location
         
-        # Extract from "Street, City, State"
         if len(parts) >= 3:
             return f"{parts[-2]}, {parts[-1]}"
         
@@ -297,23 +432,16 @@ class LangGraphCoordinator:
         for venue in researched_venues:
             venue_name = venue.get("name", "Unknown")
             
-            # Priority 1: Scout's address_hint
             if venue.get("address_hint"):
                 address_hint = venue["address_hint"]
                 if city_name.split(',')[0].lower() in address_hint.lower():
                     address = address_hint
                 else:
                     address = f"{address_hint}, {city_name}"
-            
-            # Priority 2: Research address
             elif venue.get("address"):
                 address = venue["address"]
-            
-            # Priority 3: Neighborhood + city
             elif venue.get("neighborhood"):
                 address = f"{venue_name}, {venue['neighborhood']}, {city_name}"
-            
-            # Fallback: Venue + city
             else:
                 address = f"{venue_name}, {city_name}"
             
@@ -328,26 +456,18 @@ class LangGraphCoordinator:
         return enhanced_locations
     
     def _extract_venues_from_steps(self, steps: List[Dict]) -> List[str]:
-        """
-        ✅ FIXED: Extract ALL venue/location names from adventure steps
-        
-        This ensures routes include places like "Beehive Trail" that appear
-        in steps but not in venues_used array.
-        """
+        """Extract ALL venue/location names from adventure steps"""
         venues = []
         
         for step in steps:
             activity = step.get("activity", "")
             
-            # Pattern 1: "X at Y" - extract Y
             if " at " in activity:
                 venue = activity.split(" at ", 1)[1].strip()
-                # Clean up trailing punctuation
                 venue = venue.rstrip('.,!?')
                 venues.append(venue)
                 continue
             
-            # Pattern 2: "Visit X", "Explore X" - extract X
             visit_explore_pattern = r'^(?:Visit|Explore)\s+(?:the\s+)?(.+?)$'
             match = re.match(visit_explore_pattern, activity, re.IGNORECASE)
             if match:
@@ -355,19 +475,15 @@ class LangGraphCoordinator:
                 venues.append(venue)
                 continue
             
-            # Pattern 3: "Hike X Trail/Loop" - extract full name
             hike_pattern = r'^Hike\s+(?:the\s+)?(.+?)(?:\s+Trail|\s+Loop)?$'
             match = re.match(hike_pattern, activity, re.IGNORECASE)
             if match:
                 venue = match.group(1).strip()
-                # Add "Trail" back if it was stripped
                 if 'trail' in activity.lower() and 'trail' not in venue.lower():
                     venue = f"{venue} Trail"
                 venues.append(venue)
                 continue
             
-            # Pattern 4: "Lunch/Dinner/Breakfast at X" - already handled by Pattern 1
-            # Pattern 5: "Tour X", "See X" - extract X
             tour_see_pattern = r'^(?:Tour|See)\s+(?:the\s+)?(.+?)$'
             match = re.match(tour_see_pattern, activity, re.IGNORECASE)
             if match:
@@ -383,22 +499,25 @@ class LangGraphCoordinator:
         user_address: Optional[str],
         target_location: str
     ) -> list:
-        """
-        ✅ FIXED: Generate routes including ALL stops from itinerary
-        
-        Previously only used venues_used array, missing stops like "Beehive Trail"
-        that only appear in the steps.
-        """
+        """Generate routes including ALL stops from itinerary"""
         
         logger.info(f"🗺️ Generating COMPLETE routes for {len(adventures)} adventures")
         
-        for adventure in adventures:
+        for idx, adventure in enumerate(adventures):
             try:
-                # ✅ Extract venues from BOTH sources
+                # Emit progress for each adventure route
+                self._emit_progress({
+                    "step": "create_adventures",
+                    "agent": "RoutingAgent",
+                    "status": "in_progress",
+                    "message": f"Generating route for '{adventure.get('title')}' ({idx+1}/{len(adventures)})",
+                    "progress": 0.92 + (0.08 * (idx / len(adventures))),
+                    "details": {"adventure": adventure.get("title"), "route_number": idx + 1}
+                })
+                
                 venues_from_array = adventure.get("venues_used", [])
                 venues_from_steps = self._extract_venues_from_steps(adventure.get("steps", []))
                 
-                # Combine and deduplicate while preserving order
                 seen = set()
                 all_venue_names = []
                 for venue in venues_from_array + venues_from_steps:
@@ -408,15 +527,11 @@ class LangGraphCoordinator:
                         all_venue_names.append(venue)
                 
                 logger.info(f"📍 '{adventure.get('title')}': {len(all_venue_names)} total stops")
-                logger.info(f"   From venues_used: {venues_from_array}")
-                logger.info(f"   From steps: {venues_from_steps}")
-                logger.info(f"   Combined (unique): {all_venue_names}")
                 
                 if not all_venue_names:
                     logger.warning(f"   ⚠️ No venues found for routing")
                     continue
                 
-                # Match to enhanced locations
                 adventure_locations = self._match_venues_to_locations(
                     all_venue_names, all_enhanced_locations
                 )
@@ -452,12 +567,7 @@ class LangGraphCoordinator:
         return adventures
     
     def _match_venues_to_locations(self, venues_used: List[str], locations: list) -> list:
-        """
-        ✅ ENHANCED: Match venue names to locations with fuzzy matching
-        
-        Handles partial matches and common variations to ensure places like
-        "Beehive Trail" match even if the exact name differs slightly.
-        """
+        """Match venue names to locations with fuzzy matching"""
         matched = []
         used_indices = set()
         
@@ -476,14 +586,12 @@ class LangGraphCoordinator:
                 loc_name = loc.get("name", "").lower().strip()
                 loc_words = set(loc_name.split())
                 
-                # Exact match
                 if venue_lower == loc_name:
                     best_match = loc
                     best_idx = idx
                     best_score = 1.0
                     break
                 
-                # Substring matches
                 if venue_lower in loc_name or loc_name in venue_lower:
                     score = 0.9
                     if score > best_score:
@@ -492,13 +600,11 @@ class LangGraphCoordinator:
                         best_idx = idx
                     continue
                 
-                # Word overlap (fuzzy matching)
                 if venue_words and loc_words:
                     overlap = len(venue_words.intersection(loc_words))
                     total_words = len(venue_words.union(loc_words))
                     score = overlap / total_words if total_words > 0 else 0
                     
-                    # Require at least 50% word overlap
                     if score >= 0.5 and score > best_score:
                         best_score = score
                         best_match = loc
@@ -514,13 +620,20 @@ class LangGraphCoordinator:
         return matched
     
     # ========================================
-    # WORKFLOW NODE IMPLEMENTATIONS
+    # WORKFLOW NODE IMPLEMENTATIONS WITH PROGRESS
     # ========================================
     
     async def _parse_location_node(self, state: AdventureState) -> AdventureState:
-        """Node 1/7"""
+        """Node 1/7 - WITH PROGRESS"""
         start_time = time.time()
-        self._update_progress(1, "LocationParser", "Parsing location")
+        
+        self._emit_progress({
+            "step": "parse_location",
+            "agent": "LocationParser",
+            "status": "in_progress",
+            "message": "Parsing target location...",
+            "progress": 0.14
+        })
         
         try:
             result = await self.location_parser.process({
@@ -531,31 +644,51 @@ class LangGraphCoordinator:
             if result["success"]:
                 state["target_location"] = result["data"]["target_location"]
                 state["location_parsing_info"] = result["data"]
+                
+                self._emit_progress({
+                    "step": "parse_location",
+                    "agent": "LocationParser",
+                    "status": "complete",
+                    "message": f"Target: {state['target_location']}",
+                    "progress": 0.14,
+                    "details": {"location": state["target_location"]}
+                })
             else:
                 state["target_location"] = state.get("user_address", "Boston, MA")
         except Exception as e:
             state["target_location"] = state.get("user_address", "Boston, MA")
+            self.logger.error(f"Location parsing error: {e}")
         
         self._track_timing("parse_location", time.time() - start_time)
         return state
     
     async def _get_personalization_node(self, state: AdventureState) -> AdventureState:
-        """Node 1.5/7 - Get user personalization from RAG"""
+        """Node 1.5/7 - WITH PROGRESS"""
         start_time = time.time()
-        self._update_progress(1.5, "RAG", "Loading user preferences")
+        
+        self._emit_progress({
+            "step": "personalization",
+            "agent": "RAG",
+            "status": "in_progress",
+            "message": "Loading your preferences...",
+            "progress": 0.21
+        })
         
         user_id = state.get("user_id")
         
-        # Skip if no user ID or no RAG system
         if not user_id or not self.rag_system:
-            self.logger.info("⏭️ Skipping personalization (no user ID or RAG system)")
+            self._emit_progress({
+                "step": "personalization",
+                "agent": "RAG",
+                "status": "complete",
+                "message": "No personalization data",
+                "progress": 0.21
+            })
             state["user_personalization"] = None
             return state
         
         try:
             target_location = state.get("target_location", "general")
-            
-            # Get personalization insights from RAG
             personalization = self.rag_system.get_user_personalization(
                 user_id=user_id,
                 location=target_location
@@ -564,31 +697,49 @@ class LangGraphCoordinator:
             state["user_personalization"] = personalization
             
             if personalization.get("has_history"):
-                self.logger.info(
-                    f"✅ Personalization loaded: {personalization['total_adventures']} adventures, "
-                    f"avg rating {personalization['average_rating']:.1f}"
-                )
+                self._emit_progress({
+                    "step": "personalization",
+                    "agent": "RAG",
+                    "status": "complete",
+                    "message": f"Found {personalization['total_adventures']} past adventures",
+                    "progress": 0.21,
+                    "details": {
+                        "total_adventures": personalization['total_adventures'],
+                        "avg_rating": personalization.get('average_rating', 0)
+                    }
+                })
             else:
-                self.logger.info("ℹ️ No personalization history found")
+                self._emit_progress({
+                    "step": "personalization",
+                    "agent": "RAG",
+                    "status": "complete",
+                    "message": "No history found (new user)",
+                    "progress": 0.21
+                })
             
         except Exception as e:
-            self.logger.error(f"⚠️ Personalization error: {e}")
+            self.logger.error(f"Personalization error: {e}")
             state["user_personalization"] = None
         
         self._track_timing("personalization", time.time() - start_time)
         return state
     
     async def _parse_intent_node(self, state: AdventureState) -> AdventureState:
-        """Node 2/7 - WITH PERSONALIZATION CONTEXT"""
+        """Node 2/7 - WITH PROGRESS"""
         start_time = time.time()
-        self._update_progress(2, "IntentParser", "Understanding preferences")
+        
+        self._emit_progress({
+            "step": "parse_intent",
+            "agent": "IntentParser",
+            "status": "in_progress",
+            "message": "Understanding your preferences...",
+            "progress": 0.28
+        })
         
         try:
-            # Include personalization in intent parsing
             personalization = state.get("user_personalization")
-            
-            # Build enhanced context for LLM
             context_additions = []
+            
             if personalization and personalization.get("has_history"):
                 context_additions.append(
                     f"User has {personalization['total_adventures']} saved adventures "
@@ -601,18 +752,48 @@ class LangGraphCoordinator:
             
             result = await self.intent_parser.process({
                 "user_input": state["user_input"],
+                "user_address": state.get("user_address"),
                 "personalization_context": " | ".join(context_additions) if context_additions else None
             })
             
             if not result["success"] or result["data"].get("needs_clarification"):
+                error_data = result["data"]
                 state["error"] = {
                     "type": "clarification_needed",
-                    "message": result["data"].get("clarification_message", "Please be more specific"),
-                    "suggestions": result["data"].get("suggestions", [])
+                    "message": error_data.get("clarification_message", "Please be more specific"),
+                    "suggestions": error_data.get("suggestions", []),
+                    "out_of_scope": error_data.get("out_of_scope", False),
+                    "scope_issue": error_data.get("scope_issue"),
+                    "detected_city": error_data.get("detected_city"),
+                    "unrelated_query": error_data.get("unrelated_query", False),
+                    "query_type": error_data.get("query_type"),
                 }
+                
+                status = "error" if error_data.get("unrelated_query") or error_data.get("out_of_scope") else "clarification_needed"
+                
+                self._emit_progress({
+                    "step": "parse_intent",
+                    "agent": "IntentParser",
+                    "status": status,
+                    "message": error_data.get("clarification_message", "Need clarification"),
+                    "progress": 0.28,
+                    "error": state["error"]
+                })
+                
                 return state
             
             state["parsed_preferences"] = result["data"]["parsed_preferences"]
+            prefs = result["data"]["parsed_preferences"].get("preferences", [])
+            
+            self._emit_progress({
+                "step": "parse_intent",
+                "agent": "IntentParser",
+                "status": "complete",
+                "message": f"Looking for: {', '.join(prefs[:3])}{'...' if len(prefs) > 3 else ''}",
+                "progress": 0.28,
+                "details": {"preferences": prefs}
+            })
+            
         except Exception as e:
             logger.error(f"Intent error: {e}")
         
@@ -620,9 +801,16 @@ class LangGraphCoordinator:
         return state
     
     async def _scout_venues_node(self, state: AdventureState) -> AdventureState:
-        """Node 3/7"""
+        """Node 3/7 - WITH PROGRESS"""
         start_time = time.time()
-        self._update_progress(3, "VenueScout", "Finding venues")
+        
+        self._emit_progress({
+            "step": "scout_venues",
+            "agent": "VenueScout",
+            "status": "in_progress",
+            "message": "Searching for venues...",
+            "progress": 0.43
+        })
         
         try:
             preferences = state.get("parsed_preferences", {})
@@ -633,7 +821,23 @@ class LangGraphCoordinator:
             })
             
             if result["success"]:
-                state["scouted_venues"] = result["data"]["venues"]
+                venues = result["data"]["venues"]
+                state["scouted_venues"] = venues
+                
+                venue_names = [v.get("name", "Unknown") for v in venues[:5]]
+                more = f" and {len(venues) - 5} more" if len(venues) > 5 else ""
+                
+                self._emit_progress({
+                    "step": "scout_venues",
+                    "agent": "VenueScout",
+                    "status": "complete",
+                    "message": f"Found {len(venues)} venues: {', '.join(venue_names)}{more}",
+                    "progress": 0.43,
+                    "details": {
+                        "venue_count": len(venues),
+                        "venues": venue_names
+                    }
+                })
         except Exception as e:
             logger.error(f"Scout error: {e}")
         
@@ -641,15 +845,22 @@ class LangGraphCoordinator:
         return state
     
     async def _research_venues_node(self, state: AdventureState) -> AdventureState:
-        """Node 4/7 - OPTIMIZED: PARALLEL + CACHED"""
+        """Node 4/7 - WITH DETAILED PROGRESS"""
         start_time = time.time()
-        self._update_progress(4, "TavilyResearch", "Researching venues (parallel + cached)")
+        
+        venues = state.get("scouted_venues", [])
+        
+        self._emit_progress({
+            "step": "research_venues",
+            "agent": "TavilyResearch",
+            "status": "in_progress",
+            "message": f"Researching {len(venues)} venues (parallel + cached)...",
+            "progress": 0.57
+        })
         
         try:
-            self.logger.info("🔄 Starting OPTIMIZED parallel + cached research...")
-            
             result = await self.research_agent.process({
-                "venues": state.get("scouted_venues", []),
+                "venues": venues,
                 "location": state.get("target_location", "Boston, MA"),
                 "max_venues": 8
             })
@@ -658,12 +869,23 @@ class LangGraphCoordinator:
                 state["researched_venues"] = result["data"]["researched_venues"]
                 state["metadata"]["research_stats"] = result["data"]["research_stats"]
                 
-                # Log performance
                 stats = result["data"]["research_stats"]
                 elapsed = stats.get("elapsed_seconds", 0)
                 cache_hit_rate = stats.get("cache_hit_rate", "0%")
+                total_insights = stats.get("total_insights", 0)
                 
-                self.logger.info(f"   ✅ Research complete: {elapsed:.2f}s, Cache: {cache_hit_rate}")
+                self._emit_progress({
+                    "step": "research_venues",
+                    "agent": "TavilyResearch",
+                    "status": "complete",
+                    "message": f"Research complete: {total_insights} insights in {elapsed:.1f}s (cache: {cache_hit_rate})",
+                    "progress": 0.71,
+                    "details": {
+                        "cache_hit_rate": cache_hit_rate,
+                        "total_insights": total_insights,
+                        "elapsed_seconds": elapsed
+                    }
+                })
                 
         except Exception as e:
             logger.error(f"Research error: {e}")
@@ -672,9 +894,16 @@ class LangGraphCoordinator:
         return state
     
     async def _summarize_research_node(self, state: AdventureState) -> AdventureState:
-        """Node 5/7"""
+        """Node 5/7 - WITH PROGRESS"""
         start_time = time.time()
-        self._update_progress(5, "ResearchSummary", "Structuring insights")
+        
+        self._emit_progress({
+            "step": "summarize_research",
+            "agent": "ResearchSummary",
+            "status": "in_progress",
+            "message": "Structuring research insights...",
+            "progress": 0.71
+        })
         
         try:
             researched_venues = state.get("researched_venues", [])
@@ -689,6 +918,14 @@ class LangGraphCoordinator:
             if result["success"]:
                 state["researched_venues"] = result["data"]["summarized_venues"]
                 state["metadata"]["research_summarized"] = True
+                
+                self._emit_progress({
+                    "step": "summarize_research",
+                    "agent": "ResearchSummary",
+                    "status": "complete",
+                    "message": "Research summarized and structured",
+                    "progress": 0.71
+                })
         except Exception as e:
             logger.error(f"Summary error: {e}")
         
@@ -696,13 +933,19 @@ class LangGraphCoordinator:
         return state
     
     async def _enhance_routing_node(self, state: AdventureState) -> AdventureState:
-        """Node 6/7"""
+        """Node 6/7 - WITH PROGRESS"""
         start_time = time.time()
-        self._update_progress(6, "RoutingAgent", "Generating routes")
+        
+        self._emit_progress({
+            "step": "enhance_routing",
+            "agent": "RoutingAgent",
+            "status": "in_progress",
+            "message": "Preparing location data for routing...",
+            "progress": 0.85
+        })
         
         try:
             city_name = self._extract_city_name(state.get("target_location", "Boston, MA"))
-            logger.info(f"🏙️ City name: {city_name}")
             
             enhanced_locations = self._convert_to_enhanced_locations(
                 state.get("researched_venues", []),
@@ -710,7 +953,15 @@ class LangGraphCoordinator:
             )
             
             state["enhanced_locations"] = enhanced_locations
-            logger.info(f"✅ Prepared {len(enhanced_locations)} locations")
+            
+            self._emit_progress({
+                "step": "enhance_routing",
+                "agent": "RoutingAgent",
+                "status": "complete",
+                "message": f"Prepared {len(enhanced_locations)} locations for routing",
+                "progress": 0.85,
+                "details": {"location_count": len(enhanced_locations)}
+            })
         except Exception as e:
             logger.error(f"Routing prep error: {e}")
         
@@ -718,14 +969,18 @@ class LangGraphCoordinator:
         return state
     
     async def _create_adventures_node(self, state: AdventureState) -> AdventureState:
-        """Node 7/7 - OPTIMIZED: ASYNC + PERSONALIZED"""
+        """Node 7/7 - WITH PROGRESS"""
         start_time = time.time()
-        self._update_progress(7, "AdventureCreator", "Creating adventures (async)")
+        
+        self._emit_progress({
+            "step": "create_adventures",
+            "agent": "AdventureCreator",
+            "status": "in_progress",
+            "message": "Creating personalized adventures...",
+            "progress": 0.85
+        })
         
         try:
-            self.logger.info("🎨 Creating adventures (async + personalized)...")
-            
-            # Include personalization in creation
             personalization = state.get("user_personalization")
             
             result = await self.adventure_creator.process({
@@ -739,7 +994,15 @@ class LangGraphCoordinator:
             if result["success"]:
                 adventures = result["data"]["adventures"]
                 
-                # ✅ FIXED: Route generation includes ALL stops from itinerary
+                self._emit_progress({
+                    "step": "create_adventures",
+                    "agent": "AdventureCreator",
+                    "status": "in_progress",
+                    "message": f"Generating routes for {len(adventures)} adventures...",
+                    "progress": 0.92,
+                    "details": {"adventure_count": len(adventures)}
+                })
+                
                 adventures = await self._add_individual_routing_to_adventures(
                     adventures,
                     state.get("enhanced_locations", []),
@@ -748,7 +1011,15 @@ class LangGraphCoordinator:
                 )
                 
                 state["final_adventures"] = adventures
-                self.logger.info(f"   ✅ Created {len(adventures)} adventures")
+                
+                self._emit_progress({
+                    "step": "create_adventures",
+                    "agent": "AdventureCreator",
+                    "status": "complete",
+                    "message": f"Created {len(adventures)} complete adventures with routes",
+                    "progress": 1.0,
+                    "details": {"adventure_count": len(adventures)}
+                })
                 
         except Exception as e:
             logger.error(f"Creation error: {e}")

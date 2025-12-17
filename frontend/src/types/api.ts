@@ -1,6 +1,6 @@
 // frontend/src/types/api.ts
 /**
- * API request/response types with full scope handling
+ * API request/response types with full scope handling + progress tracking
  */
 
 import { Adventure } from './adventure';
@@ -17,7 +17,8 @@ export type ScopeIssue =
 	| 'multi_day_trip'
 	| 'international_travel'
 	| 'accommodation_planning'
-	| 'trip_budget_detected';
+	| 'trip_budget_detected'
+	| 'unsupported_city';
 
 // ✅ Query type for unrelated queries
 export type QueryType =
@@ -27,20 +28,31 @@ export type QueryType =
 	| 'weather'
 	| 'other';
 
+// ✅ Progress tracking types
+export interface ProgressUpdate {
+	step: string;
+	agent: string;
+	status: 'in_progress' | 'complete' | 'error' | 'clarification_needed';
+	message: string;
+	progress: number;
+	details?: Record<string, any>;
+}
+
 export interface AdventureRequest {
 	user_input: string;
 	user_address?: string;
 	preferences?: Record<string, any>;
+	enable_progress?: boolean;  // ✅ NEW: Enable progress tracking
 }
 
-// ✅ Extended metadata interface with all states
+// ✅ Extended metadata interface with all states + progress tracking
 export interface AdventureMetadata {
 	// Location and success
 	target_location?: string;
 	total_adventures?: number;
 	workflow_success?: boolean;
 
-	// ✅ Unrelated query (NEW)
+	// ✅ Unrelated query
 	unrelated_query?: boolean;
 	query_type?: QueryType;
 
@@ -48,6 +60,7 @@ export interface AdventureMetadata {
 	out_of_scope?: boolean;
 	scope_issue?: ScopeIssue;
 	recommended_services?: RecommendedService[];
+	detected_city?: string;
 
 	// Clarification (too vague queries)
 	clarification_needed?: boolean;
@@ -84,6 +97,10 @@ export interface AdventureMetadata {
 		cache_hits?: number;
 		cache_hit_rate?: string;
 	};
+
+	// ✅ NEW: Progress tracking
+	progress_tracking_enabled?: boolean;
+	progress_log?: ProgressUpdate[];
 
 	timestamp?: string;
 }

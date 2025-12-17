@@ -1,11 +1,12 @@
-// frontend/src/pages/AdventuresPage.tsx - COMPLETE WITH ALL STATES
+// frontend/src/pages/AdventuresPage.tsx - WITH PROGRESS TRACKING (Using Updated Hook)
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useAdventures } from '../hooks/useAdventures';
+import { useAdventures } from '../hooks/useAdventures';  // ✅ Use updated hook
 import { useChatHistory } from '../hooks/useChatHistory';
 import EnhancedAdventureCard from '../components/EnhancedAdventureCard';
 import ChatSidebar from '../components/ChatSidebar';
 import OutOfScopeMessage from '../components/OutOfScopeMessage';
+import ProgressTracker from '../components/ProgressTracker';
 
 interface ChatMessage {
 	id: string;
@@ -17,7 +18,7 @@ interface ChatMessage {
 type LayoutMode = 'chat-left' | 'chat-right';
 
 // ========================================
-// CHAT PANEL COMPONENT
+// CHAT PANEL COMPONENT (unchanged)
 // ========================================
 interface ChatPanelProps {
 	layoutMode: LayoutMode;
@@ -93,7 +94,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 		}}>
 			<h1 style={{ fontSize: '1.3rem', margin: '0 0 5px 0' }}>🗺️ MiniQuest</h1>
 			<div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
-				7 AI Agents • Live Research
+				7 AI Agents • Live Research • Real-time Progress
 			</div>
 			{currentConversationId && (
 				<div style={{ fontSize: '0.65rem', opacity: 0.7, marginTop: '4px' }}>
@@ -156,7 +157,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 						<strong>Processing...</strong>
 					</div>
 					<div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-						7 agents working
+						7 agents working • Check right panel for progress
 					</div>
 				</div>
 			)}
@@ -216,54 +217,75 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 		}}>
 			<div style={{ marginBottom: '10px', fontSize: '0.8rem' }}>
 				{!showLocationEdit ? (
-					<div style={{ color: '#64748b', display: 'flex', gap: '6px', alignItems: 'center' }}>
-						<span>📍 {location}</span>
-						<button
-							onClick={() => setShowLocationEdit(true)}
-							style={{
-								background: 'none',
-								border: 'none',
-								color: '#2563eb',
-								cursor: 'pointer',
-								fontSize: '0.75rem',
-								textDecoration: 'underline',
-								padding: 0,
-							}}
-						>
-							change
-						</button>
-					</div>
+					<>
+						<div style={{
+							fontSize: '0.7rem',
+							color: '#64748b',
+							marginBottom: '4px',
+							fontStyle: 'italic'
+						}}>
+							💡 Used for routing between venues & finding nearby places (Only Boston and New York)
+						</div>
+						<div style={{ color: '#64748b', display: 'flex', gap: '6px', alignItems: 'center' }}>
+							<span>📍 {location}</span>
+							<button
+								onClick={() => setShowLocationEdit(true)}
+								style={{
+									background: 'none',
+									border: 'none',
+									color: '#2563eb',
+									cursor: 'pointer',
+									fontSize: '0.75rem',
+									textDecoration: 'underline',
+									padding: 0,
+								}}
+								title='Change your location for routing and local recommendations'
+							>
+								change
+							</button>
+						</div>
+					</>
 				) : (
-					<div style={{ display: 'flex', gap: '4px' }}>
-						<input
-							ref={locationInputRef}
-							type="text"
-							value={location}
-							onChange={(e) => setLocation(e.target.value)}
-							autoFocus
-							style={{
-								flex: 1,
-								padding: '6px 10px',
-								border: '1px solid #e2e8f0',
-								borderRadius: '6px',
-								fontSize: '0.8rem',
-							}}
-						/>
-						<button
-							onClick={() => setShowLocationEdit(false)}
-							style={{
-								padding: '6px 10px',
-								background: '#16a34a',
-								color: 'white',
-								border: 'none',
-								borderRadius: '6px',
-								fontSize: '0.75rem',
-								cursor: 'pointer',
-							}}
-						>
-							✓
-						</button>
-					</div>
+					<>
+						<div style={{
+							fontSize: '0.7rem',
+							color: '#64748b',
+							marginBottom: '4px',
+							fontStyle: 'italic'
+						}}>
+							💡 Used for routing between venues & finding nearby places (Only Boston and New York)
+						</div>
+						<div style={{ display: 'flex', gap: '4px' }}>
+							<input
+								ref={locationInputRef}
+								type="text"
+								value={location}
+								onChange={(e) => setLocation(e.target.value)}
+								autoFocus
+								style={{
+									flex: 1,
+									padding: '6px 10px',
+									border: '1px solid #e2e8f0',
+									borderRadius: '6px',
+									fontSize: '0.8rem',
+								}}
+							/>
+							<button
+								onClick={() => setShowLocationEdit(false)}
+								style={{
+									padding: '6px 10px',
+									background: '#16a34a',
+									color: 'white',
+									border: 'none',
+									borderRadius: '6px',
+									fontSize: '0.75rem',
+									cursor: 'pointer',
+								}}
+							>
+								✓
+							</button>
+						</div>
+					</>
 				)}
 			</div>
 
@@ -306,7 +328,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 );
 
 // ========================================
-// ADVENTURES PANEL COMPONENT
+// ADVENTURES PANEL COMPONENT (unchanged)
 // ========================================
 interface AdventuresPanelProps {
 	user: any;
@@ -317,10 +339,13 @@ interface AdventuresPanelProps {
 	outOfScope: boolean;
 	scopeIssue: string | null;
 	clarificationNeeded: boolean;
-	unrelatedQuery: boolean;  // ✅ NEW
+	unrelatedQuery: boolean;
 	clarificationMessage: string;
 	suggestions: string[];
 	recommendedServices: any[];
+	metadata?: any;
+	progressUpdates: any[];
+	currentProgress: any;
 	toggleLayout: () => void;
 	handleAdventureSaved: (id: string, name: string) => void;
 	handleSuggestionClick: (suggestion: string) => void;
@@ -339,6 +364,9 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 	clarificationMessage,
 	suggestions,
 	recommendedServices,
+	metadata,
+	progressUpdates,
+	currentProgress,
 	toggleLayout,
 	handleAdventureSaved,
 	handleSuggestionClick,
@@ -396,7 +424,16 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			</button>
 		</div>
 
-		{/* ✅ PRIORITY 1: Unrelated Query */}
+		{/* ✅ PROGRESS TRACKER - Show when loading */}
+		{loading && (
+			<ProgressTracker
+				currentProgress={currentProgress}
+				progressHistory={progressUpdates}
+				isVisible={loading}
+			/>
+		)}
+
+		{/* Unrelated Query Message */}
 		{unrelatedQuery === true && !loading && (
 			<div style={{
 				background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
@@ -413,7 +450,6 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 				<p style={{ fontSize: '1rem', marginBottom: '25px', opacity: 0.95, lineHeight: '1.6' }}>
 					{clarificationMessage}
 				</p>
-
 				{suggestions && suggestions.length > 0 && (
 					<div style={{
 						background: 'rgba(255,255,255,0.15)',
@@ -460,7 +496,7 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			</div>
 		)}
 
-		{/* ✅ PRIORITY 2: Out-of-Scope Message */}
+		{/* Out-of-Scope Message */}
 		{outOfScope === true && !unrelatedQuery && !loading && (
 			<OutOfScopeMessage
 				scopeIssue={scopeIssue || 'multi_day_trip'}
@@ -468,10 +504,11 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 				suggestions={suggestions || []}
 				recommendedServices={recommendedServices || []}
 				onSuggestionClick={handleSuggestionClick}
+				detectedCity={metadata?.detected_city}
 			/>
 		)}
 
-		{/* ✅ PRIORITY 3: Clarification Needed (Too Vague) */}
+		{/* Clarification Needed */}
 		{clarificationNeeded === true && !outOfScope && !unrelatedQuery && !loading && (
 			<div style={{
 				background: '#fffbeb',
@@ -520,7 +557,7 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			</div>
 		)}
 
-		{/* ✅ PRIORITY 4: Adventures Display */}
+		{/* Adventures Display */}
 		{adventures.length > 0 && !outOfScope && !unrelatedQuery && (
 			<>
 				<div style={{
@@ -552,7 +589,7 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			</>
 		)}
 
-		{/* ✅ PRIORITY 5: Empty State */}
+		{/* Empty State */}
 		{!loading && adventures.length === 0 && !outOfScope && !clarificationNeeded && !unrelatedQuery && (
 			<div style={{
 				textAlign: 'center',
@@ -595,6 +632,7 @@ const AdventuresPage: React.FC = () => {
 		return (saved as LayoutMode) || 'chat-left';
 	});
 
+	// ✅ Use updated hook with progress tracking
 	const {
 		adventures,
 		loading,
@@ -605,9 +643,14 @@ const AdventuresPage: React.FC = () => {
 		outOfScope,
 		scopeIssue,
 		recommendedServices,
-		unrelatedQuery,  // ✅ NEW
+		unrelatedQuery,
+		metadata,
+		progressUpdates,  // ✅ Now available
+		currentProgress,  // ✅ Now available
 		researchStats,
-		generateAdventures
+		generateAdventures,
+		generateAdventuresWithStreaming,
+		clearAdventures,
 	} = useAdventures();
 
 	const {
@@ -633,17 +676,6 @@ const AdventuresPage: React.FC = () => {
 	}, [loadConversations]);
 
 	useEffect(() => {
-		if (!currentConversationId && chatMessages.length === 0) {
-			setChatMessages([{
-				id: '0',
-				type: 'assistant',
-				content: `Hi ${user?.username}! Tell me what you'd like to explore and I'll create personalized adventures with live research from 7 AI agents.`,
-				timestamp: new Date()
-			}]);
-		}
-	}, [user, currentConversationId]);
-
-	useEffect(() => {
 		chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 	}, [chatMessages, loading]);
 
@@ -657,61 +689,46 @@ const AdventuresPage: React.FC = () => {
 		}
 	}, [chatMessages, location, queryId, autoSaveConversation, isGenerating]);
 
-	// ✅ NEW: Handle unrelated queries
+	// Handle unrelated queries
 	useEffect(() => {
 		if (unrelatedQuery === true && !loading && isGenerating) {
 			const genId = `unrelated_${Date.now()}`;
-
-			console.log('🤷 Unrelated query detected in effect');
-
 			if (lastGenerationId !== genId) {
 				setLastGenerationId(genId);
-
-				// Add chat message for unrelated query
 				setChatMessages(prev => [...prev, {
 					id: genId,
 					type: 'assistant',
-					content: clarificationMessage || "I'm MiniQuest, your local adventure planning assistant! Ask me about museums, restaurants, parks, or other fun places to explore.",
+					content: clarificationMessage || "I'm MiniQuest, your local adventure planning assistant!",
 					timestamp: new Date()
 				}]);
-
 				setActiveSuggestions(suggestions || []);
 				setIsGenerating(false);
 			}
 		}
 	}, [unrelatedQuery, loading, clarificationMessage, suggestions, isGenerating]);
 
-	// ✅ Handle out-of-scope
+	// Handle out-of-scope
 	useEffect(() => {
 		if (outOfScope === true && !unrelatedQuery && !loading && isGenerating) {
 			const genId = `outofscope_${Date.now()}`;
-
-			console.log('🚫 Out-of-scope detected in effect');
-
 			if (lastGenerationId !== genId) {
 				setLastGenerationId(genId);
-
-				// Add chat message for out-of-scope
 				setChatMessages(prev => [...prev, {
 					id: genId,
 					type: 'assistant',
-					content: `🚫 ${clarificationMessage || 'This request is outside MiniQuest\'s scope. Check the right panel for recommendations.'}`,
+					content: `🚫 ${clarificationMessage || 'This request is outside MiniQuest\'s scope.'}`,
 					timestamp: new Date()
 				}]);
-
 				setActiveSuggestions(suggestions || []);
 				setIsGenerating(false);
 			}
 		}
 	}, [outOfScope, unrelatedQuery, loading, clarificationMessage, suggestions, isGenerating]);
 
-	// ✅ Handle clarification needed (too vague)
+	// Handle clarification needed
 	useEffect(() => {
 		if (clarificationNeeded === true && !outOfScope && !unrelatedQuery && !loading && isGenerating) {
 			const genId = Date.now().toString();
-
-			console.log('🤔 Clarification needed in effect');
-
 			if (lastGenerationId !== genId) {
 				setLastGenerationId(genId);
 				setChatMessages(prev => [...prev, {
@@ -726,11 +743,10 @@ const AdventuresPage: React.FC = () => {
 		}
 	}, [clarificationNeeded, outOfScope, unrelatedQuery, loading, clarificationMessage, suggestions, isGenerating]);
 
-	// ✅ Handle successful adventures
+	// Handle successful adventures
 	useEffect(() => {
 		if (adventures.length > 0 && !loading && isGenerating) {
 			const genId = `success_${adventures.length}_${Date.now()}`;
-
 			if (lastGenerationId !== genId) {
 				setLastGenerationId(genId);
 				setChatMessages(prev => [...prev, {
@@ -747,11 +763,13 @@ const AdventuresPage: React.FC = () => {
 	const handleLoadConversation = async (conversationId: string) => {
 		setIsGenerating(false);
 		setActiveSuggestions([]);
+		setLastGenerationId(null);
+		clearAdventures();
 
 		const conv = await loadConversation(conversationId);
 		if (conv && conv.messages) {
-			const loadedMessages = conv.messages.map(msg => ({
-				id: msg.id,
+			const loadedMessages = conv.messages.map((msg, idx) => ({
+				id: `loaded_${conversationId}_${idx}`,
 				type: msg.type as 'user' | 'assistant',
 				content: msg.content,
 				timestamp: new Date(msg.timestamp)
@@ -767,12 +785,15 @@ const AdventuresPage: React.FC = () => {
 		setIsGenerating(false);
 		setActiveSuggestions([]);
 		setLastGenerationId(null);
+		clearAdventures();
+
 		setChatMessages([{
-			id: '0',
+			id: `welcome_${Date.now()}`,
 			type: 'assistant',
-			content: `Hi ${user?.username}! Tell me what you'd like to explore and I'll create personalized adventures with live research from 7 AI agents.`,
+			content: `Hi ${user?.username}! Tell me what you'd like to explore in Boston or New York, and I'll create personalized adventures with live research from 7 AI agents.`,
 			timestamp: new Date()
 		}]);
+
 		setCurrentConversationId(null);
 		setQueryId(null);
 	};
@@ -797,7 +818,9 @@ const AdventuresPage: React.FC = () => {
 		setChatMessages(prev => [...prev, userMessage]);
 		setActiveSuggestions([]);
 		setIsGenerating(true);
-		generateAdventures(input, location);
+
+		// ✅ USE SSE STREAMING instead of regular generation
+		generateAdventuresWithStreaming(input, location);
 		setInput('');
 	};
 
@@ -812,7 +835,9 @@ const AdventuresPage: React.FC = () => {
 		setChatMessages(prev => [...prev, userMessage]);
 		setActiveSuggestions([]);
 		setIsGenerating(true);
-		generateAdventures(suggestion, location);
+
+		// ✅ USE SSE STREAMING instead of regular generation
+		generateAdventuresWithStreaming(suggestion, location);
 	};
 
 	const handleAdventureSaved = (adventureId: string, adventureName: string) => {
@@ -824,7 +849,7 @@ const AdventuresPage: React.FC = () => {
 		setChatMessages(prev => [...prev, {
 			id: Date.now().toString(),
 			type: 'assistant',
-			content: `💾 Saved "${adventureName}" to your collection! View it in the Saved Adventures page.`,
+			content: `💾 Saved "${adventureName}" to your collection!`,
 			timestamp: new Date()
 		}]);
 
@@ -832,6 +857,17 @@ const AdventuresPage: React.FC = () => {
 			setShowSaveNotification(false);
 		}, 5000);
 	};
+
+	useEffect(() => {
+		if (chatMessages.length === 0) {
+			setChatMessages([{
+				id: `initial_${Date.now()}`,
+				type: 'assistant',
+				content: `Hi ${user?.username}! Tell me what you'd like to explore in Boston or New York, and I'll create personalized adventures with live research from 7 AI agents.`,
+				timestamp: new Date()
+			}]);
+		}
+	}, []);
 
 	return (
 		<div style={{
@@ -923,6 +959,9 @@ const AdventuresPage: React.FC = () => {
 						clarificationMessage={clarificationMessage}
 						suggestions={suggestions}
 						recommendedServices={recommendedServices}
+						metadata={metadata}
+						progressUpdates={progressUpdates}
+						currentProgress={currentProgress}
 						toggleLayout={toggleLayout}
 						handleAdventureSaved={handleAdventureSaved}
 						handleSuggestionClick={handleSuggestionClick}
@@ -943,6 +982,9 @@ const AdventuresPage: React.FC = () => {
 						clarificationMessage={clarificationMessage}
 						suggestions={suggestions}
 						recommendedServices={recommendedServices}
+						metadata={metadata}
+						progressUpdates={progressUpdates}
+						currentProgress={currentProgress}
 						toggleLayout={toggleLayout}
 						handleAdventureSaved={handleAdventureSaved}
 						handleSuggestionClick={handleSuggestionClick}
@@ -971,26 +1013,6 @@ const AdventuresPage: React.FC = () => {
 					/>
 				</>
 			)}
-
-			<div style={{
-				position: 'fixed',
-				bottom: '20px',
-				left: '50%',
-				transform: 'translateX(-50%)',
-				background: 'rgba(102, 126, 234, 0.95)',
-				color: 'white',
-				padding: '8px 16px',
-				borderRadius: '20px',
-				fontSize: '0.75rem',
-				fontWeight: '600',
-				boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-				backdropFilter: 'blur(10px)',
-				zIndex: 1000,
-				pointerEvents: 'none',
-				opacity: 0.8,
-			}}>
-				{layoutMode === 'chat-left' ? '💬 Chat Left | 🗺️ Adventures Right' : '🗺️ Adventures Left | 💬 Chat Right'}
-			</div>
 
 			<style>{`
 				@keyframes slideIn {

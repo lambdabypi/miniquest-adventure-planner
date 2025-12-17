@@ -1,9 +1,4 @@
-// frontend/src/components/ChatSidebar.tsx
-/**
- * LAYOUT-AWARE Chat Sidebar
- * Positions itself based on whether chat is on left or right
- */
-
+// frontend/src/components/ChatSidebar.tsx - FIXED: Auto-close + Push content
 import React, { useState } from 'react';
 import { Conversation } from '../api/chat';
 
@@ -14,7 +9,7 @@ interface ChatSidebarProps {
 	onLoadConversation: (conversationId: string) => void;
 	onNewChat: () => void;
 	onDeleteConversation: (conversationId: string) => void;
-	layoutMode: 'chat-left' | 'chat-right';  // ✨ NEW: Know where chat panel is
+	layoutMode: 'chat-left' | 'chat-right';
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -24,21 +19,31 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 	onLoadConversation,
 	onNewChat,
 	onDeleteConversation,
-	layoutMode,  // ✨ NEW
+	layoutMode,
 }) => {
 	const [showSidebar, setShowSidebar] = useState(false);
 
-	// ✅ Dynamic positioning based on layout mode
 	const isOnLeft = layoutMode === 'chat-left';
+
+	// ✅ NEW: Wrapper for onNewChat that closes sidebar
+	const handleNewChat = () => {
+		setShowSidebar(false);  // Close sidebar first
+		onNewChat();  // Then trigger new chat
+	};
+
+	// ✅ NEW: Wrapper for onLoadConversation that closes sidebar
+	const handleLoadConversation = (conversationId: string) => {
+		setShowSidebar(false);  // Close sidebar first
+		onLoadConversation(conversationId);  // Then load conversation
+	};
 
 	return (
 		<>
-			{/* Sidebar - ADAPTS to layout mode */}
+			{/* Sidebar */}
 			<div
 				style={{
 					position: 'fixed',
 					top: '70px',
-					// ✅ Position on correct side
 					left: isOnLeft ? (showSidebar ? 0 : '-300px') : 'auto',
 					right: isOnLeft ? 'auto' : (showSidebar ? 0 : '-300px'),
 					width: '280px',
@@ -69,7 +74,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 						💬 Chat History
 					</h3>
 					<button
-						onClick={onNewChat}
+						onClick={handleNewChat}
 						style={{
 							width: '100%',
 							padding: '8px 12px',
@@ -93,7 +98,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 					</button>
 				</div>
 
-				{/* Conversations List - SCROLLABLE */}
+				{/* Conversations List */}
 				<div style={{
 					flex: 1,
 					padding: '10px',
@@ -114,14 +119,14 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 								key={conv._id}
 								conversation={conv}
 								isActive={conv._id === currentConversationId}
-								onLoad={onLoadConversation}
+								onLoad={handleLoadConversation}
 								onDelete={onDeleteConversation}
 							/>
 						))
 					)}
 				</div>
 
-				{/* Hide Button - AT BOTTOM */}
+				{/* Hide Button */}
 				<button
 					onClick={() => setShowSidebar(false)}
 					style={{
@@ -149,14 +154,13 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 				</button>
 			</div>
 
-			{/* Toggle Button - ADAPTS to layout mode */}
+			{/* Toggle Button */}
 			{!showSidebar && (
 				<button
 					onClick={() => setShowSidebar(true)}
 					style={{
 						position: 'fixed',
 						bottom: '20px',
-						// ✅ Position near chat panel based on mode
 						left: isOnLeft ? '370px' : 'auto',
 						right: isOnLeft ? 'auto' : '370px',
 						zIndex: 1000,
@@ -215,79 +219,200 @@ const ConversationItem: React.FC<{
 	onDelete: (id: string) => void;
 }> = ({ conversation, isActive, onLoad, onDelete }) => {
 	const [showDelete, setShowDelete] = useState(false);
+	const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+	const handleDeleteClick = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		setShowDeleteModal(true);
+	};
+
+	const handleConfirmDelete = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		onDelete(conversation._id);
+		setShowDeleteModal(false);
+	};
+
+	const handleCancelDelete = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		setShowDeleteModal(false);
+	};
 
 	return (
-		<div
-			onMouseEnter={() => setShowDelete(true)}
-			onMouseLeave={() => setShowDelete(false)}
-			style={{
-				padding: '12px',
-				marginBottom: '8px',
-				background: isActive ? '#f0f9ff' : '#f8fafc',
-				border: `2px solid ${isActive ? '#667eea' : '#e2e8f0'}`,
-				borderRadius: '8px',
-				cursor: 'pointer',
-				transition: 'all 0.2s',
-				position: 'relative',
-			}}
-			onClick={() => onLoad(conversation._id)}
-		>
-			{/* Preview */}
+		<>
 			<div
+				onMouseEnter={() => setShowDelete(true)}
+				onMouseLeave={() => setShowDelete(false)}
 				style={{
-					fontSize: '0.85rem',
-					color: '#1e293b',
-					fontWeight: '500',
-					marginBottom: '6px',
-					overflow: 'hidden',
-					textOverflow: 'ellipsis',
-					whiteSpace: 'nowrap',
+					padding: '12px',
+					marginBottom: '8px',
+					background: isActive ? '#f0f9ff' : '#f8fafc',
+					border: `2px solid ${isActive ? '#667eea' : '#e2e8f0'}`,
+					borderRadius: '8px',
+					cursor: 'pointer',
+					transition: 'all 0.2s',
+					position: 'relative',
 				}}
+				onClick={() => onLoad(conversation._id)}
 			>
-				{conversation.preview || 'Empty conversation'}
-			</div>
-
-			{/* Metadata */}
-			<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-				<div style={{ fontSize: '0.7rem', color: '#64748b' }}>
-					📍 {conversation.location}
-				</div>
-				<div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-					{conversation.message_count} msgs
-				</div>
-			</div>
-
-			{/* Date */}
-			<div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '4px' }}>
-				{new Date(conversation.updated_at).toLocaleDateString()}
-			</div>
-
-			{/* Delete Button */}
-			{showDelete && (
-				<button
-					onClick={(e) => {
-						e.stopPropagation();
-						if (confirm('Delete this conversation?')) {
-							onDelete(conversation._id);
-						}
-					}}
+				{/* Preview */}
+				<div
 					style={{
-						position: 'absolute',
-						top: '8px',
-						right: '8px',
-						background: '#ef4444',
-						color: 'white',
-						border: 'none',
-						borderRadius: '4px',
-						padding: '4px 8px',
-						fontSize: '0.7rem',
-						cursor: 'pointer',
+						fontSize: '0.85rem',
+						color: '#1e293b',
+						fontWeight: '500',
+						marginBottom: '6px',
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
 					}}
 				>
-					🗑️
-				</button>
+					{conversation.preview || 'Empty conversation'}
+				</div>
+
+				{/* Metadata */}
+				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+					<div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+						📍 {conversation.location}
+					</div>
+					<div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+						{conversation.message_count} msgs
+					</div>
+				</div>
+
+				{/* Date */}
+				<div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '4px' }}>
+					{new Date(conversation.updated_at).toLocaleDateString()}
+				</div>
+
+				{/* Delete Button */}
+				{showDelete && (
+					<button
+						onClick={handleDeleteClick}
+						style={{
+							position: 'absolute',
+							top: '8px',
+							right: '8px',
+							background: '#ef4444',
+							color: 'white',
+							border: 'none',
+							borderRadius: '4px',
+							padding: '4px 8px',
+							fontSize: '0.7rem',
+							cursor: 'pointer',
+							transition: 'all 0.2s',
+						}}
+						onMouseEnter={(e) => {
+							e.currentTarget.style.background = '#dc2626';
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.background = '#ef4444';
+						}}
+					>
+						🗑️
+					</button>
+				)}
+			</div>
+
+			{/* Delete Confirmation Modal */}
+			{showDeleteModal && (
+				<div
+					onClick={handleCancelDelete}
+					style={{
+						position: 'fixed',
+						top: 0,
+						left: 0,
+						right: 0,
+						bottom: 0,
+						background: 'rgba(0, 0, 0, 0.5)',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						zIndex: 9999,
+					}}
+				>
+					<div
+						onClick={(e) => e.stopPropagation()}
+						style={{
+							background: 'white',
+							borderRadius: '12px',
+							padding: '25px',
+							maxWidth: '400px',
+							width: '90%',
+							boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+						}}
+					>
+						<h3 style={{ color: '#1e293b', marginBottom: '15px', fontSize: '1.3rem' }}>
+							🗑️ Delete Conversation?
+						</h3>
+						<p style={{ color: '#64748b', marginBottom: '20px', lineHeight: '1.5' }}>
+							Are you sure you want to delete this conversation? This action cannot be undone.
+						</p>
+						<div
+							style={{
+								padding: '12px',
+								background: '#fef2f2',
+								border: '1px solid #fecaca',
+								borderRadius: '8px',
+								marginBottom: '20px',
+							}}
+						>
+							<div style={{ fontSize: '0.85rem', color: '#991b1b', fontWeight: '500' }}>
+								"{conversation.preview || 'Empty conversation'}"
+							</div>
+							<div style={{ fontSize: '0.75rem', color: '#b91c1c', marginTop: '4px' }}>
+								{conversation.message_count} messages • {new Date(conversation.updated_at).toLocaleDateString()}
+							</div>
+						</div>
+						<div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+							<button
+								onClick={handleCancelDelete}
+								style={{
+									background: '#e2e8f0',
+									color: '#475569',
+									border: 'none',
+									padding: '10px 20px',
+									borderRadius: '8px',
+									fontSize: '0.9rem',
+									fontWeight: '600',
+									cursor: 'pointer',
+									transition: 'all 0.2s',
+								}}
+								onMouseEnter={(e) => {
+									e.currentTarget.style.background = '#cbd5e1';
+								}}
+								onMouseLeave={(e) => {
+									e.currentTarget.style.background = '#e2e8f0';
+								}}
+							>
+								Cancel
+							</button>
+							<button
+								onClick={handleConfirmDelete}
+								style={{
+									background: '#ef4444',
+									color: 'white',
+									border: 'none',
+									padding: '10px 20px',
+									borderRadius: '8px',
+									fontSize: '0.9rem',
+									fontWeight: '600',
+									cursor: 'pointer',
+									transition: 'all 0.2s',
+								}}
+								onMouseEnter={(e) => {
+									e.currentTarget.style.background = '#dc2626';
+								}}
+								onMouseLeave={(e) => {
+									e.currentTarget.style.background = '#ef4444';
+								}}
+							>
+								Delete
+							</button>
+						</div>
+					</div>
+				</div>
 			)}
-		</div>
+		</>
 	);
 };
 

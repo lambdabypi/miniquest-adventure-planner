@@ -50,15 +50,14 @@ const NavigationBar: React.FC = () => {
 									onClick={() => navigate('/saved-adventures')}
 									active={isActive('/saved-adventures')}
 								/>
+								<NavLink
+									icon="ℹ️"
+									label="About"
+									onClick={() => navigate('/about')}
+									active={isActive('/about')}
+								/>
 							</>
 						)}
-						{/* ✅ NEW: About Link (always visible) */}
-						<NavLink
-							icon="ℹ️"
-							label="About"
-							onClick={() => navigate('/about')}
-							active={isActive('/about')}
-						/>
 					</div>
 
 					{/* User Section */}

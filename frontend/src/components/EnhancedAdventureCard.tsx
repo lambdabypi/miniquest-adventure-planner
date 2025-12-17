@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { savedAdventuresApi } from '../api/savedAdventures';
+import { Adventure } from '../types/adventure';  // ✅ Use shared type
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-// ✅ FIXED: Match backend structure
 interface ResearchSummary {
 	visitor_summary: string;
 	key_highlights: string[];
@@ -29,22 +26,8 @@ interface VenueWithResearch {
 	visitor_tips?: string[];
 }
 
-interface Adventure {
-	title: string;
-	tagline: string;
-	duration: number;
-	cost: number;
-	steps: Array<{
-		time: string;
-		activity: string;
-		details: string;
-	}>;
-	map_url?: string;
-	venues_research?: VenueWithResearch[];
-}
-
 interface Props {
-	adventure: Adventure;
+	adventure: Adventure;  // ✅ Use the shared Adventure type
 	index: number;
 	onSave?: (adventureId: string) => void;
 }
@@ -59,20 +42,6 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 	const [rating, setRating] = useState<number | null>(null);
 	const [notes, setNotes] = useState('');
 
-	// Debug: Log the adventure data
-	React.useEffect(() => {
-		console.log('🔍 Adventure Data:', {
-			title: adventure.title,
-			hasVenuesResearch: !!adventure.venues_research,
-			venuesCount: adventure.venues_research?.length,
-			venues: adventure.venues_research?.map(v => ({
-				name: v.name,
-				hasSummary: !!v.research_summary,
-				summary: v.research_summary
-			}))
-		});
-	}, [adventure]);
-
 	// Calculate research stats
 	const researchStats = {
 		quality: adventure.venues_research
@@ -82,9 +51,6 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 			? adventure.venues_research.reduce((acc, v) => acc + (v.total_insights || 0), 0)
 			: 0,
 	};
-
-	// Check if any venue has summaries
-	const hasSummaries = adventure.venues_research?.some(v => v.research_summary) || false;
 
 	// ========================================
 	// SAVE FUNCTIONALITY
@@ -120,6 +86,13 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 		}
 	};
 
+	// Helper function to calculate diversity
+	const calculateDiversity = (adventure: Adventure) => {
+		const types = new Set(
+			adventure.venues_research?.map(v => v.venue_name?.split(' ')[0]) || []
+		);
+		return Math.min(100, types.size * 25); // 4 types = 100%
+	};
 	return (
 		<div style={{
 			backgroundColor: 'white',
@@ -191,19 +164,25 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 				)}
 			</div>
 
-			{/* Stats Grid */}
+			{/* ✅ FIXED: Stats Grid - Removed Cost */}
 			<div style={{
 				display: 'grid',
-				gridTemplateColumns: 'repeat(3, 1fr)',
+				gridTemplateColumns: 'repeat(2, 1fr)',
 				gap: '15px',
 				marginBottom: '20px',
 			}}>
-				<StatCard value={`${adventure.duration}min`} label="Duration" color="#059669" />
-				<StatCard value={`$${adventure.cost}`} label="Est. Cost" color="#dc2626" />
-				<StatCard value={adventure.steps?.length || 0} label="Stops" color="#2563eb" />
+				<StatCard
+					value={`${calculateDiversity(adventure)}%`}
+					label="Diversity"
+					color="#8b5cf6"
+				/>
+				<StatCard
+					value={adventure.steps?.length || 0}
+					label="Stops"
+					color="#2563eb" />
 			</div>
 
-			{/* ✅ FIXED: Summarized Research Display */}
+			{/* AI-Summarized Research Display */}
 			{adventure.venues_research && adventure.venues_research.length > 0 && (
 				<div style={{
 					backgroundColor: '#f0fdf4',
@@ -253,9 +232,8 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 						<div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
 							{adventure.venues_research.map((venue, idx) => {
 								const venueName = venue?.name || venue?.venue_name || venue?.matched_to || 'Unknown Venue';
-								const summary = venue?.research_summary;
+								const summary = (venue as any)?.research_summary;
 
-								// Show raw data if no summary
 								if (!summary) {
 									return (
 										<div key={idx} style={{
@@ -303,7 +281,7 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 											</div>
 										</div>
 
-										{/* ✅ FIXED: visitor_summary instead of summary */}
+										{/* Visitor Summary */}
 										<p style={{
 											color: '#374151',
 											fontSize: '14px',
@@ -314,7 +292,7 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 											{summary.visitor_summary}
 										</p>
 
-										{/* ✅ FIXED: Key Highlights */}
+										{/* Key Highlights */}
 										{summary.key_highlights && summary.key_highlights.length > 0 && (
 											<div style={{ marginBottom: '15px' }}>
 												<div style={{
@@ -330,7 +308,7 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 													flexWrap: 'wrap',
 													gap: '8px',
 												}}>
-													{summary.key_highlights.map((highlight, hIdx) => (
+													{summary.key_highlights.map((highlight: string, hIdx: number) => (
 														<div key={hIdx} style={{
 															fontSize: '12px',
 															color: '#374151',
@@ -346,7 +324,7 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 											</div>
 										)}
 
-										{/* ✅ FIXED: Practical Info Grid */}
+										{/* Practical Info Grid */}
 										{summary.practical_info && (
 											<div style={{
 												display: 'grid',
@@ -378,7 +356,7 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 											</div>
 										)}
 
-										{/* ✅ FIXED: Insider Tips */}
+										{/* Insider Tips */}
 										{summary.practical_info?.insider_tips && summary.practical_info.insider_tips.length > 0 && (
 											<div>
 												<div style={{
@@ -389,7 +367,7 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 												}}>
 													💡 Insider Tips:
 												</div>
-												{summary.practical_info.insider_tips.map((tip, tipIdx) => (
+												{summary.practical_info.insider_tips.map((tip: string, tipIdx: number) => (
 													<div key={tipIdx} style={{
 														fontSize: '13px',
 														color: '#374151',
