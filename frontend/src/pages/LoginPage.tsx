@@ -174,7 +174,7 @@ const LoginPage: React.FC = () => {
 							animation: 'shake 0.5s ease',
 						}}
 					>
-						⚠️ {error}
+						{error}
 					</div>
 				)}
 
