@@ -1,8 +1,13 @@
-// frontend/src/hooks/useAdventures.ts - FIXED SSE JSON PARSING
+// frontend/src/hooks/useAdventures.ts - FIXED SSE URL + Complete Implementation
 import { useState, useCallback } from 'react';
 import { adventuresApi } from '../api/adventures';
 import { Adventure, ResearchStats } from '../types/adventure';
 import { ProgressUpdate, AdventureMetadata } from '../types/api';
+
+// ✅ Get API base URL from environment variable
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+console.log('🔧 useAdventures: API_BASE_URL =', API_BASE_URL);
 
 export const useAdventures = () => {
 	const [adventures, setAdventures] = useState<Adventure[]>([]);
@@ -53,7 +58,11 @@ export const useAdventures = () => {
 		clearAdventures();
 
 		try {
-			const response = await fetch('http://localhost:8000/api/adventures/generate-stream', {
+			// ✅ FIX: Use environment variable instead of hardcoded localhost
+			const sseUrl = `${API_BASE_URL}/api/adventures/generate-stream`;
+			console.log('📡 SSE URL:', sseUrl);
+
+			const response = await fetch(sseUrl, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -76,7 +85,7 @@ export const useAdventures = () => {
 				throw new Error('No reader available');
 			}
 
-			// ✅ FIX: Buffer for incomplete JSON chunks
+			// ✅ Buffer for incomplete JSON chunks
 			let buffer = '';
 
 			while (true) {
@@ -91,7 +100,7 @@ export const useAdventures = () => {
 				const chunk = decoder.decode(value, { stream: true });
 				buffer += chunk;
 
-				// ✅ FIX: Process all complete messages in buffer
+				// ✅ Process all complete messages in buffer
 				const lines = buffer.split('\n');
 
 				// Keep last incomplete line in buffer
@@ -157,7 +166,7 @@ export const useAdventures = () => {
 			setError(err.message || 'An error occurred');
 			setLoading(false);
 		}
-	}, []);
+	}, [clearAdventures]);
 
 	const handleClarificationNeeded = (metadata: AdventureMetadata) => {
 		if (metadata.unrelated_query) {
@@ -184,6 +193,7 @@ export const useAdventures = () => {
 		}
 
 		console.log('🚀 Adventure generation starting...');
+		console.log('API Base URL:', API_BASE_URL);
 		setLoading(true);
 		clearAdventures();
 
@@ -223,7 +233,7 @@ export const useAdventures = () => {
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [clearAdventures]);
 
 	return {
 		adventures,
