@@ -1,5 +1,5 @@
 # backend/app/agents/creation/adventure_creator.py
-"""ASYNC Adventure creation agent - creates final adventures from researched venues"""
+"""ASYNC Adventure creation agent - FIXED VENUE HALLUCINATIONS"""
 
 from openai import AsyncOpenAI
 import json
@@ -14,7 +14,7 @@ class AdventureCreatorAgent(BaseAgent):
     
     def __init__(self):
         super().__init__("AdventureCreator")
-        self.client = AsyncOpenAI()  # ✅ ASYNC client
+        self.client = AsyncOpenAI()
         self.log_success("AdventureCreator initialized (ASYNC)")
     
     async def process(self, input_data: Dict) -> Dict:
@@ -27,7 +27,7 @@ class AdventureCreatorAgent(BaseAgent):
         self.log_processing("Creating adventures", f"{len(researched_venues)} venues")
         
         try:
-            # ✅ Create base adventures using ASYNC OpenAI
+            # ✅ Create base adventures using ASYNC OpenAI with STRICT venue rules
             adventures = await self._create_base_adventures(
                 researched_venues, enhanced_locations, preferences, target_location
             )
@@ -56,19 +56,19 @@ class AdventureCreatorAgent(BaseAgent):
         preferences: Dict, 
         target_location: str
     ) -> List[Dict]:
-        """✅ ASYNC: Create base adventures using OpenAI"""
+        """✅ FIXED: Create base adventures with STRICT venue validation"""
         
         # Build venue profiles for OpenAI
         venue_profiles = self._build_venue_profiles(
             researched_venues, enhanced_locations, target_location
         )
         
-        # Generate adventures with ASYNC OpenAI
+        # ✅ FIXED: Generate adventures with STRICT prompt
         prompt = self._build_adventure_prompt(
             venue_profiles, preferences, target_location
         )
         
-        # ✅ ASYNC call
+        # ASYNC call
         response = await self.client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
@@ -110,36 +110,92 @@ class AdventureCreatorAgent(BaseAgent):
         preferences: Dict, 
         target_location: str
     ) -> str:
-        """Build the adventure creation prompt"""
+        """✅ FIXED: Build adventure prompt with STRICT venue rules to prevent hallucinations"""
+        
+        # Extract EXACT venue names for validation
+        exact_venue_names = [v["name"] for v in venue_profiles]
+        venue_names_list = "\n".join([f"  {i+1}. {name}" for i, name in enumerate(exact_venue_names)])
+        
         return f"""Create 3 exceptional adventure itineraries for {target_location} using these venues:
 
 TARGET LOCATION: {target_location}
 USER REQUESTED: {preferences.get('preferences', [])}
 
-RESEARCHED VENUES:
+🎯 AVAILABLE RESEARCHED VENUES (YOU MUST USE THESE EXACT NAMES):
+{venue_names_list}
+
+VENUE DETAILS:
 {json.dumps(venue_profiles, indent=2)}
 
-Return ONLY valid JSON array:
+⚠️ CRITICAL RULES - PREVENT HALLUCINATIONS:
+1. **ONLY use venue names from the numbered list above**
+2. **Use EXACT names in "venues_used" array** (copy from list)
+3. **You CAN shorten names in "activity" text** for readability
+4. **NEVER invent generic venues** like:
+   ❌ "a Boston Pub"
+   ❌ "local restaurant"
+   ❌ "nearby cafe"
+   ❌ "popular bar"
+5. **If user wants something not in list** (e.g., "beer" but no bars), use available venues creatively
+6. **Each adventure MUST use 2-4 venues from the list**
+7. **Verify each venue in "venues_used" exists in the numbered list above**
+
+✅ CORRECT EXAMPLE:
+{{
+  "steps": [
+    {{
+      "time": "2:00 PM",
+      "activity": "Grab coffee at Cutty's",  // ✅ Shortened for readability
+      "details": "..."
+    }}
+  ],
+  "venues_used": ["Cutty's", "Isabella Stewart Gardner Museum"]  // ✅ EXACT names from list
+}}
+
+❌ WRONG EXAMPLE (NEVER DO THIS):
+{{
+  "steps": [
+    {{
+      "activity": "Visit a local Boston pub"  // ❌ Generic, not from list
+    }}
+  ],
+  "venues_used": ["Dunkin'", "a Boston pub"]  // ❌ "a Boston pub" NOT in research
+}}
+
+Return ONLY valid JSON array with 3 adventures:
 [
   {{
     "title": "Adventure Title",
-    "tagline": "Description",
-    "description": "Rich description",
-    "duration": {preferences.get('time_available', 120)},
+    "tagline": "One-line description",
+    "description": "Rich narrative description (2-3 sentences)",
+    "duration": {preferences.get('time_available', 180)},
     "cost": 35,
-    "theme": "Theme",
+    "theme": "Theme Name",
     "location": "{target_location}",
     "steps": [
       {{
         "time": "2:00 PM",
-        "activity": "Visit [VENUE NAME]",
-        "details": "Activity details"
+        "activity": "Visit [VENUE FROM LIST]",
+        "details": "Specific activity details"
+      }},
+      {{
+        "time": "3:30 PM",
+        "activity": "Explore [ANOTHER VENUE FROM LIST]",
+        "details": "More activity details"
       }}
     ],
-    "venues_used": ["venue names"],
+    "venues_used": ["Exact Name 1", "Exact Name 2"],
     "data_sources": ["OpenAI Scout", "Tavily Research", "Enhanced Google Maps"]
-  }}
-]"""
+  }},
+  ... 2 more adventures
+]
+
+FINAL CHECK BEFORE RETURNING:
+✅ All venues in "venues_used" exist in numbered list?
+✅ No generic venue names like "a pub", "local cafe"?
+✅ Each adventure has 2-4 stops?
+✅ Adventures tell coherent stories?
+"""
     
     def _integrate_research_data(self, adventure: Dict, researched_venues: List[Dict]):
         """Integrate ALL research data into adventure including research_summary"""
