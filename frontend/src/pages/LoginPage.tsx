@@ -1,24 +1,34 @@
-// frontend/src/pages/LoginPage.tsx - HANDLE SESSION EXPIRATION MESSAGE
+// frontend/src/pages/LoginPage.tsx - MERGED: Session Handling + Enhanced Style
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate, Link } from 'react-router-dom';
+import BackgroundOrbs from '../components/common/BackgroundOrbs';
+import GlassCard from '../components/common/GlassCard';
+import GlassInput from '../components/common/GlassInput';
+import GlassButton from '../components/common/GlassButton';
+import PasswordInput from '../components/common/PasswordInput';
 
 const LoginPage: React.FC = () => {
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [error, setError] = useState('');
 	const [loading, setLoading] = useState(false);
+	const [rememberMe, setRememberMe] = useState(false);
+
+	// ✅ Session expiration state
 	const [sessionExpiredMessage, setSessionExpiredMessage] = useState('');
+
 	const { login, isAuthenticated } = useAuth();
 	const navigate = useNavigate();
 
-	// ✅ Check for session expiration on mount
+	// ✅ Check for session expiration + remember me on mount
 	useEffect(() => {
+		// Check for session expiration
 		const expired = sessionStorage.getItem('session_expired');
-		const message = sessionStorage.getItem('session_expired_message');
+		const expiredMessage = sessionStorage.getItem('session_expired_message');
 
-		if (expired === 'true' && message) {
-			setSessionExpiredMessage(message);
+		if (expired === 'true' && expiredMessage) {
+			setSessionExpiredMessage(expiredMessage);
 
 			// Clear the flags
 			sessionStorage.removeItem('session_expired');
@@ -30,6 +40,13 @@ const LoginPage: React.FC = () => {
 			}, 10000);
 
 			return () => clearTimeout(timer);
+		}
+
+		// Check for saved email if "remember me" was used
+		const savedEmail = localStorage.getItem('remembered_email');
+		if (savedEmail) {
+			setEmail(savedEmail);
+			setRememberMe(true);
 		}
 	}, []);
 
@@ -48,14 +65,24 @@ const LoginPage: React.FC = () => {
 
 		try {
 			await login(email, password);
+
+			// Handle "remember me" functionality
+			if (rememberMe) {
+				localStorage.setItem('remembered_email', email);
+			} else {
+				localStorage.removeItem('remembered_email');
+			}
+
 			navigate('/adventures');
 		} catch (err: any) {
 			console.error('Login error:', err);
 
-			// ✅ Extract error message from response
-			const errorMessage = err.response?.data?.detail
-				|| err.message
-				|| 'Login failed';
+			// ✅ Extract user-friendly error message
+			const errorMessage =
+				err.response?.data?.detail ||
+				err.response?.data?.message ||
+				err.message ||
+				'Login failed. Please check your credentials.';
 
 			setError(errorMessage);
 		} finally {
@@ -64,68 +91,49 @@ const LoginPage: React.FC = () => {
 	};
 
 	return (
-		<div style={{
-			minHeight: '100vh',
-			display: 'flex',
-			alignItems: 'center',
-			justifyContent: 'center',
-			background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-			padding: '20px',
-		}}>
-			<div style={{
-				background: 'white',
-				padding: '40px',
-				borderRadius: '16px',
-				boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-				width: '100%',
-				maxWidth: '400px',
-			}}>
-				<div style={{
-					textAlign: 'center',
-					marginBottom: '30px',
-				}}>
-					<h1 style={{
-						fontSize: '2rem',
-						background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-						WebkitBackgroundClip: 'text',
-						WebkitTextFillColor: 'transparent',
-						marginBottom: '10px',
-					}}>
-						🗺️ MiniQuest
+		<div className="page-container page-container-center">
+			<BackgroundOrbs />
+
+			<GlassCard style={{ maxWidth: '450px', width: '100%' }}>
+				{/* Header */}
+				<div style={{ textAlign: 'center', marginBottom: '35px' }}>
+					<div className="hero-icon" style={{ fontSize: '3rem', marginBottom: '15px' }}>
+						🗺️
+					</div>
+					<h1 className="hero-title" style={{ fontSize: '2.5rem', marginBottom: '10px' }}>
+						Welcome Back
 					</h1>
-					<p style={{
-						color: '#64748b',
-						fontSize: '0.9rem',
-					}}>
-						Welcome back! Log in to continue.
+					<p className="page-subheader" style={{ marginBottom: 0 }}>
+						Sign in to continue your adventure planning
 					</p>
 				</div>
 
-				{/* ✅ Session Expired Warning */}
+				{/* ✅ Session Expired Warning (Priority Display) */}
 				{sessionExpiredMessage && (
 					<div style={{
-						background: '#fef2f2',
-						border: '1px solid #fecaca',
-						borderRadius: '8px',
-						padding: '12px',
+						background: 'rgba(239, 68, 68, 0.15)',
+						border: '1px solid rgba(239, 68, 68, 0.3)',
+						borderRadius: '12px',
+						padding: '14px',
 						marginBottom: '20px',
 						display: 'flex',
 						alignItems: 'center',
 						gap: '10px',
+						animation: 'slideDown 0.3s ease-out',
 					}}>
-						<span style={{ fontSize: '1.2rem' }}>⏰</span>
+						<span style={{ fontSize: '1.3rem' }}>⏰</span>
 						<div style={{ flex: 1 }}>
 							<div style={{
-								fontSize: '0.85rem',
+								fontSize: '0.9rem',
 								fontWeight: '600',
-								color: '#dc2626',
-								marginBottom: '2px',
+								color: '#fca5a5',
+								marginBottom: '3px',
 							}}>
 								Session Expired
 							</div>
 							<div style={{
 								fontSize: '0.8rem',
-								color: '#991b1b',
+								color: 'rgba(255, 255, 255, 0.7)',
 							}}>
 								{sessionExpiredMessage}
 							</div>
@@ -133,12 +141,20 @@ const LoginPage: React.FC = () => {
 						<button
 							onClick={() => setSessionExpiredMessage('')}
 							style={{
-								background: 'none',
+								background: 'rgba(239, 68, 68, 0.2)',
 								border: 'none',
-								color: '#dc2626',
+								color: '#fca5a5',
 								cursor: 'pointer',
 								fontSize: '1.2rem',
-								padding: '0 5px',
+								padding: '4px 8px',
+								borderRadius: '6px',
+								transition: 'all 0.2s',
+							}}
+							onMouseEnter={(e) => {
+								e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)';
+							}}
+							onMouseLeave={(e) => {
+								e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
 							}}
 						>
 							×
@@ -147,173 +163,88 @@ const LoginPage: React.FC = () => {
 				)}
 
 				{/* Login Error */}
-				{error && (
-					<div style={{
-						background: '#fef2f2',
-						border: '1px solid #fecaca',
-						borderRadius: '8px',
-						padding: '12px',
-						marginBottom: '20px',
-						color: '#dc2626',
-						fontSize: '0.9rem',
-						display: 'flex',
-						alignItems: 'center',
-						gap: '8px',
-					}}>
-						<span>❌</span>
-						<span>{error}</span>
+				{error && !sessionExpiredMessage && (
+					<div
+						className="error-message"
+						style={{
+							display: 'flex',
+							alignItems: 'center',
+							gap: '8px',
+							marginBottom: '20px',
+							animation: 'shake 0.5s ease',
+						}}
+					>
+						⚠️ {error}
 					</div>
 				)}
 
-				<form onSubmit={handleSubmit} style={{
-					display: 'flex',
-					flexDirection: 'column',
-					gap: '20px',
-				}}>
-					<div>
-						<label style={{
-							display: 'block',
-							marginBottom: '8px',
-							fontSize: '0.9rem',
-							fontWeight: '500',
-							color: '#1e293b',
-						}}>
-							Email
-						</label>
-						<input
-							type="email"
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-							required
-							disabled={loading}
-							style={{
-								width: '100%',
-								padding: '12px',
-								border: '2px solid #e2e8f0',
-								borderRadius: '8px',
-								fontSize: '0.95rem',
-								outline: 'none',
-								transition: 'border-color 0.2s',
-							}}
-							onFocus={(e) => {
-								e.target.style.borderColor = '#667eea';
-							}}
-							onBlur={(e) => {
-								e.target.style.borderColor = '#e2e8f0';
-							}}
-						/>
-					</div>
+				{/* Form */}
+				<form onSubmit={handleSubmit} className="form-section">
+					<GlassInput
+						type="email"
+						placeholder="Email"
+						value={email}
+						onChange={(e) => setEmail(e.target.value)}
+						required
+						autoComplete="email"
+					/>
 
-					<div>
-						<label style={{
-							display: 'block',
-							marginBottom: '8px',
-							fontSize: '0.9rem',
-							fontWeight: '500',
-							color: '#1e293b',
-						}}>
-							Password
-						</label>
-						<input
-							type="password"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							required
-							disabled={loading}
-							style={{
-								width: '100%',
-								padding: '12px',
-								border: '2px solid #e2e8f0',
-								borderRadius: '8px',
-								fontSize: '0.95rem',
-								outline: 'none',
-								transition: 'border-color 0.2s',
-							}}
-							onFocus={(e) => {
-								e.target.style.borderColor = '#667eea';
-							}}
-							onBlur={(e) => {
-								e.target.style.borderColor = '#e2e8f0';
-							}}
-						/>
-					</div>
+					<PasswordInput
+						value={password}
+						onChange={(e) => setPassword(e.target.value)}
+						placeholder="Password"
+						required
+						autoComplete="current-password"
+					/>
 
-					<button
-						type="submit"
-						disabled={loading}
-						style={{
-							width: '100%',
-							padding: '14px',
-							background: loading
-								? '#94a3b8'
-								: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-							color: 'white',
-							border: 'none',
-							borderRadius: '8px',
-							fontSize: '1rem',
-							fontWeight: '600',
-							cursor: loading ? 'not-allowed' : 'pointer',
-							transition: 'all 0.2s',
-							boxShadow: loading
-								? 'none'
-								: '0 4px 12px rgba(102, 126, 234, 0.4)',
-						}}
-						onMouseEnter={(e) => {
-							if (!loading) {
-								e.currentTarget.style.transform = 'translateY(-2px)';
-								e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.5)';
-							}
-						}}
-						onMouseLeave={(e) => {
-							if (!loading) {
-								e.currentTarget.style.transform = 'translateY(0)';
-								e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-							}
-						}}
-					>
-						{loading ? (
-							<span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-								<span className="spinner" />
-								Logging in...
-							</span>
-						) : (
-							'Log In'
-						)}
-					</button>
+					<GlassButton type="submit" disabled={loading}>
+						{loading ? '⏳ Signing In...' : '🚀 Sign In'}
+					</GlassButton>
 				</form>
 
-				<div style={{
-					marginTop: '25px',
-					textAlign: 'center',
-					fontSize: '0.9rem',
-					color: '#64748b',
-				}}>
-					Don't have an account?{' '}
-					<a
-						href="/register"
-						style={{
-							color: '#667eea',
-							textDecoration: 'none',
-							fontWeight: '600',
-						}}
-					>
-						Sign up
-					</a>
+				{/* Footer */}
+				<div style={{ textAlign: 'center', marginTop: '25px' }}>
+					<p className="auth-text">
+						Don't have an account?{' '}
+						<Link to="/register" className="auth-link">
+							Sign Up
+						</Link>
+					</p>
 				</div>
-			</div>
+
+				{/* Security Notice */}
+				<div
+					style={{
+						marginTop: '30px',
+						padding: '15px',
+						background: 'rgba(167, 139, 250, 0.1)',
+						border: '1px solid rgba(167, 139, 250, 0.2)',
+						borderRadius: '12px',
+						fontSize: '0.85rem',
+						color: 'rgba(255, 255, 255, 0.7)',
+						textAlign: 'center',
+					}}
+				>
+					🔒 Your connection is secure and encrypted
+				</div>
+			</GlassCard>
 
 			<style>{`
-				.spinner {
-					width: 16px;
-					height: 16px;
-					border: 2px solid rgba(255, 255, 255, 0.3);
-					border-top-color: white;
-					border-radius: 50%;
-					animation: spin 0.8s linear infinite;
+				@keyframes shake {
+					0%, 100% { transform: translateX(0); }
+					10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+					20%, 40%, 60%, 80% { transform: translateX(5px); }
 				}
 				
-				@keyframes spin {
-					to { transform: rotate(360deg); }
+				@keyframes slideDown {
+					from {
+						transform: translateY(-20px);
+						opacity: 0;
+					}
+					to {
+						transform: translateY(0);
+						opacity: 1;
+					}
 				}
 			`}</style>
 		</div>

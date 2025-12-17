@@ -90,3 +90,16 @@ coverage/
 *.temp
 .dev.bat
 dev.bat
+# AWS deployment artifacts
+dist-config*.json
+backend-cloudfront-config.json
+task-definition.json
+ecs-task-def*.json
+*.tmp.json
+
+# Environment-specific deployment configs
+.env.deploy.local
+deploy-*.ps1
+
+# Keep templates
+!deploy-*.template.ps1
