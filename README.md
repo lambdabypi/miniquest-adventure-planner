@@ -132,7 +132,7 @@ Final Result: "Open 7am-6pm, $3-7 range, known for cappuccinos"
 - Python 3.11
 - FastAPI (REST API)
 - LangGraph (agent orchestration)
-- OpenAI GPT-4 (intelligence)
+- OpenAI GPT-4o and GPT-4o-mini (intelligence)
 - Tavily API (web research)
 - MongoDB Atlas (database)
 - ChromaDB (vector storage)
@@ -227,7 +227,7 @@ Example: "Boston" → {lat: 42.3601, lon: -71.0589, city: "Boston", state: "MA"}
 Role: Generate diverse venue candidates
 Input: Location + preferences
 Output: List of potential venues
-Technology: OpenAI GPT-4
+Technology: OpenAI GPT-4o
 Example: Generates 20+ diverse venue suggestions per category
 ```
 
@@ -256,7 +256,7 @@ Technology: Google Maps Directions API
 Role: Generate themed adventure narratives
 Input: Researched venues + routes
 Output: Complete adventure itineraries with stories
-Technology: OpenAI GPT-4
+Technology: OpenAI GPT-4o
 Features: Async execution for speed
 ```
 
@@ -600,7 +600,7 @@ aws logs tail /ecs/miniquest-backend --follow
 
 - **LangGraph** - Agent orchestration framework
 - **Tavily** - Real-time web research API
-- **OpenAI** - GPT-4 language model
+- **OpenAI** - GPT-4 language models
 - **Anthropic** - Development assistance with Claude
 
 ---

@@ -69,7 +69,7 @@ Each agent has a **single, well-defined responsibility**:
 
 1. **IntentParser** - Extract user preferences from natural language
 2. **LocationParser** - Resolve location to coordinates
-3. **VenueScout** - Generate 15-20 diverse venue candidates (GPT-4)
+3. **VenueScout** - Generate 15-20 diverse venue candidates (GPT-4o)
 4. **TavilyResearch** - Real-time web research (parallel, 8 concurrent)
 5. **ResearchSummary** - Synthesize findings into structured data
 6. **RoutingAgent** - Calculate optimal routes (Google Maps)
@@ -187,7 +187,7 @@ Progress updates are **streamed** to the frontend:
 - Generates 15-20 diverse venue candidates
 - Enforces category diversity
 - Includes exact addresses
-- Uses GPT-4 for generation
+- Uses GPT-4o for generation
 - Validates venues exist
 
 **TavilyResearch Agent:**
@@ -354,7 +354,7 @@ class BaseAgent:
 **Process:**
 1. Receive user query
 2. Validate scope (local adventures only)
-3. Call OpenAI GPT-4 with structured prompt
+3. Call OpenAI GPT-4o-mini with structured prompt
 4. Parse JSON response
 5. Validate extracted fields
 
@@ -464,7 +464,7 @@ SCOPE: Only local, same-day adventures (2-6 hours)
 
 **File:** `backend/app/agents/scouting/venue_scout.py`
 
-**Purpose:** Generate diverse venue candidates using GPT-4
+**Purpose:** Generate diverse venue candidates using GPT-4o
 
 **Strategy:**
 - Request 15-20 venues per generation
@@ -617,7 +617,7 @@ async def process(self, input_data: Dict) -> Dict:
 **Process:**
 1. Receive raw Tavily results per venue
 2. Batch all venues into single prompt
-3. Extract key information using GPT-4
+3. Extract key information using GPT-4o-mini
 4. Structure into consistent format
 5. Calculate confidence scores
 
@@ -802,7 +802,7 @@ async def create_adventures(
     personalization: Dict
 ) -> List[Dict]:
     
-    # 1. Generate 3 themed adventures using GPT-4
+    # 1. Generate 3 themed adventures using GPT-4o
     adventures = await self._generate_base_adventures(
         researched_venues, 
         preferences,
@@ -826,7 +826,7 @@ async def create_adventures(
     return adventures
 ```
 
-**GPT-4 Prompt Structure:**
+**GPT-4o Prompt Structure:**
 ```python
 system_prompt = """
 Create 3 unique themed adventures from provided venues.
@@ -926,6 +926,24 @@ def _integrate_research(adventure, researched_venues):
     "venues_research": [/* full research data for all venues */]
 }
 ```
+
+### 3.10 Model Selection Strategy
+
+MiniQuest uses different OpenAI models strategically:
+
+**GPT-4o-mini** (Cost-effective):
+- Intent parsing and validation
+- Location parsing
+- Quick classification tasks
+- ~75% cheaper than GPT-4o
+
+**GPT-4o** (Quality-focused):
+- Venue scouting (requires creativity and local knowledge)
+- Adventure creation (narrative generation)
+- Research summarization
+- Tasks requiring deep reasoning
+
+This hybrid approach balances cost (~60% savings) with quality where it matters most.
 
 ## Tavily Research Integration
 Duration: 10

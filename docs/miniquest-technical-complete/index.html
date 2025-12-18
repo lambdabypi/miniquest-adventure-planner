@@ -82,7 +82,7 @@ MongoDB + Redis + ChromaDB
 <ol type="1">
 <li><strong>IntentParser</strong> - Extract user preferences from natural language</li>
 <li><strong>LocationParser</strong> - Resolve location to coordinates</li>
-<li><strong>VenueScout</strong> - Generate 15-20 diverse venue candidates (GPT-4)</li>
+<li><strong>VenueScout</strong> - Generate 15-20 diverse venue candidates (GPT-4o)</li>
 <li><strong>TavilyResearch</strong> - Real-time web research (parallel, 8 concurrent)</li>
 <li><strong>ResearchSummary</strong> - Synthesize findings into structured data</li>
 <li><strong>RoutingAgent</strong> - Calculate optimal routes (Google Maps)</li>
@@ -209,7 +209,7 @@ MongoDB + Redis + ChromaDB
 <li>Generates 15-20 diverse venue candidates</li>
 <li>Enforces category diversity</li>
 <li>Includes exact addresses</li>
-<li>Uses GPT-4 for generation</li>
+<li>Uses GPT-4o for generation</li>
 <li>Validates venues exist</li>
 </ul>
 <p><strong>TavilyResearch Agent:</strong></p>
@@ -371,7 +371,7 @@ workflow.add_edge(&#34;create_adventures&#34;, END)
 <ol type="1">
 <li>Receive user query</li>
 <li>Validate scope (local adventures only)</li>
-<li>Call OpenAI GPT-4 with structured prompt</li>
+<li>Call OpenAI GPT-4o-mini with structured prompt</li>
 <li>Parse JSON response</li>
 <li>Validate extracted fields</li>
 </ol>
@@ -466,7 +466,7 @@ SCOPE: Only local, same-day adventures (2-6 hours)
 </code></pre>
 <h2 is-upgraded>3.5 Venue Scout Agent Details</h2>
 <p><strong>File: </strong><code>backend/app/agents/scouting/venue_scout.py</code></p>
-<p><strong>Purpose:</strong> Generate diverse venue candidates using GPT-4</p>
+<p><strong>Purpose:</strong> Generate diverse venue candidates using GPT-4o</p>
 <p><strong>Strategy:</strong></p>
 <ul>
 <li>Request 15-20 venues per generation</li>
@@ -600,7 +600,7 @@ Return JSON array of venues with:
 <ol type="1">
 <li>Receive raw Tavily results per venue</li>
 <li>Batch all venues into single prompt</li>
-<li>Extract key information using GPT-4</li>
+<li>Extract key information using GPT-4o-mini</li>
 <li>Structure into consistent format</li>
 <li>Calculate confidence scores</li>
 </ol>
@@ -768,7 +768,7 @@ If hours unknown, say &#34;Call ahead to confirm hours&#34;.
     personalization: Dict
 ) -&gt; List[Dict]:
     
-    # 1. Generate 3 themed adventures using GPT-4
+    # 1. Generate 3 themed adventures using GPT-4o
     adventures = await self._generate_base_adventures(
         researched_venues, 
         preferences,
@@ -791,7 +791,7 @@ If hours unknown, say &#34;Call ahead to confirm hours&#34;.
     
     return adventures
 </code></pre>
-<p><strong>GPT-4 Prompt Structure:</strong></p>
+<p><strong>GPT-4o Prompt Structure:</strong></p>
 <pre><code language="language-python" class="language-python">system_prompt = &#34;&#34;&#34;
 Create 3 unique themed adventures from provided venues.
 
@@ -886,6 +886,23 @@ Return JSON with structure:
     &#34;venues_research&#34;: [/* full research data for all venues */]
 }
 </code></pre>
+<h2 is-upgraded>3.10 Model Selection Strategy</h2>
+<p>MiniQuest uses different OpenAI models strategically:</p>
+<p><strong>GPT-4o-mini</strong> (Cost-effective):</p>
+<ul>
+<li>Intent parsing and validation</li>
+<li>Location parsing</li>
+<li>Quick classification tasks</li>
+<li>~75% cheaper than GPT-4o</li>
+</ul>
+<p><strong>GPT-4o</strong> (Quality-focused):</p>
+<ul>
+<li>Venue scouting (requires creativity and local knowledge)</li>
+<li>Adventure creation (narrative generation)</li>
+<li>Research summarization</li>
+<li>Tasks requiring deep reasoning</li>
+</ul>
+<p>This hybrid approach balances cost (~60% savings) with quality where it matters most.</p>
 
 
       </google-codelab-step>

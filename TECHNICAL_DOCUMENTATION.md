@@ -255,7 +255,7 @@ class BaseAgent:
 
 **Process:**
 1. Receive user query
-2. Call OpenAI GPT-4 with structured prompt
+2. Call OpenAI GPT-4o-mini with structured prompt
 3. Parse JSON response
 4. Validate extracted fields
 
@@ -327,7 +327,7 @@ Return JSON with:
 
 **File:** `backend/app/agents/scouting/venue_scout.py`
 
-**Purpose:** Generate diverse venue candidates using GPT-4
+**Purpose:** Generate diverse venue candidates using GPT-4o
 
 **Strategy:**
 - Request 15-20 venues per generation
@@ -460,7 +460,7 @@ async def process(self, input_data: Dict) -> Dict:
 
 **Process:**
 1. Receive raw Tavily results per venue
-2. Extract key information using GPT-4
+2. Extract key information using GPT-4o-mini
 3. Structure into consistent format
 4. Calculate confidence scores
 
@@ -612,7 +612,7 @@ async def create_adventures(
     personalization: Dict
 ) -> List[Dict]:
     
-    # 1. Generate 3 themed adventures using GPT-4
+    # 1. Generate 3 themed adventures using GPT-4o
     adventures = await self._generate_base_adventures(
         researched_venues, 
         preferences,
@@ -636,7 +636,7 @@ async def create_adventures(
     return adventures
 ```
 
-**GPT-4 Prompt Structure:**
+**GPT-4o Prompt Structure:**
 ```python
 system_prompt = """
 Create 3 unique themed adventures from venues.
@@ -2753,11 +2753,19 @@ EMBEDDING_MODEL=text-embedding-3-small
 
 | Service | Tier | Limit | Notes |
 |---------|------|-------|-------|
-| OpenAI GPT-4 | Tier 2 | 10,000 TPM | ~15 req/min |
-| Tavily Search | Free | 1,000/month | ~100/day |
+| OpenAI GPT-4o | Tier 2 | 10,000 TPM | ~15 req/min |
+| OpenAI GPT-4o-mini | Tier 2 | 30,000 TPM | ~50 req/min |
+| Tavily Search | Free | 1,000/month | ~33/day |
 | Tavily Extract | Free | Included | With search |
-| Google Maps | Standard | 60 req/min | Per API key |
+| Google Maps Directions | Standard | 60 req/min | Per API key |
 | MongoDB Atlas | M0 | 500 connections | Free tier |
+
+**Notes:**
+- TPM = Tokens Per Minute
+- Tavily free tier: 1,000 API calls/month total (search + extract combined)
+- Caching reduces Tavily calls by ~90% (from ~20 to ~2 per adventure)
+- GPT-4o used for venue generation and adventure creation
+- GPT-4o-mini used for intent/location parsing (cost optimization)
 
 ### 10.3 Glossary
 
