@@ -6,6 +6,10 @@ A production-ready multi-agent system that generates personalized travel itinera
 
 ---
 
+## Technical Documentation
+
+https://lambdabypi.github.io/miniquest-adventure-planner/
+
 ## Live Application
 
 - **Frontend**: https://d1nrqhtd83kmw6.cloudfront.net
