@@ -1,0 +1,1068 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>MiniQuest: Complete Technical Documentation</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/claat-public/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid="0"
+                  id="miniquest-technical-complete"
+                  title="MiniQuest: Complete Technical Documentation"
+                  environment="web"
+                  feedback-link="">
+    
+      <google-codelab-step label="Overview" duration="5">
+        <h2 is-upgraded>What is MiniQuest?</h2>
+<p>MiniQuest is a <strong>production-ready multi-agent system</strong> that generates personalized travel itineraries using real-time web research and RAG-based personalization. It combines <strong>7 specialized AI agents</strong> coordinated by LangGraph to create complete, research-backed adventure plans.</p>
+<h2 is-upgraded>Key Capabilities</h2>
+<ul>
+<li>⚡ <strong>Real-time venue research</strong> using Tavily API</li>
+<li>🤖 <strong>Multi-agent workflow</strong> orchestration with LangGraph</li>
+<li>🧠 <strong>RAG-based personalization</strong> using ChromaDB</li>
+<li>🗺️ <strong>Google Maps route</strong> optimization</li>
+<li>🚀 <strong>Parallel processing</strong> with intelligent caching</li>
+<li>🔐 <strong>User authentication</strong> and history tracking</li>
+<li>📊 <strong>Real-time progress</strong> tracking</li>
+</ul>
+<h2 is-upgraded>Technology Stack</h2>
+<p><strong>Backend:</strong></p>
+<ul>
+<li>Python 3.11, FastAPI, LangGraph</li>
+<li>AsyncOpenAI, Tavily API</li>
+<li>MongoDB Atlas, ChromaDB, Redis</li>
+<li>Google Maps API</li>
+</ul>
+<p><strong>Frontend:</strong></p>
+<ul>
+<li>React 18 with TypeScript</li>
+<li>Vite, Axios, React Router</li>
+</ul>
+<p><strong>Infrastructure:</strong></p>
+<ul>
+<li>Docker &amp; Docker Compose</li>
+<li>AWS (CloudFront, ECS)</li>
+<li>MongoDB Atlas, Redis</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="System Architecture" duration="10">
+        <h2 is-upgraded>High-Level Architecture</h2>
+<p class="image-container"><img alt="System Architecture" src="img\\c21216f7665d5e35.png"></p>
+<p>The system uses a <strong>multi-layer architecture</strong> with clear separation of concerns:</p>
+<pre><code>Frontend (React)
+    ↓ REST API
+FastAPI Backend
+    ↓ Orchestration
+LangGraph Coordinator
+    ↓ Sequential Workflow
+7 Specialized Agents
+    ↓ Data Layer
+MongoDB + Redis + ChromaDB
+</code></pre>
+<h2 is-upgraded>The 7 Specialized Agents</h2>
+<p>Each agent has a <strong>single, well-defined responsibility</strong>:</p>
+<ol type="1">
+<li><strong>IntentParser</strong> - Extract user preferences from natural language</li>
+<li><strong>LocationParser</strong> - Resolve location to coordinates</li>
+<li><strong>VenueScout</strong> - Generate 15-20 diverse venue candidates (GPT-4)</li>
+<li><strong>TavilyResearch</strong> - Real-time web research (parallel, 8 concurrent)</li>
+<li><strong>ResearchSummary</strong> - Synthesize findings into structured data</li>
+<li><strong>RoutingAgent</strong> - Calculate optimal routes (Google Maps)</li>
+<li><strong>AdventureCreator</strong> - Generate 3 themed adventures (async)</li>
+</ol>
+<p>Negative : <strong>Key Design Principle:</strong> Each agent is independently testable and can be optimized separately for maximum modularity</p>
+<h2 is-upgraded>Data Flow</h2>
+<p class="image-container"><img alt="Adventure Generation Flow" src="img\\533f66c2771962ac.png"></p>
+<p><strong>Complete Generation Pipeline:</strong></p>
+<pre><code>User Query
+  → IntentParser (extract themes)
+  → LocationParser (get coordinates)
+  → RAG System (apply personalization)
+  → VenueScout (generate venues)
+  → TavilyResearch (research in parallel)
+  → ResearchSummary (synthesize data)
+  → RoutingAgent (calculate routes)
+  → AdventureCreator (create 3 adventures)
+  → Save metadata to MongoDB
+  → Return to user
+</code></pre>
+<p><strong>Average Processing Time:</strong> ~4.2 seconds (with optimizations)</p>
+<h2 is-upgraded>System Components Overview</h2>
+<table>
+<tr><td colspan="1" rowspan="1"><p>Component</p>
+</td><td colspan="1" rowspan="1"><p>Technology</p>
+</td><td colspan="1" rowspan="1"><p>Purpose</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>API Server</p>
+</td><td colspan="1" rowspan="1"><p>FastAPI</p>
+</td><td colspan="1" rowspan="1"><p>REST endpoints</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>Coordinator</p>
+</td><td colspan="1" rowspan="1"><p>LangGraph</p>
+</td><td colspan="1" rowspan="1"><p>Agent orchestration</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>Agents</p>
+</td><td colspan="1" rowspan="1"><p>OpenAI, Tavily</p>
+</td><td colspan="1" rowspan="1"><p>Specialized processing</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>RAG System</p>
+</td><td colspan="1" rowspan="1"><p>ChromaDB</p>
+</td><td colspan="1" rowspan="1"><p>Personalization</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>Auth System</p>
+</td><td colspan="1" rowspan="1"><p>JWT, bcrypt</p>
+</td><td colspan="1" rowspan="1"><p>Authentication</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>Database</p>
+</td><td colspan="1" rowspan="1"><p>MongoDB, Redis</p>
+</td><td colspan="1" rowspan="1"><p>Persistence, caching</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>Frontend</p>
+</td><td colspan="1" rowspan="1"><p>React, TypeScript</p>
+</td><td colspan="1" rowspan="1"><p>User interface</p>
+</td></tr>
+</table>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="LangGraph Workflow" duration="12">
+        <h2 is-upgraded>State Machine Design</h2>
+<p class="image-container"><img alt="LangGraph Workflow" src="img\\f712b0807c7a9df4.png"></p>
+<p>LangGraph orchestrates the workflow as a <strong>state graph</strong> with 8 sequential nodes:</p>
+<p><strong>Workflow Progression:</strong></p>
+<ul>
+<li>Node 1: <code>parse_location</code> (14% progress)</li>
+<li>Node 2: <code>get_personalization</code> (29% progress)</li>
+<li>Node 3: <code>parse_intent</code> (29% progress)</li>
+<li>Node 4: <code>scout_venues</code> (43% progress)</li>
+<li>Node 5: <code>research_venues</code> (57% progress) ⚡ <strong>Parallel</strong></li>
+<li>Node 6: <code>summarize_research</code> (71% progress)</li>
+<li>Node 7: <code>route_adventures</code> (86% progress)</li>
+<li>Node 8: <code>create_adventures</code> (100% progress) ⚡ <strong>Async</strong></li>
+</ul>
+<h2 is-upgraded>State Management</h2>
+<p>The workflow maintains <strong>shared state</strong> across all agents:</p>
+<pre><code language="language-python" class="language-python">class AdventureState(TypedDict):
+    # Input
+    user_input: str
+    user_address: Optional[str]
+    user_id: Optional[str]
+    
+    # Processing
+    target_location: str
+    coordinates: Dict
+    parsed_preferences: Dict
+    scouted_venues: List[Dict]
+    researched_venues: List[Dict]
+    
+    # Output
+    final_adventures: List[Dict]
+    performance: Dict
+</code></pre>
+<h2 is-upgraded>Real-Time Progress Tracking</h2>
+<p>Progress updates are <strong>streamed</strong> to the frontend:</p>
+<pre><code language="language-json" class="language-json">{
+  &#34;step&#34;: &#34;research_venues&#34;,
+  &#34;agent&#34;: &#34;TavilyResearch&#34;,
+  &#34;status&#34;: &#34;in_progress&#34;,
+  &#34;message&#34;: &#34;Researching 8 venues...&#34;,
+  &#34;progress&#34;: 0.57,
+  &#34;details&#34;: {...}
+}
+</code></pre>
+<h2 is-upgraded>Agent Implementations</h2>
+<p><strong>IntentParser Agent:</strong></p>
+<ul>
+<li>Extracts preferences, themes, activities from natural language</li>
+<li>Returns structured JSON with user interests</li>
+</ul>
+<p><strong>LocationParser Agent:</strong></p>
+<ul>
+<li>Resolves location strings to coordinates</li>
+<li>Uses OpenAI function calling for geocoding</li>
+<li>Validates and returns structured location data</li>
+</ul>
+<p><strong>VenueScout Agent:</strong></p>
+<ul>
+<li>Generates 15-20 diverse venue candidates</li>
+<li>Enforces category diversity</li>
+<li>Includes exact addresses</li>
+<li>Uses GPT-4 for generation</li>
+</ul>
+<p><strong>TavilyResearch Agent:</strong></p>
+<ul>
+<li>Researches venues in parallel (8 concurrent)</li>
+<li>Multi-step: Search API → Extract API</li>
+<li>Caches results in Redis (24hr TTL)</li>
+<li>Graceful error recovery</li>
+</ul>
+<p><strong>ResearchSummary Agent:</strong></p>
+<ul>
+<li>Synthesizes raw research into structured summaries</li>
+<li>Extracts hours, prices, tips, descriptions</li>
+<li>Calculates confidence scores</li>
+</ul>
+<p><strong>RoutingAgent:</strong></p>
+<ul>
+<li>Generates optimal Google Maps routes</li>
+<li>Multiple travel modes (walk, drive, transit)</li>
+<li>Waypoint optimization</li>
+<li>Shareable route URLs</li>
+</ul>
+<p><strong>AdventureCreator Agent:</strong></p>
+<ul>
+<li>Creates 3 themed adventures asynchronously</li>
+<li>Integrates all research data</li>
+<li>Weaves compelling narratives</li>
+<li>Adds route information</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Tavily Research Integration" duration="10">
+        <h2 is-upgraded>Why Tavily?</h2>
+<p>Tavily provides <strong>real-time web data</strong> that traditional databases can&#39;t offer:</p>
+<ul>
+<li>🕐 Current venue hours (changes daily)</li>
+<li>💰 Live prices and deals</li>
+<li>⭐ Recent reviews and ratings</li>
+<li>📅 Up-to-date event information</li>
+</ul>
+<h2 is-upgraded>Multi-Step Research Strategy</h2>
+<p><strong>Step 1: Tavily Search API</strong></p>
+<pre><code language="language-python" class="language-python">search_results = tavily.search(
+    query=f&#34;{venue_name} {location} hours prices reviews&#34;,
+    search_depth=&#34;advanced&#34;,
+    max_results=5
+)
+</code></pre>
+<p>Returns top 5 web pages with relevant venue information.</p>
+<p><strong>Step 2: Tavily Extract API</strong></p>
+<pre><code language="language-python" class="language-python">extract_results = tavily.extract(
+    urls=[result[&#39;url&#39;] for result in search_results],
+    include_raw_content=False
+)
+</code></pre>
+<p>Deep dive into content for detailed information.</p>
+<p><strong>Step 3: Synthesize &amp; Cache</strong></p>
+<pre><code language="language-python" class="language-python">research_data = synthesize(search_results, extract_results)
+await redis.set(cache_key, research_data, ex=86400)  # 24hr TTL
+</code></pre>
+<p>Structure data and cache for 24 hours.</p>
+<h2 is-upgraded>Research Output Structure</h2>
+<p>Each venue receives <strong>comprehensive research data</strong>:</p>
+<pre><code language="language-json" class="language-json">{
+  &#34;venue_name&#34;: &#34;Thinking Cup&#34;,
+  &#34;current_info&#34;: &#34;Open today until 6 PM&#34;,
+  &#34;hours_info&#34;: &#34;Mon-Fri: 7 AM - 6 PM&#34;,
+  &#34;visitor_tips&#34;: [
+    &#34;Try the cappuccino&#34;,
+    &#34;Arrive before 11 AM to avoid crowds&#34;,
+    &#34;Free WiFi available&#34;
+  ],
+  &#34;venue_summary&#34;: &#34;Popular artisan coffee shop...&#34;,
+  &#34;research_confidence&#34;: 0.89,
+  &#34;total_insights&#34;: 12,
+  &#34;top_source&#34;: &#34;thinkingcup.com&#34;
+}
+</code></pre>
+<h2 is-upgraded>API Call Optimization</h2>
+<p><strong>Per Adventure Generation:</strong></p>
+<ul>
+<li>Tavily Search calls: ~10</li>
+<li>Tavily Extract calls: ~10</li>
+<li><strong>Total API calls: ~20</strong></li>
+</ul>
+<p><strong>With 90% cache hit rate:</strong></p>
+<ul>
+<li>Actual API calls: ~2-3</li>
+<li><strong>Cost savings: 85-90%</strong></li>
+</ul>
+<p>Positive : Smart caching reduces Tavily API costs by up to 90% while maintaining data freshness with 24-hour TTL</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Performance Optimizations" duration="10">
+        <h2 is-upgraded>Benchmark Results</h2>
+<table>
+<tr><td colspan="1" rowspan="1"><p>Component</p>
+</td><td colspan="1" rowspan="1"><p>Before</p>
+</td><td colspan="1" rowspan="1"><p>After</p>
+</td><td colspan="1" rowspan="1"><p>Improvement</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>Research</strong></p>
+</td><td colspan="1" rowspan="1"><p>20.0s</p>
+</td><td colspan="1" rowspan="1"><p>2.5s</p>
+</td><td colspan="1" rowspan="1"><p>⚡ 87.5%</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>Caching</strong></p>
+</td><td colspan="1" rowspan="1"><p>2.5s/venue</p>
+</td><td colspan="1" rowspan="1"><p>0.1s/venue</p>
+</td><td colspan="1" rowspan="1"><p>🚀 96%</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>Adventures</strong></p>
+</td><td colspan="1" rowspan="1"><p>9.0s</p>
+</td><td colspan="1" rowspan="1"><p>3.0s</p>
+</td><td colspan="1" rowspan="1"><p>✨ 67%</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>Total Pipeline</strong></p>
+</td><td colspan="1" rowspan="1"><p><strong>33.3s</strong></p>
+</td><td colspan="1" rowspan="1"><p><strong>4.2s</strong></p>
+</td><td colspan="1" rowspan="1"><p><strong>🎯 87% faster</strong></p>
+</td></tr>
+</table>
+<h2 is-upgraded>Optimization #1: Parallel Research</h2>
+<p class="image-container"><img alt="Parallel Research" src="img\\aabfab71b0429ac8.png"></p>
+<p><strong>Sequential Processing (❌ Slow):</strong></p>
+<pre><code>Venue 1: 2.5s
+Venue 2: 2.5s
+...
+Venue 8: 2.5s
+Total: 20 seconds
+</code></pre>
+<p><strong>Parallel Processing (✅ Fast):</strong></p>
+<pre><code language="language-python" class="language-python">async with asyncio.TaskGroup() as tg:
+    tasks = [tg.create_task(research_venue(v)) 
+             for v in venues]
+
+# All 8 venues complete in 2.5s
+</code></pre>
+<p><strong>Result:</strong> 87.5% faster research phase</p>
+<h2 is-upgraded>Optimization #2: Redis Caching</h2>
+<p class="image-container"><img alt="Research Caching" src="img\\a7bf98c2dbbfa003.png"></p>
+<p><strong>Cache Strategy:</strong></p>
+<ul>
+<li><strong>Key format: </strong><code>venue:{name}:{location}:{date}</code></li>
+<li><strong>TTL:</strong> 24 hours</li>
+<li><strong>Hit rate:</strong> 91%</li>
+</ul>
+<p><strong>Performance Impact:</strong></p>
+<ul>
+<li>Without cache: 2.5s per venue</li>
+<li>With cache (90% hit): 0.1s per venue</li>
+<li><strong>Time saved:</strong> 84%</li>
+</ul>
+<p><strong>Cache Statistics:</strong></p>
+<pre><code language="language-python" class="language-python">{
+    &#34;total_requests&#34;: 1000,
+    &#34;cache_hits&#34;: 910,
+    &#34;cache_misses&#34;: 90,
+    &#34;hit_rate&#34;: &#34;91.0%&#34;,
+    &#34;time_saved_seconds&#34;: 2273
+}
+</code></pre>
+<h2 is-upgraded>Optimization #3: Async Adventure Creation</h2>
+<p><strong>Sequential Creation (❌ Slow):</strong></p>
+<pre><code>Adventure 1: 3.0s
+Adventure 2: 3.0s
+Adventure 3: 3.0s
+Total: 9.0 seconds
+</code></pre>
+<p><strong>Async Creation (✅ Fast):</strong></p>
+<pre><code language="language-python" class="language-python">adventures = await asyncio.gather(*[
+    create_single(theme) for theme in themes
+])
+# All 3 complete in 3.0s
+</code></pre>
+<p><strong>Result:</strong> 67% faster adventure generation</p>
+<h2 is-upgraded>Overall Performance Summary</h2>
+<p>Positive : Combined optimizations result in <strong>87% faster generation</strong> with zero quality loss - from 33.3s to 4.2s average</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="RAG Personalization" duration="10">
+        <h2 is-upgraded>How RAG Works</h2>
+<p class="image-container"><img alt="RAG Architecture" src="img\\b6a0cf415ac3c0de.png"></p>
+<p>The RAG system <strong>learns from user behavior</strong>:</p>
+<p><strong>Workflow:</strong></p>
+<ol type="1">
+<li>User saves adventure → Stored in ChromaDB with embeddings</li>
+<li>Next query → Retrieve similar past adventures</li>
+<li>Extract patterns → Favorite themes, venues, locations</li>
+<li>Enhance search → Weight recommendations toward preferences</li>
+</ol>
+<p class="image-container"><img alt="RAG Personalization Flow" src="img\\80aa59c4d9df8d95.png"></p>
+<h2 is-upgraded>ChromaDB Collections</h2>
+<p><strong>Collection 1: user_adventure_history</strong></p>
+<ul>
+<li>Stores saved adventures with ratings</li>
+<li>OpenAI embeddings for semantic search</li>
+<li>Metadata: user_id, location, rating, timestamp</li>
+</ul>
+<p><strong>Collection 2: dynamic_location_tips</strong></p>
+<ul>
+<li>Cached insider tips from Tavily</li>
+<li>Categorized by location and type</li>
+<li>Authenticity scoring</li>
+</ul>
+<h2 is-upgraded>Implementation Details</h2>
+<p><strong>Storing Adventures:</strong></p>
+<pre><code language="language-python" class="language-python">def store_user_adventure(user_id, adventure_data, rating):
+    adventure_doc = f&#34;&#34;&#34;
+    Title: {adventure_data[&#39;title&#39;]}
+    Theme: {adventure_data[&#39;theme&#39;]}
+    Venues: {&#39;, &#39;.join([v[&#39;name&#39;] for v in venues])}
+    Rating: {rating}/5
+    &#34;&#34;&#34;
+    
+    self.user_history_collection.add(
+        ids=[f&#34;user_{user_id}_adventure_{timestamp}&#34;],
+        documents=[adventure_doc],
+        metadatas=[{
+            &#34;user_id&#34;: user_id,
+            &#34;rating&#34;: rating,
+            &#34;location&#34;: location
+        }]
+    )
+</code></pre>
+<p><strong>Retrieving Personalization:</strong></p>
+<pre><code language="language-python" class="language-python">def get_user_personalization(user_id, location):
+    results = self.user_history_collection.query(
+        query_texts=[f&#34;adventures in {location}&#34;],
+        where={&#34;user_id&#34;: user_id},
+        n_results=20
+    )
+    
+    return {
+        &#34;favorite_themes&#34;: extract_themes(results),
+        &#34;avg_rating&#34;: calculate_avg_rating(results),
+        &#34;total_adventures&#34;: len(results)
+    }
+</code></pre>
+<h2 is-upgraded>Example Personalization</h2>
+<p><strong>Scenario:</strong></p>
+<ul>
+<li>User has 5 saved adventures</li>
+<li>All rated 5★</li>
+<li>Common themes: coffee, art, culture</li>
+</ul>
+<p><strong>Result:</strong></p>
+<ul>
+<li>Query: &#34;places to visit in Cambridge&#34;</li>
+<li>System prioritizes: cafes, galleries, art spaces</li>
+<li>Avoids: generic tourist attractions</li>
+</ul>
+<p><strong>Personalization Data:</strong></p>
+<pre><code language="language-json" class="language-json">{
+  &#34;has_history&#34;: true,
+  &#34;favorite_themes&#34;: [&#34;coffee&#34;, &#34;art&#34;, &#34;culture&#34;],
+  &#34;avg_rating&#34;: 4.8,
+  &#34;total_adventures&#34;: 5,
+  &#34;favorite_locations&#34;: [&#34;Boston&#34;, &#34;Cambridge&#34;]
+}
+</code></pre>
+<p>Negative : Personalization requires at least 3 saved adventures for meaningful patterns to emerge</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Authentication &amp; Security" duration="8">
+        <h2 is-upgraded>System Architecture</h2>
+<p class="image-container"><img alt="Authentication Architecture" src="img\\1ed972871ad8ff56.png"></p>
+<p>The authentication system uses <strong>JWT tokens</strong> with <strong>bcrypt</strong> password hashing.</p>
+<h2 is-upgraded>JWT Token Flow</h2>
+<p class="image-container"><img alt="Authentication Flow" src="img\\e717a3da4e2a0a2a.png"></p>
+<p><strong>Registration/Login Process:</strong></p>
+<ol type="1">
+<li>User provides credentials</li>
+<li>Password hashed with bcrypt (cost factor: 12)</li>
+<li>JWT token generated (HS256 algorithm)</li>
+<li>Token expires after 30 minutes</li>
+</ol>
+<p><strong>Token Structure:</strong></p>
+<pre><code language="language-json" class="language-json">{
+  &#34;sub&#34;: &#34;user@example.com&#34;,
+  &#34;user_id&#34;: &#34;507f1f77bcf86cd799439011&#34;,
+  &#34;exp&#34;: 1640995200
+}
+</code></pre>
+<h2 is-upgraded>Security Features</h2>
+<p><strong>Password Security:</strong></p>
+<ul>
+<li>Algorithm: bcrypt</li>
+<li>Cost factor: 12 (4096 rounds)</li>
+<li>Automatic salt generation</li>
+<li>Timing attack protection</li>
+</ul>
+<p><strong>JWT Security:</strong></p>
+<ul>
+<li>Algorithm: HS256</li>
+<li>Secret key: 256-bit random</li>
+<li>Signature verification on every request</li>
+<li>Expiration checking</li>
+</ul>
+<p><strong>API Security:</strong></p>
+<ul>
+<li>CORS: Configured for specific origins</li>
+<li>Rate limiting: 100 req/min (production)</li>
+<li>Input validation: Pydantic models</li>
+<li>XSS protection: React escapes by default</li>
+</ul>
+<h2 is-upgraded>Implementation</h2>
+<p><strong>Password Manager:</strong></p>
+<pre><code language="language-python" class="language-python">from passlib.context import CryptContext
+
+class PasswordManager:
+    def __init__(self):
+        self.pwd_context = CryptContext(
+            schemes=[&#34;bcrypt&#34;],
+            deprecated=&#34;auto&#34;
+        )
+    
+    def hash_password(self, password: str) -&gt; str:
+        return self.pwd_context.hash(password)
+    
+    def verify_password(self, plain: str, hashed: str) -&gt; bool:
+        return self.pwd_context.verify(plain, hashed)
+</code></pre>
+<p><strong>JWT Manager:</strong></p>
+<pre><code language="language-python" class="language-python">from jose import jwt, JWTError
+
+class JWTManager:
+    def create_access_token(self, data: Dict) -&gt; str:
+        to_encode = data.copy()
+        expire = datetime.utcnow() + timedelta(minutes=30)
+        to_encode[&#34;exp&#34;] = expire
+        
+        return jwt.encode(
+            to_encode,
+            self.secret_key,
+            algorithm=self.algorithm
+        )
+</code></pre>
+<h2 is-upgraded>Protected Routes</h2>
+<p><strong>Frontend:</strong></p>
+<pre><code language="language-typescript" class="language-typescript">const ProtectedRoute = ({ children }) =&gt; {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) return &lt;Navigate to=&#34;/login&#34; /&gt;;
+  return &lt;&gt;{children}&lt;/&gt;;
+};
+</code></pre>
+<p><strong>Backend:</strong></p>
+<pre><code language="language-python" class="language-python">@router.get(&#34;/protected&#34;)
+async def protected(current_user = Depends(get_current_user)):
+    return {&#34;message&#34;: &#34;Authenticated&#34;}
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Database Schema" duration="8">
+        <h2 is-upgraded>MongoDB Collections</h2>
+<p class="image-container"><img alt="Database Schema" src="img\\d19b1786d8d15873.png"></p>
+<p><strong>users Collection:</strong></p>
+<pre><code language="language-json" class="language-json">{
+  &#34;_id&#34;: ObjectId,
+  &#34;email&#34;: &#34;user@example.com&#34;,
+  &#34;username&#34;: &#34;johndoe&#34;,
+  &#34;hashed_password&#34;: &#34;$2b$12$...&#34;,
+  &#34;total_queries&#34;: 15
+}
+</code></pre>
+<p><strong>user_queries Collection (Lightweight):</strong></p>
+<pre><code language="language-json" class="language-json">{
+  &#34;user_input&#34;: &#34;coffee shops in Boston&#34;,
+  &#34;adventures_count&#34;: 3,
+  &#34;adventure_metadata&#34;: [
+    {&#34;title&#34;: &#34;...&#34;, &#34;theme&#34;: &#34;...&#34;}
+  ],
+  &#34;metadata&#34;: {
+    &#34;performance&#34;: {&#34;total_time_seconds&#34;: 4.2},
+    &#34;research_stats&#34;: {...}
+  }
+}
+</code></pre>
+<p>Positive : <strong>Storage Philosophy:</strong> Only store full adventures when user explicitly saves - results in 97% storage reduction</p>
+<p><strong>saved_adventures Collection (Full Details):</strong></p>
+<pre><code language="language-json" class="language-json">{
+  &#34;adventure_data&#34;: {/* complete adventure */},
+  &#34;rating&#34;: 5,
+  &#34;notes&#34;: &#34;Loved it!&#34;,
+  &#34;tags&#34;: [&#34;coffee&#34;, &#34;art&#34;]
+}
+</code></pre>
+<h2 is-upgraded>ChromaDB Collections</h2>
+<p><strong>user_adventure_history:</strong></p>
+<pre><code language="language-python" class="language-python">{
+  &#34;id&#34;: &#34;user_123_adventure_1640995200&#34;,
+  &#34;document&#34;: &#34;Title: Coffee Tour...&#34;,
+  &#34;metadata&#34;: {&#34;user_id&#34;: &#34;user_123&#34;, &#34;rating&#34;: 5},
+  &#34;embedding&#34;: [0.123, -0.456, ...]  # OpenAI
+}
+</code></pre>
+<p><strong>dynamic_location_tips:</strong></p>
+<pre><code language="language-python" class="language-python">{
+  &#34;id&#34;: &#34;boston_coffee_tip_1&#34;,
+  &#34;document&#34;: &#34;Local tip: Visit before 11 AM&#34;,
+  &#34;metadata&#34;: {
+    &#34;location&#34;: &#34;Boston&#34;,
+    &#34;authenticity_score&#34;: 0.92
+  }
+}
+</code></pre>
+<h2 is-upgraded>Redis Cache</h2>
+<p><strong>Structure:</strong></p>
+<pre><code>Key: venue:{name}:{location}:{date}
+Value: {research_data JSON}
+TTL: 86400 seconds (24 hours)
+</code></pre>
+<p><strong>Example:</strong></p>
+<pre><code>venue:Thinking Cup:Boston:2025-01-15
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="API Endpoints" duration="7">
+        <h2 is-upgraded>Authentication Endpoints</h2>
+<p><strong>POST /api/auth/register</strong> - Register new user <strong>POST /api/auth/login</strong> - Authenticate user <strong>GET /api/auth/me</strong> - Get current user (protected)</p>
+<p><strong>Login Request:</strong></p>
+<pre><code language="language-json" class="language-json">{
+  &#34;email&#34;: &#34;user@example.com&#34;,
+  &#34;password&#34;: &#34;securepassword123&#34;
+}
+</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code language="language-json" class="language-json">{
+  &#34;access_token&#34;: &#34;eyJhbGci...&#34;,
+  &#34;token_type&#34;: &#34;bearer&#34;,
+  &#34;user&#34;: {
+    &#34;id&#34;: &#34;507f...&#34;,
+    &#34;email&#34;: &#34;user@example.com&#34;
+  }
+}
+</code></pre>
+<h2 is-upgraded>Adventure Generation</h2>
+<p class="image-container"><img alt="API Request Flow" src="img\\478bfca50566abf9.png"></p>
+<p><strong>POST /api/adventures</strong> - Generate adventures</p>
+<p><strong>Request:</strong></p>
+<pre><code language="language-json" class="language-json">{
+  &#34;user_input&#34;: &#34;coffee shops in Boston&#34;,
+  &#34;enable_progress&#34;: true
+}
+</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code language="language-json" class="language-json">{
+  &#34;success&#34;: true,
+  &#34;adventures&#34;: [{...}, {...}, {...}],
+  &#34;metadata&#34;: {
+    &#34;total_time_seconds&#34;: 4.2,
+    &#34;cache_hit_rate&#34;: &#34;87.5%&#34;,
+    &#34;personalization_applied&#34;: true
+  }
+}
+</code></pre>
+<p><strong>Progress Updates (Streaming):</strong></p>
+<pre><code language="language-json" class="language-json">{&#34;step&#34;: &#34;parse_location&#34;, &#34;progress&#34;: 0.14}
+{&#34;step&#34;: &#34;research_venues&#34;, &#34;progress&#34;: 0.57}
+{&#34;step&#34;: &#34;create_adventures&#34;, &#34;progress&#34;: 1.0}
+</code></pre>
+<h2 is-upgraded>Other Endpoints</h2>
+<p><strong>Saved Adventures:</strong></p>
+<ul>
+<li>POST /api/saved-adventures - Save adventure</li>
+<li>GET /api/saved-adventures - List saved</li>
+<li>GET /api/saved-adventures/{id} - Get specific</li>
+<li>PUT /api/saved-adventures/{id} - Update</li>
+<li>DELETE /api/saved-adventures/{id} - Delete</li>
+</ul>
+<p><strong>Analytics:</strong></p>
+<ul>
+<li>GET /api/analytics/summary - User statistics</li>
+</ul>
+<p><strong>System:</strong></p>
+<ul>
+<li>GET /health - Health check</li>
+<li>GET /api/status - Component status</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="AWS Deployment" duration="12">
+        <h2 is-upgraded>Production Architecture</h2>
+<p class="image-container"><img alt="AWS Deployment" src="img\\b0433d41eb0bcb15.png"></p>
+<p><strong>CloudFront (Frontend):</strong></p>
+<ul>
+<li>URL: <code>d1nrqhtd83kmw6.cloudfront.net</code></li>
+<li>Origin: S3 bucket (React build)</li>
+<li>Features: GZIP, HTTP/2, global CDN</li>
+</ul>
+<p><strong>CloudFront (Backend):</strong></p>
+<ul>
+<li>URL: <code>d3ihmux7ocq5bh.cloudfront.net</code></li>
+<li>Origin: Application Load Balancer</li>
+<li>Routes to: ECS Fargate containers</li>
+</ul>
+<p><strong>ECS Fargate:</strong></p>
+<ul>
+<li>Auto-scaling: 1-4 tasks</li>
+<li>Task specs: 1 vCPU, 2 GB RAM</li>
+<li>Container: Python 3.11 + FastAPI</li>
+</ul>
+<p><strong>Data Layer:</strong></p>
+<ul>
+<li>MongoDB Atlas (M10 cluster)</li>
+<li>ElastiCache Redis (Multi-AZ)</li>
+<li>AWS Secrets Manager (API keys)</li>
+</ul>
+<h2 is-upgraded>Traffic Flow</h2>
+<pre><code>User Request
+    ↓
+CloudFront Distribution
+    ├→ Frontend: Serves React SPA from S3
+    └→ Backend: Proxies API to ALB
+           ↓
+       ALB distributes to ECS tasks
+           ↓
+       FastAPI processes request
+           ├→ Checks Redis cache
+           ├→ Queries MongoDB
+           ├→ Calls external APIs
+           └→ Returns JSON response
+</code></pre>
+<h2 is-upgraded>Deployment Pipeline</h2>
+<p class="image-container"><img alt="Deployment Pipeline" src="img\\18a6b008c0c96fae.png"></p>
+<p><strong>Frontend Deployment:</strong></p>
+<pre><code language="language-bash" class="language-bash"># Build
+npm run build
+
+# Sync to S3
+aws s3 sync dist/ s3://bucket --delete
+
+# Invalidate CloudFront
+aws cloudfront create-invalidation \
+  --distribution-id E123 --paths &#34;/*&#34;
+</code></pre>
+<p><strong>Backend Deployment:</strong></p>
+<pre><code language="language-bash" class="language-bash"># Build &amp; push Docker image
+docker build -t miniquest-backend .
+docker push ECR_URL/miniquest-backend:latest
+
+# Update ECS service
+aws ecs update-service \
+  --cluster miniquest-cluster \
+  --service miniquest-backend \
+  --force-new-deployment
+</code></pre>
+<h2 is-upgraded>Environment Configuration</h2>
+<table>
+<tr><td colspan="1" rowspan="1"><p>Variable</p>
+</td><td colspan="1" rowspan="1"><p>Development</p>
+</td><td colspan="1" rowspan="1"><p>Production</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>ENVIRONMENT</p>
+</td><td colspan="1" rowspan="1"><p>development</p>
+</td><td colspan="1" rowspan="1"><p>production</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>DEBUG</p>
+</td><td colspan="1" rowspan="1"><p>true</p>
+</td><td colspan="1" rowspan="1"><p>false</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>MONGODB_URL</p>
+</td><td colspan="1" rowspan="1"><p>localhost</p>
+</td><td colspan="1" rowspan="1"><p>Atlas M10</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>REDIS_URL</p>
+</td><td colspan="1" rowspan="1"><p>localhost</p>
+</td><td colspan="1" rowspan="1"><p>ElastiCache</p>
+</td></tr>
+</table>
+<h2 is-upgraded>Monitoring</h2>
+<p><strong>CloudWatch Metrics:</strong></p>
+<ul>
+<li>API request count</li>
+<li>Response time (avg: ~4.2s)</li>
+<li>Error rate (target: &lt;1%)</li>
+<li>Cache hit rate (target: &gt;85%)</li>
+</ul>
+<p><strong>CloudWatch Alarms:</strong></p>
+<ul>
+<li>High error rate (&gt;5%)</li>
+<li>Slow response (&gt;10s)</li>
+<li>High CPU (&gt;80%)</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Local Development" duration="10">
+        <h2 is-upgraded>Prerequisites</h2>
+<ul>
+<li>Python 3.11+</li>
+<li>Node.js 18+</li>
+<li>Docker Desktop</li>
+<li>API Keys: OpenAI, Tavily</li>
+<li>MongoDB Atlas account (free tier OK)</li>
+</ul>
+<h2 is-upgraded>Quick Start with Docker</h2>
+<pre><code language="language-bash" class="language-bash"># 1. Clone repository
+git clone https://github.com/yourusername/miniquest
+cd miniquest
+
+# 2. Configure environment
+cp .env.example .env
+# Edit .env with your API keys
+
+# 3. Start all services
+docker-compose up -d
+
+# 4. Access application
+# Frontend: http://localhost:3000
+# Backend: http://localhost:8000
+# API Docs: http://localhost:8000/docs
+</code></pre>
+<h2 is-upgraded>Manual Setup</h2>
+<p><strong>Backend:</strong></p>
+<pre><code language="language-bash" class="language-bash">cd backend
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run server
+uvicorn app.main:app --reload
+</code></pre>
+<p><strong>Frontend:</strong></p>
+<pre><code language="language-bash" class="language-bash">cd frontend
+
+# Install dependencies
+npm install
+
+# Start dev server
+npm run dev
+</code></pre>
+<h2 is-upgraded>Environment Variables</h2>
+<pre><code language="language-bash" class="language-bash"># Required
+OPENAI_API_KEY=sk-...
+TAVILY_API_KEY=tvly-...
+MONGODB_URL=mongodb+srv://...
+
+# Optional
+GOOGLE_MAPS_KEY=AIza...
+REDIS_URL=redis://localhost:6379
+JWT_SECRET_KEY=random_secure_string
+</code></pre>
+<h2 is-upgraded>Testing</h2>
+<p><strong>Backend Tests:</strong></p>
+<pre><code language="language-bash" class="language-bash">cd backend
+
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=app tests/
+
+# Test specific agent
+pytest tests/test_tavily_research.py
+</code></pre>
+<p><strong>Frontend Tests:</strong></p>
+<pre><code language="language-bash" class="language-bash">cd frontend
+
+# Run tests
+npm test
+
+# Build for production
+npm run build
+</code></pre>
+<h2 is-upgraded>Common Issues</h2>
+<p><strong>CORS Error:</strong></p>
+<ul>
+<li>Check CORS configuration in backend</li>
+<li>Verify frontend URL in allowed origins</li>
+</ul>
+<p><strong>JWT Token Invalid:</strong></p>
+<ul>
+<li>Check token expiration</li>
+<li>Clear localStorage and re-login</li>
+</ul>
+<p><strong>Tavily Rate Limit:</strong></p>
+<ul>
+<li>Check cache hit rate</li>
+<li>Upgrade Tavily plan if needed</li>
+</ul>
+<p><strong>MongoDB Connection Failed:</strong></p>
+<ul>
+<li>Verify MONGODB_URL</li>
+<li>Check IP whitelist in MongoDB Atlas</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Frontend Components" duration="8">
+        <h2 is-upgraded>Application Structure</h2>
+<p><strong>Main Components:</strong></p>
+<ol type="1">
+<li><strong>AdventuresPage</strong> - Main generation interface<ul>
+<li>Query input</li>
+<li>Real-time progress tracking</li>
+<li>Adventure cards display</li>
+</ul>
+</li>
+<li><strong>ProgressTracker</strong> - Visual feedback<ul>
+<li>Animated progress bar</li>
+<li>Agent-specific emojis</li>
+<li>Step-by-step status</li>
+</ul>
+</li>
+<li><strong>EnhancedAdventureCard</strong> - Display adventures<ul>
+<li>Header (title, theme, tagline)</li>
+<li>Stats (duration, cost)</li>
+<li>Researched venues</li>
+<li>Itinerary timeline</li>
+<li>Map integration</li>
+<li>Save button</li>
+</ul>
+</li>
+<li><strong>AnalyticsPage</strong> - User statistics<ul>
+<li>Total adventures</li>
+<li>Favorite themes</li>
+<li>Top locations</li>
+<li>Average ratings</li>
+</ul>
+</li>
+</ol>
+<h2 is-upgraded>Authentication Context</h2>
+<pre><code language="language-typescript" class="language-typescript">interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  login: (email, password) =&gt; Promise&lt;void&gt;;
+  logout: () =&gt; void;
+}
+</code></pre>
+<h2 is-upgraded>Generation Flow</h2>
+<pre><code language="language-typescript" class="language-typescript">const handleGenerate = async () =&gt; {
+  const response = await api.post(&#39;/adventures&#39;, {
+    user_input: query,
+    enable_progress: true
+  });
+  
+  // Stream progress updates
+  const reader = response.body.getReader();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    
+    const progress = JSON.parse(
+      new TextDecoder().decode(value)
+    );
+    setCurrentProgress(progress);
+  }
+  
+  // Get final result
+  const result = await response.json();
+  setAdventures(result.adventures);
+};
+</code></pre>
+<h2 is-upgraded>Common Components</h2>
+<p><strong>Reusable UI Components:</strong></p>
+<ul>
+<li>BackgroundOrbs - Glassmorphism decoration</li>
+<li>GlassCard - Frosted glass container</li>
+<li>GlassInput - Styled input field</li>
+<li>GlassButton - Styled button</li>
+<li>LoadingState - Loading spinner</li>
+<li>StatBadge - Metric display</li>
+<li>ThemeCard - Theme ranking card</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Key Takeaways" duration="3">
+        <h2 is-upgraded>What Makes MiniQuest Special</h2>
+<p>Positive : <strong>Multi-Agent Design</strong> - 7 specialized agents with clear responsibilities and independent optimization</p>
+<p>Positive : <strong>Real-Time Research</strong> - Tavily API provides current, accurate venue data that traditional databases can&#39;t match</p>
+<p>Positive : <strong>Production-Ready</strong> - Fully deployed on AWS with CloudFront, ECS, monitoring, and auto-scaling</p>
+<p>Positive : <strong>Performance Optimized</strong> - 87% faster with parallel processing, caching, and async operations</p>
+<p>Positive : <strong>RAG Personalization</strong> - Learns from user preferences over time using ChromaDB embeddings</p>
+<h2 is-upgraded>Technical Highlights</h2>
+<ul>
+<li><strong>LangGraph</strong> orchestration for complex multi-agent workflows</li>
+<li><strong>Tavily API</strong> integration for real-time web research</li>
+<li><strong>ChromaDB</strong> for semantic search and personalization</li>
+<li><strong>Redis caching</strong> for 91% hit rate performance</li>
+<li><strong>AWS CloudFront + ECS</strong> for scalable deployment</li>
+<li><strong>MongoDB Atlas</strong> for flexible data storage</li>
+</ul>
+<h2 is-upgraded>By the Numbers</h2>
+<ul>
+<li><strong>7 agents</strong> working in coordination</li>
+<li><strong>~4.2 seconds</strong> average generation time</li>
+<li><strong>87% performance improvement</strong> with optimizations</li>
+<li><strong>91% cache hit rate</strong> reduces API costs</li>
+<li><strong>97% storage reduction</strong> with lightweight schema</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Resources &amp; Next Steps" duration="2">
+        <h2 is-upgraded>Documentation</h2>
+<ul>
+<li><a href="https://github.com/lambdabypi/miniquest-adventure-planner" target="_blank">GitHub Repository</a></li>
+<li><a href="TECHNICAL_DOCUMENTATION.md" target="_blank">Full Technical Docs</a></li>
+<li><a href="https://d3ihmux7ocq5bh.cloudfront.net/docs" target="_blank">API Documentation</a></li>
+</ul>
+<h2 is-upgraded>Learn More</h2>
+<ul>
+<li><a href="https://python.langchain.com/docs/langgraph" target="_blank">LangGraph Documentation</a></li>
+<li><a href="https://docs.tavily.com" target="_blank">Tavily API Docs</a></li>
+<li><a href="https://www.mongodb.com/cloud/atlas" target="_blank">MongoDB Atlas</a></li>
+<li><a href="https://fastapi.tiangolo.com" target="_blank">FastAPI</a></li>
+<li><a href="https://docs.trychroma.com" target="_blank">ChromaDB</a></li>
+</ul>
+<h2 is-upgraded>Try It Live</h2>
+<ul>
+<li><strong>Frontend:</strong> https://d1nrqhtd83kmw6.cloudfront.net</li>
+<li><strong>Backend API:</strong> https://d3ihmux7ocq5bh.cloudfront.net/docs</li>
+<li><strong>Health Check:</strong> https://d3ihmux7ocq5bh.cloudfront.net/health</li>
+</ul>
+<h2 is-upgraded>Contact &amp; Feedback</h2>
+<ul>
+<li>GitHub: @lambdabypi</li>
+<li>Email: shreyas.atneu@gmail.com</li>
+</ul>
+<p><strong>Thank you for exploring MiniQuest!</strong> 🚀</p>
+<p>Built with ❤️ using LangGraph, Tavily API, and AWS</p>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/claat-public/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/prettify.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/codelab-elements.js"></script>
+  <script src="//support.google.com/inapp/api.js"></script>
+
+</body>
+</html>
