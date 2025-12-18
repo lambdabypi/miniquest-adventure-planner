@@ -65,7 +65,7 @@
     
       <google-codelab-step label="System Architecture" duration="10">
         <h2 is-upgraded>High-Level Architecture</h2>
-<p class="image-container"><img alt="System Architecture" src="img\\1f4fa57f12a91bd3.png"></p>
+<p class="image-container"><img alt="System Architecture" src="img\\8ab22ef87faec2.png"></p>
 <p>The system uses a <strong>multi-layer architecture</strong> with clear separation of concerns:</p>
 <pre><code>Frontend (React)
     ↓ REST API
@@ -83,21 +83,21 @@ MongoDB + Redis + ChromaDB
 <li><strong>IntentParser</strong> - Extract user preferences from natural language</li>
 <li><strong>LocationParser</strong> - Resolve location to coordinates</li>
 <li><strong>VenueScout</strong> - Generate 15-20 diverse venue candidates (GPT-4o)</li>
-<li><strong>TavilyResearch</strong> - Real-time web research (parallel, 8 concurrent)</li>
+<li><strong>Discovery</strong> - Real-time web search and extract with Tavily (parallel, 8 concurrent)</li>
 <li><strong>ResearchSummary</strong> - Synthesize findings into structured data</li>
 <li><strong>RoutingAgent</strong> - Calculate optimal routes (Google Maps)</li>
 <li><strong>AdventureCreator</strong> - Generate 3 themed adventures (async)</li>
 </ol>
 <p>Negative : <strong>Key Design Principle:</strong> Each agent is independently testable and can be optimized separately for maximum modularity</p>
 <h2 is-upgraded>Data Flow</h2>
-<p class="image-container"><img alt="Adventure Generation Flow" src="img\\533f66c2771962ac.png"></p>
+<p class="image-container"><img alt="Adventure Generation Flow" src="img\\2a31d0179da0f5be.png"></p>
 <p><strong>Complete Generation Pipeline:</strong></p>
 <pre><code>User Query
   → IntentParser (extract themes)
   → LocationParser (get coordinates)
   → RAG System (apply personalization)
   → VenueScout (generate venues)
-  → TavilyResearch (research in parallel)
+  → Discovery (research in parallel)
   → ResearchSummary (synthesize data)
   → RoutingAgent (calculate routes)
   → AdventureCreator (create 3 adventures)
@@ -146,7 +146,7 @@ MongoDB + Redis + ChromaDB
     
       <google-codelab-step label="LangGraph Workflow" duration="12">
         <h2 is-upgraded>State Machine Design</h2>
-<p class="image-container"><img alt="LangGraph Workflow" src="img\\f712b0807c7a9df4.png"></p>
+<p class="image-container"><img alt="LangGraph Workflow" src="img\\1c55f35ce33d356a.png"></p>
 <p>LangGraph orchestrates the workflow as a <strong>state graph</strong> with 8 sequential nodes:</p>
 <p><strong>Workflow Progression:</strong></p>
 <ul>
@@ -182,7 +182,7 @@ MongoDB + Redis + ChromaDB
 <p>Progress updates are <strong>streamed</strong> to the frontend:</p>
 <pre><code language="language-json" class="language-json">{
   &#34;step&#34;: &#34;research_venues&#34;,
-  &#34;agent&#34;: &#34;TavilyResearch&#34;,
+  &#34;agent&#34;: &#34;Discovery&#34;,
   &#34;status&#34;: &#34;in_progress&#34;,
   &#34;message&#34;: &#34;Researching 8 venues...&#34;,
   &#34;progress&#34;: 0.57,
@@ -212,7 +212,7 @@ MongoDB + Redis + ChromaDB
 <li>Uses GPT-4o for generation</li>
 <li>Validates venues exist</li>
 </ul>
-<p><strong>TavilyResearch Agent:</strong></p>
+<p><strong>Discovery Agent:</strong></p>
 <ul>
 <li>Researches venues in parallel (8 concurrent)</li>
 <li>Multi-step: Search API → Extract API</li>
@@ -297,7 +297,7 @@ MongoDB + Redis + ChromaDB
 </ul>
 <p><strong>5. research_venues_node</strong></p>
 <ul>
-<li><strong>Agent:</strong> TavilyResearchAgent (parallel)</li>
+<li><strong>Agent:</strong> DiscoveryAgent (parallel)</li>
 <li><strong>Input:</strong> Venue list</li>
 <li><strong>Output:</strong> Current hours, prices, reviews, descriptions</li>
 <li><strong>Progress:</strong> 57%</li>
@@ -517,8 +517,8 @@ Return JSON array of venues with:
     # ... 14-19 more venues
 ]
 </code></pre>
-<h2 is-upgraded>3.6 Tavily Research Agent Details</h2>
-<p><strong>File: </strong><code>backend/app/agents/research/tavily_research_agent.py</code></p>
+<h2 is-upgraded>3.6 Discovery Agent Details</h2>
+<p><strong>File: </strong><code>backend/app/agents/research/discovery_agent.py</code></p>
 <p><strong>Purpose:</strong> Real-time web research on venues with caching</p>
 <p><strong>Key Features:</strong></p>
 <ul>
@@ -907,7 +907,7 @@ Return JSON with structure:
 
       </google-codelab-step>
     
-      <google-codelab-step label="Tavily Research Integration" duration="10">
+      <google-codelab-step label="Tavily Search Integration" duration="10">
         <h2 is-upgraded>Why Tavily?</h2>
 <p>Tavily provides <strong>real-time web data</strong> that traditional databases can&#39;t offer:</p>
 <ul>
@@ -938,7 +938,7 @@ await redis.set(cache_key, research_data, ex=86400)  # 24hr TTL
 </code></pre>
 <p>Structure data and cache for 24 hours.</p>
 <h2 is-upgraded>Research Output Structure</h2>
-<p>Each venue receives <strong>comprehensive research data</strong>:</p>
+<p>Each venue receives <strong>comprehensive search data</strong>:</p>
 <pre><code language="language-json" class="language-json">{
   &#34;venue_name&#34;: &#34;Thinking Cup&#34;,
   &#34;current_info&#34;: &#34;Open today until 6 PM&#34;,

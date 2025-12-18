@@ -70,7 +70,7 @@ Each agent has a **single, well-defined responsibility**:
 1. **IntentParser** - Extract user preferences from natural language
 2. **LocationParser** - Resolve location to coordinates
 3. **VenueScout** - Generate 15-20 diverse venue candidates (GPT-4o)
-4. **TavilyResearch** - Real-time web research (parallel, 8 concurrent)
+4. **Discovery** - Real-time web search and extract with Tavily (parallel, 8 concurrent)
 5. **ResearchSummary** - Synthesize findings into structured data
 6. **RoutingAgent** - Calculate optimal routes (Google Maps)
 7. **AdventureCreator** - Generate 3 themed adventures (async)
@@ -90,7 +90,7 @@ User Query
   → LocationParser (get coordinates)
   → RAG System (apply personalization)
   → VenueScout (generate venues)
-  → TavilyResearch (research in parallel)
+  → Discovery (research in parallel)
   → ResearchSummary (synthesize data)
   → RoutingAgent (calculate routes)
   → AdventureCreator (create 3 adventures)
@@ -161,7 +161,7 @@ Progress updates are **streamed** to the frontend:
 ```json
 {
   "step": "research_venues",
-  "agent": "TavilyResearch",
+  "agent": "Discovery",
   "status": "in_progress",
   "message": "Researching 8 venues...",
   "progress": 0.57,
@@ -190,7 +190,7 @@ Progress updates are **streamed** to the frontend:
 - Uses GPT-4o for generation
 - Validates venues exist
 
-**TavilyResearch Agent:**
+**Discovery Agent:**
 - Researches venues in parallel (8 concurrent)
 - Multi-step: Search API → Extract API
 - Caches results in Redis (24hr TTL)
@@ -271,7 +271,7 @@ class LangGraphCoordinator:
 - **Quality Control:** Enforces category diversity
 
 **5. research_venues_node**
-- **Agent:** TavilyResearchAgent (parallel)
+- **Agent:** DiscoveryAgent (parallel)
 - **Input:** Venue list
 - **Output:** Current hours, prices, reviews, descriptions
 - **Progress:** 57%
@@ -521,9 +521,9 @@ def _ensure_diversity(venues: List[Dict]) -> List[Dict]:
 ]
 ```
 
-### 3.6 Tavily Research Agent Details
+### 3.6 Discovery Agent Details
 
-**File:** `backend/app/agents/research/tavily_research_agent.py`
+**File:** `backend/app/agents/research/discovery_agent.py`
 
 **Purpose:** Real-time web research on venues with caching
 
@@ -945,7 +945,7 @@ MiniQuest uses different OpenAI models strategically:
 
 This hybrid approach balances cost (~60% savings) with quality where it matters most.
 
-## Tavily Research Integration
+## Tavily Search Integration
 Duration: 10
 
 ### Why Tavily?
@@ -990,7 +990,7 @@ Structure data and cache for 24 hours.
 
 ### Research Output Structure
 
-Each venue receives **comprehensive research data**:
+Each venue receives **comprehensive search data**:
 
 ```json
 {
