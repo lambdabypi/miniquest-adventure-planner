@@ -41,7 +41,7 @@ MiniQuest is a production-ready multi-agent system that generates personalized t
 - FastAPI (REST API framework)
 - LangGraph (agent orchestration)
 - AsyncOpenAI (LLM provider)
-- Tavily API (web research)
+- Tavily API (web search and extract)
 - MongoDB Atlas (primary database)
 - ChromaDB (vector storage for RAG)
 - Redis (caching layer)
@@ -136,7 +136,7 @@ class LangGraphCoordinator:
    - Progress: 43%
 
 5. **research_venues_node**
-   - Agent: TavilyResearchAgent (parallel)
+   - Agent: DiscoveryAgent (parallel)
    - Input: Venue list
    - Output: Current hours, prices, reviews, descriptions
    - Progress: 57%
@@ -363,11 +363,11 @@ Return JSON array of venues.
 ]
 ```
 
-#### 3.2.5 Tavily Research Agent
+#### 3.2.5 Discovery Agent
 
-**File:** `backend/app/agents/research/tavily_research_agent.py`
+**File:** `backend/app/agents/research/discovery_agent.py`
 
-**Purpose:** Real-time web research on venues with caching
+**Purpose:** Real-time web search on venues with caching
 
 **Key Features:**
 - **Parallel Processing:** 8 concurrent venue researches
