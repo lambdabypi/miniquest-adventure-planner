@@ -1,5 +1,5 @@
 # backend/app/agents/coordination/langgraph_coordinator.py
-"""LangGraph coordinator - WITH GOOGLE MAPS ROUTE OPTIMIZATION"""
+"""LangGraph coordinator - WITH GOOGLE MAPS ROUTE OPTIMIZATION + TYPO-TOLERANT MATCHING"""
 
 from langgraph.graph import StateGraph, END
 from openai import AsyncOpenAI
@@ -12,6 +12,7 @@ import re
 import asyncio
 import googlemaps
 import urllib.parse
+from difflib import SequenceMatcher
 
 from .workflow_state import AdventureState
 from ..location import LocationParserAgent
@@ -26,12 +27,13 @@ logger = logging.getLogger(__name__)
 
 class LangGraphCoordinator:
     """
-    OPTIMIZED LangGraph coordinator WITH GOOGLE MAPS ROUTE OPTIMIZATION
+    OPTIMIZED LangGraph coordinator WITH GOOGLE MAPS ROUTE OPTIMIZATION + TYPO-TOLERANT MATCHING
     - Parallel venue research (60-75% faster)
     - Research result caching (90%+ faster on hits)
     - Async adventure creation (20-30% faster)
     - RAG personalization
     - ✅ Google Maps route optimization (optimal waypoint ordering)
+    - ✅ Typo-tolerant venue matching (handles LLM-introduced typos)
     - ✅ Real-time progress tracking
     """
     
@@ -61,11 +63,12 @@ class LangGraphCoordinator:
         # Performance tracking
         self.timing_data = {}
         
-        self.logger.info("✅ OPTIMIZED LangGraph Coordinator with Google Maps Optimization initialized")
+        self.logger.info("✅ OPTIMIZED LangGraph Coordinator with Typo-Tolerant Matching initialized")
         self.logger.info("   - Parallel research: ENABLED")
         self.logger.info(f"   - Research caching: {'ENABLED' if enable_cache else 'DISABLED'}")
         self.logger.info("   - Async adventure creation: ENABLED")
         self.logger.info(f"   - Google Maps route optimization: {'ENABLED' if self.route_optimization_enabled else 'DISABLED'}")
+        self.logger.info("   - Typo-tolerant matching: ENABLED")
         self.logger.info("   - Real-time progress: ENABLED")
         if rag_system:
             self.logger.info("   - RAG personalization: ENABLED")
@@ -373,8 +376,8 @@ class LangGraphCoordinator:
                     logger.warning(f"   ⚠️ No venues found for routing")
                     continue
                 
-                # Match venues to locations
-                adventure_locations = self._match_venues_to_locations(
+                # ✅ Match venues to locations with TYPO TOLERANCE
+                adventure_locations = self._match_venues_to_locations_with_typo_tolerance(
                     all_venue_names, all_enhanced_locations
                 )
                 
@@ -461,6 +464,196 @@ class LangGraphCoordinator:
                 logger.error(f"Routing error for '{adventure.get('title')}': {e}")
         
         return adventures
+    
+    # ========================================
+    # HELPER METHODS
+    # ========================================
+    
+    def _track_timing(self, operation: str, elapsed: float):
+        """Track operation timing"""
+        self.timing_data[operation] = elapsed
+        self.logger.debug(f"⏱️ {operation}: {elapsed:.2f}s")
+    
+    def _extract_city_name(self, location: str) -> str:
+        """Extract city name from full address"""
+        if not location:
+            return "Boston, MA"
+        
+        parts = [p.strip() for p in location.split(',')]
+        
+        if len(parts) == 2 and not any(char.isdigit() for char in parts[0]):
+            return location
+        
+        if len(parts) >= 3:
+            return f"{parts[-2]}, {parts[-1]}"
+        
+        return location
+    
+    def _convert_to_enhanced_locations(self, researched_venues: list, city_name: str) -> list:
+        """Convert venues to locations with proper addresses"""
+        enhanced_locations = []
+        
+        for venue in researched_venues:
+            venue_name = venue.get("name", "Unknown")
+            
+            if venue.get("address_hint"):
+                address_hint = venue["address_hint"]
+                if city_name.split(',')[0].lower() in address_hint.lower():
+                    address = address_hint
+                else:
+                    address = f"{address_hint}, {city_name}"
+            elif venue.get("address"):
+                address = venue["address"]
+            elif venue.get("neighborhood"):
+                address = f"{venue_name}, {venue['neighborhood']}, {city_name}"
+            else:
+                address = f"{venue_name}, {city_name}"
+            
+            enhanced_locations.append({
+                "name": venue_name,
+                "address": address,
+                "type": venue.get("type", "attraction")
+            })
+            
+            logger.debug(f"✅ {venue_name} → {address}")
+        
+        return enhanced_locations
+    
+    def _extract_venues_from_steps(self, steps: List[Dict]) -> List[str]:
+        """Extract ALL venue/location names from adventure steps"""
+        venues = []
+        
+        for step in steps:
+            activity = step.get("activity", "")
+            
+            if " at " in activity:
+                venue = activity.split(" at ", 1)[1].strip()
+                venue = venue.rstrip('.,!?')
+                venues.append(venue)
+                continue
+            
+            visit_explore_pattern = r'^(?:Visit|Explore)\s+(?:the\s+)?(.+?)$'
+            match = re.match(visit_explore_pattern, activity, re.IGNORECASE)
+            if match:
+                venue = match.group(1).strip().rstrip('.,!?')
+                venues.append(venue)
+                continue
+            
+            hike_pattern = r'^Hike\s+(?:the\s+)?(.+?)(?:\s+Trail|\s+Loop)?$'
+            match = re.match(hike_pattern, activity, re.IGNORECASE)
+            if match:
+                venue = match.group(1).strip()
+                if 'trail' in activity.lower() and 'trail' not in venue.lower():
+                    venue = f"{venue} Trail"
+                venues.append(venue)
+                continue
+            
+            tour_see_pattern = r'^(?:Tour|See)\s+(?:the\s+)?(.+?)$'
+            match = re.match(tour_see_pattern, activity, re.IGNORECASE)
+            if match:
+                venue = match.group(1).strip().rstrip('.,!?')
+                venues.append(venue)
+        
+        return venues
+    
+    def _calculate_string_similarity(self, str1: str, str2: str) -> float:
+        """
+        ✅ NEW: Calculate character-level similarity for typo tolerance
+        Handles typos like "FFine" vs "Fine", "Musuem" vs "Museum"
+        """
+        # Quick length check - if very different lengths, probably not a typo
+        if abs(len(str1) - len(str2)) > 5:
+            return 0.0
+        
+        # Use SequenceMatcher for similarity ratio (0.0 to 1.0)
+        return SequenceMatcher(None, str1, str2).ratio()
+    
+    def _match_venues_to_locations_with_typo_tolerance(
+        self, 
+        venues_used: List[str], 
+        locations: list
+    ) -> list:
+        """
+        ✅ ENHANCED: Match venue names to locations with TYPO TOLERANCE
+        Handles LLM-introduced typos like "Museum of FFine Arts" → "Museum of Fine Arts"
+        """
+        matched = []
+        used_indices = set()
+        
+        for venue_name in venues_used:
+            venue_lower = venue_name.lower().strip()
+            venue_words = set(venue_lower.split())
+            
+            best_match = None
+            best_score = 0
+            best_idx = None
+            match_type = None
+            
+            for idx, loc in enumerate(locations):
+                if idx in used_indices:
+                    continue
+                
+                loc_name = loc.get("name", "").lower().strip()
+                loc_words = set(loc_name.split())
+                
+                # 1. EXACT MATCH (perfect - 1.0)
+                if venue_lower == loc_name:
+                    best_match = loc
+                    best_idx = idx
+                    best_score = 1.0
+                    match_type = "exact"
+                    break
+                
+                # 2. SUBSTRING MATCH (very good - 0.9)
+                if venue_lower in loc_name or loc_name in venue_lower:
+                    score = 0.9
+                    if score > best_score:
+                        best_score = score
+                        best_match = loc
+                        best_idx = idx
+                        match_type = "substring"
+                    continue
+                
+                # 3. ✅ CHARACTER-LEVEL SIMILARITY (typo tolerance - 0.85+)
+                # Catches "FFine" vs "Fine", "Musuem" vs "Museum", etc.
+                char_similarity = self._calculate_string_similarity(venue_lower, loc_name)
+                if char_similarity >= 0.85 and char_similarity > best_score:
+                    best_score = char_similarity
+                    best_match = loc
+                    best_idx = idx
+                    match_type = "typo_tolerant"
+                    continue
+                
+                # 4. WORD OVERLAP (okay - 0.5+)
+                if venue_words and loc_words:
+                    overlap = len(venue_words.intersection(loc_words))
+                    total_words = len(venue_words.union(loc_words))
+                    score = overlap / total_words if total_words > 0 else 0
+                    
+                    if score >= 0.5 and score > best_score:
+                        best_score = score
+                        best_match = loc
+                        best_idx = idx
+                        match_type = "word_overlap"
+            
+            # ✅ Accept matches with 50%+ similarity (includes typo matches at 85%+)
+            if best_match and best_score >= 0.5:
+                matched.append(best_match)
+                used_indices.add(best_idx)
+                
+                # Log match with type indicator
+                if match_type == "typo_tolerant":
+                    logger.info(f"   ✅ '{venue_name}' → '{best_match.get('name')}' (score: {best_score:.2f}, TYPO-CORRECTED)")
+                else:
+                    logger.debug(f"   ✅ '{venue_name}' → '{best_match.get('name')}' (score: {best_score:.2f}, {match_type})")
+            else:
+                logger.warning(f"   ⚠️ No match for '{venue_name}' (best score: {best_score:.2f})")
+        
+        return matched
+    
+    def _match_venues_to_locations(self, venues_used: List[str], locations: list) -> list:
+        """Legacy method - redirects to typo-tolerant version"""
+        return self._match_venues_to_locations_with_typo_tolerance(venues_used, locations)
     
     # ========================================
     # MAIN ENTRY POINTS
@@ -645,6 +838,7 @@ class LangGraphCoordinator:
                 "research_caching": self.enable_cache,
                 "async_adventure_creation": True,
                 "google_route_optimization": self.route_optimization_enabled,
+                "typo_tolerant_matching": True,
                 "progress_tracking": True
             }
         }
@@ -671,150 +865,6 @@ class LangGraphCoordinator:
             }
         
         return metadata
-    
-    # ========================================
-    # HELPER METHODS
-    # ========================================
-    
-    def _track_timing(self, operation: str, elapsed: float):
-        """Track operation timing"""
-        self.timing_data[operation] = elapsed
-        self.logger.debug(f"⏱️ {operation}: {elapsed:.2f}s")
-    
-    def _extract_city_name(self, location: str) -> str:
-        """Extract city name from full address"""
-        if not location:
-            return "Boston, MA"
-        
-        parts = [p.strip() for p in location.split(',')]
-        
-        if len(parts) == 2 and not any(char.isdigit() for char in parts[0]):
-            return location
-        
-        if len(parts) >= 3:
-            return f"{parts[-2]}, {parts[-1]}"
-        
-        return location
-    
-    def _convert_to_enhanced_locations(self, researched_venues: list, city_name: str) -> list:
-        """Convert venues to locations with proper addresses"""
-        enhanced_locations = []
-        
-        for venue in researched_venues:
-            venue_name = venue.get("name", "Unknown")
-            
-            if venue.get("address_hint"):
-                address_hint = venue["address_hint"]
-                if city_name.split(',')[0].lower() in address_hint.lower():
-                    address = address_hint
-                else:
-                    address = f"{address_hint}, {city_name}"
-            elif venue.get("address"):
-                address = venue["address"]
-            elif venue.get("neighborhood"):
-                address = f"{venue_name}, {venue['neighborhood']}, {city_name}"
-            else:
-                address = f"{venue_name}, {city_name}"
-            
-            enhanced_locations.append({
-                "name": venue_name,
-                "address": address,
-                "type": venue.get("type", "attraction")
-            })
-            
-            logger.debug(f"✅ {venue_name} → {address}")
-        
-        return enhanced_locations
-    
-    def _extract_venues_from_steps(self, steps: List[Dict]) -> List[str]:
-        """Extract ALL venue/location names from adventure steps"""
-        venues = []
-        
-        for step in steps:
-            activity = step.get("activity", "")
-            
-            if " at " in activity:
-                venue = activity.split(" at ", 1)[1].strip()
-                venue = venue.rstrip('.,!?')
-                venues.append(venue)
-                continue
-            
-            visit_explore_pattern = r'^(?:Visit|Explore)\s+(?:the\s+)?(.+?)$'
-            match = re.match(visit_explore_pattern, activity, re.IGNORECASE)
-            if match:
-                venue = match.group(1).strip().rstrip('.,!?')
-                venues.append(venue)
-                continue
-            
-            hike_pattern = r'^Hike\s+(?:the\s+)?(.+?)(?:\s+Trail|\s+Loop)?$'
-            match = re.match(hike_pattern, activity, re.IGNORECASE)
-            if match:
-                venue = match.group(1).strip()
-                if 'trail' in activity.lower() and 'trail' not in venue.lower():
-                    venue = f"{venue} Trail"
-                venues.append(venue)
-                continue
-            
-            tour_see_pattern = r'^(?:Tour|See)\s+(?:the\s+)?(.+?)$'
-            match = re.match(tour_see_pattern, activity, re.IGNORECASE)
-            if match:
-                venue = match.group(1).strip().rstrip('.,!?')
-                venues.append(venue)
-        
-        return venues
-    
-    def _match_venues_to_locations(self, venues_used: List[str], locations: list) -> list:
-        """Match venue names to locations with fuzzy matching"""
-        matched = []
-        used_indices = set()
-        
-        for venue_name in venues_used:
-            venue_lower = venue_name.lower().strip()
-            venue_words = set(venue_lower.split())
-            
-            best_match = None
-            best_score = 0
-            best_idx = None
-            
-            for idx, loc in enumerate(locations):
-                if idx in used_indices:
-                    continue
-                
-                loc_name = loc.get("name", "").lower().strip()
-                loc_words = set(loc_name.split())
-                
-                if venue_lower == loc_name:
-                    best_match = loc
-                    best_idx = idx
-                    best_score = 1.0
-                    break
-                
-                if venue_lower in loc_name or loc_name in venue_lower:
-                    score = 0.9
-                    if score > best_score:
-                        best_score = score
-                        best_match = loc
-                        best_idx = idx
-                    continue
-                
-                if venue_words and loc_words:
-                    overlap = len(venue_words.intersection(loc_words))
-                    total_words = len(venue_words.union(loc_words))
-                    score = overlap / total_words if total_words > 0 else 0
-                    
-                    if score >= 0.5 and score > best_score:
-                        best_score = score
-                        best_match = loc
-                        best_idx = idx
-            
-            if best_match and best_score >= 0.5:
-                matched.append(best_match)
-                used_indices.add(best_idx)
-                logger.debug(f"   ✅ '{venue_name}' → '{best_match.get('name')}' (score: {best_score:.2f})")
-            else:
-                logger.warning(f"   ⚠️ No match for '{venue_name}' (best score: {best_score:.2f})")
-        
-        return matched
     
     # ========================================
     # WORKFLOW NODES
