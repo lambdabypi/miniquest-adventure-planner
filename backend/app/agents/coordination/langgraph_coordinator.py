@@ -17,7 +17,7 @@ from .workflow_state import AdventureState
 from ..location import LocationParserAgent
 from ..intent import IntentParserAgent
 from ..scouting import VenueScoutAgent
-from ..research import TavilyResearchAgent, ResearchSummaryAgent
+from ..discovery import TavilyResearchAgent, ResearchSummaryAgent
 from ..routing import EnhancedRoutingAgent
 from ..creation import AdventureCreatorAgent
 from ...core.config import settings

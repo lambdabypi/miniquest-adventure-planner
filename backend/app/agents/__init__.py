@@ -23,7 +23,7 @@ from .coordination import LangGraphCoordinator, AdventureState
 from .creation import AdventureCreatorAgent
 from .intent import IntentParserAgent
 from .location import LocationParserAgent
-from .research import TavilyResearchAgent, QueryStrategyAgent, VenueTypeDetector
+from .discovery import TavilyResearchAgent, QueryStrategyAgent, VenueTypeDetector
 from .routing import EnhancedRoutingAgent
 from .scouting import VenueScoutAgent
 
