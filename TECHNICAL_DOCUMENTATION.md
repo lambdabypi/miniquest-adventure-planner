@@ -15,9 +15,8 @@
 5. [Database Schema](#database-schema)
 6. [API Endpoints](#api-endpoints)
 7. [Authentication & Security](#authentication--security)
-8. [Performance Optimizations](#performance-optimizations)
-9. [Deployment](#deployment)
-10. [Development Guide](#development-guide)
+8. [Deployment](#deployment)
+9. [Development Guide](#development-guide)
 
 ---
 
@@ -2086,11 +2085,11 @@ async def protected_endpoint(
 
 ---
 
-## 9. Deployment
+## 8. Deployment
 
 <img src="images/DeploymentPipeline.png" alt="Deployment Pipeline" width="300" />
 
-### 9.1 Docker Configuration
+### 8.1 Docker Configuration
 
 **docker-compose.yml:**
 ```yaml
@@ -2166,7 +2165,7 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 ```
 
-### 9.2 AWS Deployment Architecture
+### 8.2 AWS Deployment Architecture
 
 <img src="images/AWSDeploymentArchitecture.png" alt="AWS Deployment Architecture" width="300" />
 
@@ -2220,7 +2219,7 @@ CloudFront Distribution
            └→ Returns JSON response
 ```
 
-### 9.3 Environment-Specific Configuration
+### 8.3 Environment-Specific Configuration
 
 **Development (docker-compose.yml):**
 - Local MongoDB (or MongoDB Atlas free tier)
@@ -2267,7 +2266,7 @@ CloudFront Distribution
 | JWT_SECRET_KEY | Simple string | Secrets Manager | Secrets Manager |
 | CORS_ORIGINS | http://localhost:3000 | staging domains | CloudFront URLs |
 
-### 9.4 Deployment Commands
+### 8.4 Deployment Commands
 
 **Local Development:**
 ```bash
@@ -2445,7 +2444,7 @@ aws ecs describe-services \
   --services miniquest-backend-service
 ```
 
-### 9.5 Monitoring & Logging
+### 8.5 Monitoring & Logging
 
 **CloudWatch Metrics:**
 - API request count
@@ -2468,9 +2467,9 @@ aws ecs describe-services \
 
 ---
 
-## 10. Development Guide
+## 9. Development Guide
 
-### 10.1 Local Setup
+### 9.1 Local Setup
 
 **Prerequisites:**
 - Python 3.11+
@@ -2522,7 +2521,7 @@ docker-compose up -d
 # API Docs: http://localhost:8000/docs
 ```
 
-### 10.2 Testing
+### 9.2 Testing
 
 **Backend Tests:**
 ```bash
@@ -2558,7 +2557,7 @@ npm run build
 npm run preview
 ```
 
-### 10.3 Code Structure Best Practices
+### 9.3 Code Structure Best Practices
 
 **Backend:**
 - Agents: One agent per file, inherit from BaseAgent
@@ -2574,7 +2573,7 @@ npm run preview
 - API: Centralized in api/client.ts
 - Types: TypeScript interfaces in types/
 
-### 10.4 Adding New Features
+### 9.4 Adding New Features
 
 **Example: Add New Agent**
 
@@ -2644,7 +2643,7 @@ export const myResourceAPI = {
 };
 ```
 
-### 10.5 Debugging Tips
+### 9.5 Debugging Tips
 
 **Backend Debugging:**
 ```python
@@ -2695,7 +2694,7 @@ console.log('API Response:', response);
    - Check IP whitelist in MongoDB Atlas
    - Ensure network connectivity
 
-### 10.6 Performance Profiling
+### 9.6 Performance Profiling
 
 **Backend Profiling:**
 ```python
@@ -2721,9 +2720,9 @@ stats.print_stats(20)
 
 ---
 
-## 11. Appendix
+## 10. Appendix
 
-### 11.1 Environment Variables Reference
+### 10.1 Environment Variables Reference
 
 ```bash
 # Required
@@ -2750,7 +2749,7 @@ CHROMADB_PATH=./chromadb
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 
-### 11.2 API Rate Limits
+### 10.2 API Rate Limits
 
 | Service | Tier | Limit | Notes |
 |---------|------|-------|-------|
@@ -2760,7 +2759,7 @@ EMBEDDING_MODEL=text-embedding-3-small
 | Google Maps | Standard | 60 req/min | Per API key |
 | MongoDB Atlas | M0 | 500 connections | Free tier |
 
-### 11.3 Glossary
+### 10.3 Glossary
 
 - **RAG:** Retrieval-Augmented Generation - enhancing LLM responses with retrieved context
 - **LangGraph:** Framework for building multi-agent workflows as state machines
@@ -2773,7 +2772,7 @@ EMBEDDING_MODEL=text-embedding-3-small
 - **TTL:** Time To Live - cache expiration time
 - **Webhook:** HTTP callback for event notifications
 
-### 11.4 Useful Links
+### 10.4 Useful Links
 
 - **OpenAI API Docs:** https://platform.openai.com/docs
 - **Tavily API Docs:** https://docs.tavily.com
@@ -2785,7 +2784,7 @@ EMBEDDING_MODEL=text-embedding-3-small
 
 ---
 
-## 12. Changelog
+## 11. Changelog
 
 ### Version 1.0 (January 2025)
 - Initial release
