@@ -1,4 +1,4 @@
-﻿# 🗺️ MiniQuest - AI-Powered Adventure Planning System
+﻿# MiniQuest - AI-Powered Adventure Planning System
 
 **Multi-Agent Architecture | LangGraph | Tavily API | MongoDB Atlas**
 
@@ -6,7 +6,7 @@ A production-ready multi-agent system that generates personalized travel itinera
 
 ---
 
-## 🌐 Live Application
+## Live Application
 
 - **Frontend**: https://d1nrqhtd83kmw6.cloudfront.net
 - **Backend API**: https://d3ihmux7ocq5bh.cloudfront.net
@@ -15,25 +15,25 @@ A production-ready multi-agent system that generates personalized travel itinera
 
 ---
 
-## 🎥 Demo Video
+## Demo Video
 
-📹 **[Watch Demo Video (3-5 min)](YOUR_LOOM_OR_YOUTUBE_LINK_HERE)**
-
----
-
-## 🌟 Key Features
-
-- **🤖 Multi-Agent AI System** - 7 specialized agents coordinated by LangGraph
-- **🔍 Real-Time Web Research** - Tavily API for current venue information
-- **🧠 RAG Personalization** - ChromaDB-based learning from user preferences
-- **⚡ Performance Optimized** - Parallel research (60-75% faster) + Caching (90%+ hit rate)
-- **🗺️ Smart Routing** - Google Maps integration for optimal travel paths
-- **🎨 Modern UI** - React + TypeScript with glassmorphism design
-- **☁️ AWS Deployed** - Production-ready on AWS with auto-scaling
+**[Watch Demo Video (3-5 min)](YOUR_LOOM_OR_YOUTUBE_LINK_HERE)**
 
 ---
 
-## 🏆 What Makes MiniQuest Unique
+## Key Features
+
+- **Multi-Agent AI System** - 7 specialized agents coordinated by LangGraph
+- **Real-Time Web Research** - Tavily API for current venue information
+- **RAG Personalization** - ChromaDB-based learning from user preferences
+- **Performance Optimized** - Parallel research (60-75% faster) + Caching (90%+ hit rate)
+- **Smart Routing** - Google Maps integration for optimal travel paths
+- **Modern UI** - React + TypeScript with glassmorphism design
+- **AWS Deployed** - Production-ready on AWS with auto-scaling
+
+---
+
+## What Makes MiniQuest Unique
 
 Unlike traditional travel planning tools, MiniQuest:
 
@@ -56,7 +56,7 @@ Unlike traditional travel planning tools, MiniQuest:
 
 ---
 
-## 🔍 Tavily API Integration
+## Tavily API Integration
 
 ### Search API
 ```python
@@ -110,7 +110,7 @@ Final Result: "Open 7am-6pm, $3-7 range, known for cappuccinos"
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ### System Overview
 
@@ -142,7 +142,7 @@ Final Result: "Open 7am-6pm, $3-7 range, known for cappuccinos"
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -196,7 +196,7 @@ docker-compose ps
 
 ---
 
-## 🤖 Agent Architecture
+## Agent Architecture
 
 ### Multi-Agent Workflow
 
@@ -276,7 +276,7 @@ START → parse_intent → parse_location → scout_venues
 
 ---
 
-## 💾 Database Schema
+## Database Schema
 
 ### MongoDB Collections
 
@@ -346,7 +346,7 @@ START → parse_intent → parse_location → scout_venues
 
 ---
 
-## 📊 Performance Optimizations
+## Performance Optimizations
 
 ### 1. Parallel Research (60-75% faster)
 ```python
@@ -380,7 +380,7 @@ adventures = await asyncio.gather(*[
 
 ---
 
-## 🎨 Frontend Features
+## Frontend Features
 
 ### Pages
 - **Home** - Landing page with feature showcase
@@ -399,7 +399,7 @@ adventures = await asyncio.gather(*[
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### Authentication
 ```bash
@@ -433,7 +433,7 @@ GET /docs - Interactive API documentation
 
 ---
 
-## 🚀 Deployment
+## Deployment
 
 ### Local Development
 ```bash
@@ -476,7 +476,7 @@ aws ecs update-service --cluster miniquest --service miniquest-svc --force-new-d
 ```
 ---
 
-## 🧪 Testing
+## Testing
 ```bash
 # Backend tests
 cd backend
@@ -495,7 +495,7 @@ npm run build
 
 ---
 
-## 📚 Project Structure
+## Project Structure
 ```
 .
 ├── backend/                 # Python FastAPI backend
@@ -530,7 +530,7 @@ npm run build
 
 ---
 
-## 🔐 Security
+## Security
 
 - JWT-based authentication
 - Password hashing (bcrypt)
@@ -542,7 +542,7 @@ npm run build
 
 ---
 
-## 📈 Monitoring
+## Monitoring
 
 ### Health Checks
 ```bash
@@ -573,7 +573,7 @@ aws logs tail /ecs/miniquest-backend --follow
 ```
 ---
 
-## ⚠️ Known Limitations & Future Work
+## Known Limitations & Future Work
 
 ### Current Limitations
 1. **Google Maps API**: Limited to 60 requests/minute
@@ -592,18 +592,6 @@ aws logs tail /ecs/miniquest-backend --follow
 
 ---
 
-## 🤝 Contributing
-
-This project was built as part of a multi-agent systems assignment. Feedback and suggestions are welcome!
-
----
-
-## 📝 License
-
-MIT License - See LICENSE file for details
-
----
-
 ## 🙏 Acknowledgments
 
 - **LangGraph** - Agent orchestration framework
@@ -615,7 +603,7 @@ MIT License - See LICENSE file for details
 
 ## 👤 Author
 
-**[Your Name]**
+**Shreyas Sreenivas**
 - GitHub: [@lambdabypi](https://github.com/lambdabypi)
 - Email: shreyas.atneu@gmail.com
 - LinkedIn: [LinkedIn](https://www.linkedin.com/in/shreyas-sreenivas-9452a9169/)
