@@ -1,8 +1,8 @@
-﻿# MiniQuest - AI-Powered Adventure Planning System
+﻿# MiniQuest - AI-Powered Local Adventure Planning
 
-**Multi-Agent Architecture | LangGraph | Tavily API | MongoDB Atlas**
+**Multi-Agent Architecture | LangGraph | Tavily API | MongoDB Atlas | Google Maps API**
 
-A production-ready multi-agent system that generates personalized travel itineraries using real-time web research and RAG-based personalization.
+A production-ready multi-agent system that generates personalized travel itineraries using real-time web research, RAG-based personalization and optimized routing.
 
 ---
 
