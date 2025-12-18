@@ -32,13 +32,13 @@
 <p>MiniQuest is a <strong>production-ready multi-agent system</strong> that generates personalized travel itineraries using real-time web research and RAG-based personalization. It combines <strong>7 specialized AI agents</strong> coordinated by LangGraph to create complete, research-backed adventure plans.</p>
 <h2 is-upgraded>Key Capabilities</h2>
 <ul>
-<li>⚡ <strong>Real-time venue research</strong> using Tavily API</li>
-<li>🤖 <strong>Multi-agent workflow</strong> orchestration with LangGraph</li>
-<li>🧠 <strong>RAG-based personalization</strong> using ChromaDB</li>
-<li>🗺️ <strong>Google Maps route</strong> optimization</li>
-<li>🚀 <strong>Parallel processing</strong> with intelligent caching</li>
-<li>🔐 <strong>User authentication</strong> and history tracking</li>
-<li>📊 <strong>Real-time progress</strong> tracking</li>
+<li>Real-time venue research using Tavily API</li>
+<li>Multi-agent workflow orchestration with LangGraph</li>
+<li>RAG-based personalization using ChromaDB</li>
+<li>Google Maps route optimization</li>
+<li>Parallel processing with intelligent caching</li>
+<li>User authentication and history tracking</li>
+<li>Real-time progress tracking</li>
 </ul>
 <h2 is-upgraded>Technology Stack</h2>
 <p><strong>Backend:</strong></p>
@@ -154,10 +154,10 @@ MongoDB + Redis + ChromaDB
 <li>Node 2: <code>get_personalization</code> (29% progress)</li>
 <li>Node 3: <code>parse_intent</code> (29% progress)</li>
 <li>Node 4: <code>scout_venues</code> (43% progress)</li>
-<li>Node 5: <code>research_venues</code> (57% progress) ⚡ <strong>Parallel</strong></li>
+<li>Node 5: <code>research_venues</code> (57% progress) - <strong>Parallel</strong></li>
 <li>Node 6: <code>summarize_research</code> (71% progress)</li>
 <li>Node 7: <code>route_adventures</code> (86% progress)</li>
-<li>Node 8: <code>create_adventures</code> (100% progress) ⚡ <strong>Async</strong></li>
+<li>Node 8: <code>create_adventures</code> (100% progress) - <strong>Async</strong></li>
 </ul>
 <h2 is-upgraded>State Management</h2>
 <p>The workflow maintains <strong>shared state</strong> across all agents:</p>
@@ -194,12 +194,15 @@ MongoDB + Redis + ChromaDB
 <ul>
 <li>Extracts preferences, themes, activities from natural language</li>
 <li>Returns structured JSON with user interests</li>
+<li>Validates scope (local adventures only)</li>
+<li>Provides clarification when needed</li>
 </ul>
 <p><strong>LocationParser Agent:</strong></p>
 <ul>
 <li>Resolves location strings to coordinates</li>
 <li>Uses OpenAI function calling for geocoding</li>
 <li>Validates and returns structured location data</li>
+<li>Handles ambiguous locations gracefully</li>
 </ul>
 <p><strong>VenueScout Agent:</strong></p>
 <ul>
@@ -207,6 +210,7 @@ MongoDB + Redis + ChromaDB
 <li>Enforces category diversity</li>
 <li>Includes exact addresses</li>
 <li>Uses GPT-4 for generation</li>
+<li>Validates venues exist</li>
 </ul>
 <p><strong>TavilyResearch Agent:</strong></p>
 <ul>
@@ -214,12 +218,15 @@ MongoDB + Redis + ChromaDB
 <li>Multi-step: Search API → Extract API</li>
 <li>Caches results in Redis (24hr TTL)</li>
 <li>Graceful error recovery</li>
+<li>Smart deduplication</li>
 </ul>
 <p><strong>ResearchSummary Agent:</strong></p>
 <ul>
 <li>Synthesizes raw research into structured summaries</li>
 <li>Extracts hours, prices, tips, descriptions</li>
 <li>Calculates confidence scores</li>
+<li>Batch processing (all venues in one call)</li>
+<li>Anti-hallucination safeguards</li>
 </ul>
 <p><strong>RoutingAgent:</strong></p>
 <ul>
@@ -227,6 +234,7 @@ MongoDB + Redis + ChromaDB
 <li>Multiple travel modes (walk, drive, transit)</li>
 <li>Waypoint optimization</li>
 <li>Shareable route URLs</li>
+<li>Distance-based mode recommendations</li>
 </ul>
 <p><strong>AdventureCreator Agent:</strong></p>
 <ul>
@@ -234,7 +242,650 @@ MongoDB + Redis + ChromaDB
 <li>Integrates all research data</li>
 <li>Weaves compelling narratives</li>
 <li>Adds route information</li>
+<li>Preserves venue research</li>
 </ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Backend Components Deep Dive" duration="15">
+        <h2 is-upgraded>3.1 LangGraph Coordinator</h2>
+<p><strong>File: </strong><code>backend/app/agents/coordination/langgraph_coordinator.py</code></p>
+<p>The coordinator orchestrates the entire multi-agent workflow using LangGraph&#39;s state graph pattern.</p>
+<h3 is-upgraded>Architecture</h3>
+<pre><code language="language-python" class="language-python">class LangGraphCoordinator:
+    &#34;&#34;&#34;
+    Orchestrates 7 agents in a sequential workflow with:
+    - State management
+    - Progress tracking
+    - Error handling
+    - Performance monitoring
+    &#34;&#34;&#34;
+</code></pre>
+<h3 is-upgraded>Workflow Node Details</h3>
+<p><strong>1. parse_location_node</strong></p>
+<ul>
+<li><strong>Agent:</strong> LocationParserAgent</li>
+<li><strong>Input:</strong> User query, optional address</li>
+<li><strong>Output:</strong> Validated location with coordinates</li>
+<li><strong>Progress:</strong> 14%</li>
+<li><strong>Error Handling:</strong> Defaults to Boston if parsing fails</li>
+</ul>
+<p><strong>2. get_personalization_node</strong></p>
+<ul>
+<li><strong>Agent:</strong> RAG System (ChromaDB)</li>
+<li><strong>Input:</strong> User ID, location, preferences</li>
+<li><strong>Output:</strong> Historical preferences, favorite themes</li>
+<li><strong>Progress:</strong> 29%</li>
+<li><strong>Optimization:</strong> Queries vector database for semantic matches</li>
+</ul>
+<p><strong>3. parse_intent_node</strong></p>
+<ul>
+<li><strong>Agent:</strong> IntentParserAgent</li>
+<li><strong>Input:</strong> User query</li>
+<li><strong>Output:</strong> Extracted themes, activities, constraints</li>
+<li><strong>Progress:</strong> 29%</li>
+<li><strong>Validation:</strong> Checks if query is in scope</li>
+</ul>
+<p><strong>4. scout_venues_node</strong></p>
+<ul>
+<li><strong>Agent:</strong> VenueScoutAgent</li>
+<li><strong>Input:</strong> Preferences, location</li>
+<li><strong>Output:</strong> 15-20 candidate venues with addresses</li>
+<li><strong>Progress:</strong> 43%</li>
+<li><strong>Quality Control:</strong> Enforces category diversity</li>
+</ul>
+<p><strong>5. research_venues_node</strong></p>
+<ul>
+<li><strong>Agent:</strong> TavilyResearchAgent (parallel)</li>
+<li><strong>Input:</strong> Venue list</li>
+<li><strong>Output:</strong> Current hours, prices, reviews, descriptions</li>
+<li><strong>Progress:</strong> 57%</li>
+<li><strong>Optimization:</strong> Runs 8 venues concurrently</li>
+<li><strong>Caching:</strong> Redis-based with 24hr TTL</li>
+</ul>
+<p><strong>6. summarize_research_node</strong></p>
+<ul>
+<li><strong>Agent:</strong> ResearchSummaryAgent</li>
+<li><strong>Input:</strong> Raw research results</li>
+<li><strong>Output:</strong> Structured venue summaries</li>
+<li><strong>Progress:</strong> 71%</li>
+<li><strong>Batch Processing:</strong> All venues in single OpenAI call</li>
+</ul>
+<p><strong>7. route_adventures_node</strong></p>
+<ul>
+<li><strong>Agent:</strong> EnhancedRoutingAgent</li>
+<li><strong>Input:</strong> Researched venues</li>
+<li><strong>Output:</strong> Google Maps routes, travel times</li>
+<li><strong>Progress:</strong> 86%</li>
+<li><strong>Features:</strong> Waypoint optimization, mode selection</li>
+</ul>
+<p><strong>8. create_adventures_node</strong></p>
+<ul>
+<li><strong>Agent:</strong> AdventureCreatorAgent (async)</li>
+<li><strong>Input:</strong> All previous outputs</li>
+<li><strong>Output:</strong> 3 complete themed adventures</li>
+<li><strong>Progress:</strong> 100%</li>
+<li><strong>Optimization:</strong> Async generation of 3 adventures</li>
+</ul>
+<h3 is-upgraded>State Transitions</h3>
+<pre><code language="language-python" class="language-python">workflow.add_edge(START, &#34;parse_location&#34;)
+workflow.add_edge(&#34;parse_location&#34;, &#34;get_personalization&#34;)
+workflow.add_edge(&#34;get_personalization&#34;, &#34;parse_intent&#34;)
+workflow.add_edge(&#34;parse_intent&#34;, &#34;scout_venues&#34;)
+workflow.add_edge(&#34;scout_venues&#34;, &#34;research_venues&#34;)
+workflow.add_edge(&#34;research_venues&#34;, &#34;summarize_research&#34;)
+workflow.add_edge(&#34;summarize_research&#34;, &#34;route_adventures&#34;)
+workflow.add_edge(&#34;route_adventures&#34;, &#34;create_adventures&#34;)
+workflow.add_edge(&#34;create_adventures&#34;, END)
+</code></pre>
+<h3 is-upgraded>Performance Tracking</h3>
+<pre><code language="language-python" class="language-python">def _track_timing(self, step: str, duration: float):
+    &#34;&#34;&#34;Track execution time per node&#34;&#34;&#34;
+    self.timing_data[step] = duration
+</code></pre>
+<h2 is-upgraded>3.2 Base Agent</h2>
+<p><strong>File: </strong><code>backend/app/agents/base.py</code></p>
+<pre><code language="language-python" class="language-python">class BaseAgent:
+    &#34;&#34;&#34;
+    Abstract base class for all agents
+    
+    Features:
+    - Standardized logging
+    - Error handling
+    - Validation framework
+    &#34;&#34;&#34;
+    
+    def __init__(self, name: str):
+        self.name = name
+        self.logger = logging.getLogger(f&#34;agent.{name.lower()}&#34;)
+    
+    async def process(self, input_data: Dict) -&gt; Dict:
+        &#34;&#34;&#34;Abstract method - implemented by each agent&#34;&#34;&#34;
+        raise NotImplementedError
+</code></pre>
+<h2 is-upgraded>3.3 Intent Parser Agent Details</h2>
+<p><strong>File: </strong><code>backend/app/agents/intent/intent_parser.py</code></p>
+<p><strong>Purpose:</strong> Extract structured preferences from natural language</p>
+<p><strong>Process:</strong></p>
+<ol type="1">
+<li>Receive user query</li>
+<li>Validate scope (local adventures only)</li>
+<li>Call OpenAI GPT-4 with structured prompt</li>
+<li>Parse JSON response</li>
+<li>Validate extracted fields</li>
+</ol>
+<p><strong>Scope Validation:</strong></p>
+<pre><code language="language-python" class="language-python">def _validate_scope(self, user_input: str) -&gt; Dict:
+    &#34;&#34;&#34;Check if query is within MiniQuest scope&#34;&#34;&#34;
+    
+    # Out of scope: multi-day trips, international travel
+    # In scope: local 2-6 hour adventures
+    
+    if &#34;europe&#34; in user_input_lower or &#34;asia&#34; in user_input_lower:
+        return {
+            &#34;valid&#34;: False,
+            &#34;message&#34;: &#34;MiniQuest operates in Boston and NYC only&#34;
+        }
+    
+    return {&#34;valid&#34;: True}
+</code></pre>
+<p><strong>Input:</strong></p>
+<pre><code language="language-python" class="language-python">{
+    &#34;user_input&#34;: &#34;coffee shops and art galleries in Boston&#34;
+}
+</code></pre>
+<p><strong>Output:</strong></p>
+<pre><code language="language-python" class="language-python">{
+    &#34;preferences&#34;: [&#34;coffee&#34;, &#34;art&#34;, &#34;culture&#34;],
+    &#34;activities&#34;: [&#34;cafe&#34;, &#34;gallery&#34;, &#34;museum&#34;],
+    &#34;themes&#34;: [&#34;artistic&#34;, &#34;creative&#34;, &#34;local&#34;],
+    &#34;constraints&#34;: {
+        &#34;budget&#34;: &#34;moderate&#34;,
+        &#34;duration&#34;: &#34;half_day&#34;
+    },
+    &#34;scope_valid&#34;: True
+}
+</code></pre>
+<p><strong>OpenAI Prompt Structure:</strong></p>
+<pre><code language="language-python" class="language-python">system_prompt = &#34;&#34;&#34;
+Extract user preferences from the query.
+Return JSON with:
+- preferences: List of interests
+- activities: Specific activity types
+- themes: Overall themes
+- constraints: Any limitations
+
+SCOPE: Only local, same-day adventures (2-6 hours)
+&#34;&#34;&#34;
+</code></pre>
+<h2 is-upgraded>3.4 Location Parser Agent Details</h2>
+<p><strong>File: </strong><code>backend/app/agents/location/location_parser.py</code></p>
+<p><strong>Purpose:</strong> Resolve and validate locations with coordinates</p>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Geocoding via OpenAI function calling</li>
+<li>Address validation</li>
+<li>Coordinate extraction</li>
+<li>Fallback to default location</li>
+</ul>
+<p><strong>Process:</strong></p>
+<ol type="1">
+<li>Extract location from query or use provided address</li>
+<li>Call OpenAI with geocoding function</li>
+<li>Validate coordinates</li>
+<li>Return structured location data</li>
+</ol>
+<p><strong>OpenAI Function Definition:</strong></p>
+<pre><code language="language-python" class="language-python">{
+    &#34;name&#34;: &#34;geocode_location&#34;,
+    &#34;description&#34;: &#34;Get coordinates for a location&#34;,
+    &#34;parameters&#34;: {
+        &#34;type&#34;: &#34;object&#34;,
+        &#34;properties&#34;: {
+            &#34;location&#34;: {&#34;type&#34;: &#34;string&#34;},
+            &#34;city&#34;: {&#34;type&#34;: &#34;string&#34;},
+            &#34;state&#34;: {&#34;type&#34;: &#34;string&#34;},
+            &#34;latitude&#34;: {&#34;type&#34;: &#34;number&#34;},
+            &#34;longitude&#34;: {&#34;type&#34;: &#34;number&#34;}
+        }
+    }
+}
+</code></pre>
+<p><strong>Output:</strong></p>
+<pre><code language="language-python" class="language-python">{
+    &#34;location&#34;: &#34;Boston, MA&#34;,
+    &#34;coordinates&#34;: {
+        &#34;lat&#34;: 42.3601,
+        &#34;lon&#34;: -71.0589
+    },
+    &#34;city&#34;: &#34;Boston&#34;,
+    &#34;state&#34;: &#34;MA&#34;,
+    &#34;country&#34;: &#34;USA&#34;
+}
+</code></pre>
+<h2 is-upgraded>3.5 Venue Scout Agent Details</h2>
+<p><strong>File: </strong><code>backend/app/agents/scouting/venue_scout.py</code></p>
+<p><strong>Purpose:</strong> Generate diverse venue candidates using GPT-4</p>
+<p><strong>Strategy:</strong></p>
+<ul>
+<li>Request 15-20 venues per generation</li>
+<li>Enforce diversity across categories</li>
+<li>Include specific addresses</li>
+<li>Validate venues exist</li>
+</ul>
+<p><strong>OpenAI Prompt:</strong></p>
+<pre><code language="language-python" class="language-python">system_prompt = f&#34;&#34;&#34;
+Generate 15-20 diverse venues in {location} matching preferences: {preferences}
+
+Requirements:
+- Mix of popular and hidden gems
+- Include EXACT addresses
+- Diverse categories (coffee, museums, parks, etc.)
+- Real, verifiable venues
+- No chains unless highly rated
+
+Return JSON array of venues with:
+- name: Venue name
+- address: Full street address
+- category: Type of venue
+- description: Brief description
+&#34;&#34;&#34;
+</code></pre>
+<p><strong>Category Diversity Enforcement:</strong></p>
+<pre><code language="language-python" class="language-python">def _ensure_diversity(venues: List[Dict]) -&gt; List[Dict]:
+    &#34;&#34;&#34;Ensure no category dominates&#34;&#34;&#34;
+    category_counts = {}
+    filtered_venues = []
+    
+    for venue in venues:
+        category = venue.get(&#34;category&#34;)
+        if category_counts.get(category, 0) &lt; 4:
+            filtered_venues.append(venue)
+            category_counts[category] = category_counts.get(category, 0) + 1
+    
+    return filtered_venues
+</code></pre>
+<p><strong>Output:</strong></p>
+<pre><code language="language-python" class="language-python">[
+    {
+        &#34;name&#34;: &#34;Thinking Cup&#34;,
+        &#34;address&#34;: &#34;165 Tremont St, Boston, MA 02111&#34;,
+        &#34;category&#34;: &#34;coffee_shop&#34;,
+        &#34;description&#34;: &#34;Artisan coffee with pastries&#34;
+    },
+    # ... 14-19 more venues
+]
+</code></pre>
+<h2 is-upgraded>3.6 Tavily Research Agent Details</h2>
+<p><strong>File: </strong><code>backend/app/agents/research/tavily_research_agent.py</code></p>
+<p><strong>Purpose:</strong> Real-time web research on venues with caching</p>
+<p><strong>Key Features:</strong></p>
+<ul>
+<li><strong>Parallel Processing:</strong> 8 concurrent venue researches</li>
+<li><strong>Smart Caching:</strong> Redis with 24-hour TTL</li>
+<li><strong>Multi-Step Research:</strong> Search → Extract for depth</li>
+<li><strong>Error Recovery:</strong> Graceful degradation on API failures</li>
+</ul>
+<p><strong>Process Flow:</strong></p>
+<pre><code language="language-python" class="language-python">async def research_venue(venue: Dict) -&gt; Dict:
+    # 1. Check cache
+    cache_key = f&#34;venue:{venue[&#39;name&#39;]}:{location}:{date}&#34;
+    cached = await redis.get(cache_key)
+    if cached:
+        return cached
+    
+    # 2. Tavily Search API
+    search_results = tavily.search(
+        query=f&#34;{venue[&#39;name&#39;]} {location} hours prices reviews&#34;,
+        search_depth=&#34;advanced&#34;,
+        max_results=5
+    )
+    
+    # 3. Tavily Extract API (deep dive)
+    extract_results = tavily.extract(
+        urls=[result[&#39;url&#39;] for result in search_results],
+        include_raw_content=False
+    )
+    
+    # 4. Synthesize and cache
+    research_data = synthesize(search_results, extract_results)
+    await redis.set(cache_key, research_data, ex=86400)
+    
+    return research_data
+</code></pre>
+<p><strong>Parallel Execution:</strong></p>
+<pre><code language="language-python" class="language-python">async def process(self, input_data: Dict) -&gt; Dict:
+    venues = input_data[&#34;venues&#34;]
+    
+    # Research 8 venues concurrently
+    async with asyncio.TaskGroup() as tg:
+        tasks = [
+            tg.create_task(self._research_venue(v))
+            for v in venues
+        ]
+    
+    return {&#34;researched_venues&#34;: [t.result() for t in tasks]}
+</code></pre>
+<p><strong>Cache Statistics:</strong></p>
+<pre><code language="language-python" class="language-python">{
+    &#34;total_requests&#34;: 100,
+    &#34;cache_hits&#34;: 91,
+    &#34;cache_misses&#34;: 9,
+    &#34;hit_rate&#34;: &#34;91.0%&#34;,
+    &#34;time_saved_seconds&#34;: 182.4
+}
+</code></pre>
+<p><strong>Output Structure:</strong></p>
+<pre><code language="language-python" class="language-python">{
+    &#34;venue_name&#34;: &#34;Thinking Cup&#34;,
+    &#34;current_info&#34;: &#34;Open today until 6 PM&#34;,
+    &#34;hours_info&#34;: &#34;Mon-Fri: 7 AM - 6 PM, Sat-Sun: 8 AM - 5 PM&#34;,
+    &#34;visitor_tips&#34;: [
+        &#34;Try the cappuccino&#34;,
+        &#34;Arrive early on weekends&#34;,
+        &#34;Free WiFi available&#34;
+    ],
+    &#34;venue_summary&#34;: &#34;Popular artisan coffee shop...&#34;,
+    &#34;research_confidence&#34;: 0.89,
+    &#34;total_insights&#34;: 12,
+    &#34;top_source&#34;: &#34;thinkingcup.com&#34;
+}
+</code></pre>
+<h2 is-upgraded>3.7 Research Summary Agent Details</h2>
+<p><strong>File: </strong><code>backend/app/agents/research/research_summary_agent.py</code></p>
+<p><strong>Purpose:</strong> Synthesize raw research into structured summaries</p>
+<p><strong>Optimization:</strong> Batch processing - all venues in single OpenAI call</p>
+<p><strong>Process:</strong></p>
+<ol type="1">
+<li>Receive raw Tavily results per venue</li>
+<li>Batch all venues into single prompt</li>
+<li>Extract key information using GPT-4</li>
+<li>Structure into consistent format</li>
+<li>Calculate confidence scores</li>
+</ol>
+<p><strong>OpenAI Prompt:</strong></p>
+<pre><code language="language-python" class="language-python">system_prompt = &#34;&#34;&#34;
+Analyze venue research and extract for each venue:
+- Practical info (hours, prices, admission)
+- Insider tips (3-4 actionable tips)
+- Best time to visit
+- What makes it special
+
+Format as JSON array with one entry per venue.
+Confidence: Rate 0-1 based on data quality.
+
+CRITICAL: For free venues, never invent admission prices.
+If hours unknown, say &#34;Call ahead to confirm hours&#34;.
+&#34;&#34;&#34;
+</code></pre>
+<p><strong>Anti-Hallucination Safeguards:</strong></p>
+<pre><code language="language-python" class="language-python">def _validate_summary(summary: Dict, raw_research: Dict) -&gt; Dict:
+    &#34;&#34;&#34;Prevent hallucination of venue details&#34;&#34;&#34;
+    
+    # If no price data found, don&#39;t invent it
+    if not raw_research.get(&#34;pricing_info&#34;):
+        summary[&#34;practical_info&#34;][&#34;admission&#34;] = &#34;Check venue website&#34;
+    
+    # If hours unclear, be honest
+    if summary.get(&#34;confidence&#34;) &lt; 0.5:
+        summary[&#34;practical_info&#34;][&#34;hours&#34;] = &#34;Call ahead to confirm&#34;
+    
+    return summary
+</code></pre>
+<p><strong>Output:</strong></p>
+<pre><code language="language-python" class="language-python">{
+    &#34;venue_name&#34;: &#34;Museum of Fine Arts&#34;,
+    &#34;visitor_summary&#34;: &#34;World-class art museum with 450,000 works...&#34;,
+    &#34;key_highlights&#34;: [
+        &#34;Impressionist collection&#34;,
+        &#34;Ancient Egyptian artifacts&#34;,
+        &#34;Contemporary wing&#34;
+    ],
+    &#34;practical_info&#34;: {
+        &#34;hours&#34;: &#34;Mon-Fri: 10 AM - 5 PM&#34;,
+        &#34;admission&#34;: &#34;$27 adults, $25 seniors&#34;,
+        &#34;best_time&#34;: &#34;Weekday mornings&#34;,
+        &#34;typical_duration&#34;: &#34;2-3 hours&#34;,
+        &#34;insider_tips&#34;: [
+            &#34;Free admission Wednesdays after 4 PM&#34;,
+            &#34;Start with contemporary wing&#34;,
+            &#34;Café on ground floor for breaks&#34;
+        ]
+    },
+    &#34;confidence_notes&#34;: &#34;High confidence (12 sources)&#34;,
+    &#34;total_insights&#34;: 12
+}
+</code></pre>
+<h2 is-upgraded>3.8 Routing Agent Details</h2>
+<p><strong>File: </strong><code>backend/app/agents/routing/enhanced_routing_agent.py</code></p>
+<p><strong>Purpose:</strong> Generate optimal routes using Google Maps Directions API</p>
+<p><strong>Key Features:</strong></p>
+<ul>
+<li>Waypoint optimization</li>
+<li>Multiple travel modes (driving, walking, transit)</li>
+<li>Distance-based mode recommendations</li>
+<li>Fallback for cross-city travel</li>
+</ul>
+<p><strong>Process:</strong></p>
+<pre><code language="language-python" class="language-python">async def calculate_route(venues: List[Dict]) -&gt; Dict:
+    # 1. Extract coordinates
+    waypoints = [v[&#39;coordinates&#39;] for v in venues]
+    
+    # 2. Determine optimal mode
+    total_distance = calculate_distance(waypoints)
+    if total_distance &lt; 3:
+        mode = &#34;walking&#34;
+    elif total_distance &lt; 10:
+        mode = &#34;driving&#34;
+    else:
+        mode = &#34;transit&#34;
+    
+    # 3. Call Google Maps Directions API
+    result = gmaps.directions(
+        origin=waypoints[0],
+        destination=waypoints[-1],
+        waypoints=waypoints[1:-1],
+        mode=mode,
+        optimize_waypoints=True
+    )
+    
+    # 4. Generate shareable URL
+    route_url = generate_google_maps_url(waypoints, mode)
+    
+    return {
+        &#34;route_url&#34;: route_url,
+        &#34;mode&#34;: mode,
+        &#34;total_distance&#34;: total_distance,
+        &#34;estimated_time&#34;: result[&#39;legs&#39;][0][&#39;duration&#39;][&#39;text&#39;],
+        &#34;optimized_order&#34;: result[&#39;waypoint_order&#39;]
+    }
+</code></pre>
+<p><strong>URL Generation:</strong></p>
+<pre><code language="language-python" class="language-python">def generate_google_maps_url(waypoints, mode):
+    &#34;&#34;&#34;
+    Generate shareable Google Maps URL
+    
+    Format: https://www.google.com/maps/dir/?api=1
+            &amp;origin=42.3601,-71.0589
+            &amp;destination=42.3584,-71.0598
+            &amp;waypoints=42.3593,-71.0603|...
+            &amp;travelmode=walking
+    &#34;&#34;&#34;
+    origin = f&#34;{waypoints[0][&#39;lat&#39;]},{waypoints[0][&#39;lon&#39;]}&#34;
+    destination = f&#34;{waypoints[-1][&#39;lat&#39;]},{waypoints[-1][&#39;lon&#39;]}&#34;
+    waypoints_str = &#34;|&#34;.join([
+        f&#34;{w[&#39;lat&#39;]},{w[&#39;lon&#39;]}&#34; 
+        for w in waypoints[1:-1]
+    ])
+    
+    return (
+        f&#34;https://www.google.com/maps/dir/?api=1&#34;
+        f&#34;&amp;origin={origin}&#34;
+        f&#34;&amp;destination={destination}&#34;
+        f&#34;&amp;waypoints={waypoints_str}&#34;
+        f&#34;&amp;travelmode={mode}&#34;
+    )
+</code></pre>
+<p><strong>Output:</strong></p>
+<pre><code language="language-python" class="language-python">{
+    &#34;routing_available&#34;: true,
+    &#34;primary_route_url&#34;: &#34;https://www.google.com/maps/dir/?api=1...&#34;,
+    &#34;recommended_mode&#34;: &#34;walking&#34;,
+    &#34;distance_category&#34;: &#34;walkable&#34;,
+    &#34;travel_options&#34;: [
+        {
+            &#34;mode&#34;: &#34;walking&#34;,
+            &#34;url&#34;: &#34;...&#34;,
+            &#34;description&#34;: &#34;~2.3 miles, 45 min&#34;,
+            &#34;recommended&#34;: true
+        },
+        {
+            &#34;mode&#34;: &#34;transit&#34;,
+            &#34;url&#34;: &#34;...&#34;,
+            &#34;description&#34;: &#34;Use Red Line&#34;,
+            &#34;recommended&#34;: false
+        }
+    ],
+    &#34;optimized_order&#34;: [0, 2, 1, 3]
+}
+</code></pre>
+<h2 is-upgraded>3.9 Adventure Creator Agent Details</h2>
+<p><strong>File: </strong><code>backend/app/agents/creation/adventure_creator.py</code></p>
+<p><strong>Purpose:</strong> Generate final themed adventures with narratives</p>
+<p><strong>Key Features:</strong></p>
+<ul>
+<li><strong>Async execution:</strong> Uses AsyncOpenAI for speed</li>
+<li><strong>Theme generation:</strong> Creates unique themes per adventure</li>
+<li><strong>Narrative weaving:</strong> Integrates research into stories</li>
+<li><strong>Research preservation:</strong> Maintains venue details</li>
+</ul>
+<p><strong>Process:</strong></p>
+<pre><code language="language-python" class="language-python">async def create_adventures(
+    researched_venues: List[Dict],
+    enhanced_locations: List[Dict],
+    preferences: Dict,
+    personalization: Dict
+) -&gt; List[Dict]:
+    
+    # 1. Generate 3 themed adventures using GPT-4
+    adventures = await self._generate_base_adventures(
+        researched_venues, 
+        preferences,
+        personalization
+    )
+    
+    # 2. Integrate research data
+    for adventure in adventures:
+        adventure = self._integrate_research(
+            adventure, 
+            researched_venues
+        )
+    
+    # 3. Add route information
+    for adventure in adventures:
+        adventure = self._add_routing(
+            adventure,
+            enhanced_locations
+        )
+    
+    return adventures
+</code></pre>
+<p><strong>GPT-4 Prompt Structure:</strong></p>
+<pre><code language="language-python" class="language-python">system_prompt = &#34;&#34;&#34;
+Create 3 unique themed adventures from provided venues.
+
+Requirements:
+- Different theme per adventure (e.g., &#34;Coffee &amp; Culture&#34;, &#34;Historic Tour&#34;, &#34;Hidden Gems&#34;)
+- 4-6 hour duration
+- Compelling narrative with storytelling
+- Specific timeline (e.g., &#34;10:00 AM - Coffee at...&#34;)
+- Insider tips integration
+- Budget estimate
+
+CRITICAL: Only use provided venues. No hallucinations.
+Each adventure should feel distinct and exciting.
+
+Return JSON with structure:
+{
+    &#34;title&#34;: &#34;Coffee &amp; Culture Tour&#34;,
+    &#34;theme&#34;: &#34;Artistic Coffee Journey&#34;,
+    &#34;tagline&#34;: &#34;Discover Boston&#39;s café culture and artistic soul&#34;,
+    &#34;description&#34;: &#34;A half-day adventure blending...&#34;,
+    &#34;duration&#34;: 5,
+    &#34;cost&#34;: 40,
+    &#34;steps&#34;: [
+        {
+            &#34;time&#34;: &#34;10:00 AM&#34;,
+            &#34;activity&#34;: &#34;Morning Coffee&#34;,
+            &#34;details&#34;: &#34;Start your day at Thinking Cup...&#34;,
+            &#34;venue_ref&#34;: &#34;Thinking Cup&#34;
+        }
+    ]
+}
+&#34;&#34;&#34;
+</code></pre>
+<p><strong>Research Integration:</strong></p>
+<pre><code language="language-python" class="language-python">def _integrate_research(adventure, researched_venues):
+    &#34;&#34;&#34;Add research summaries to adventure steps&#34;&#34;&#34;
+    for step in adventure[&#39;steps&#39;]:
+        venue_name = step.get(&#39;venue_ref&#39;)
+        research = find_research(venue_name, researched_venues)
+        
+        if research:
+            step[&#39;venue_research&#39;] = {
+                &#39;current_info&#39;: research[&#39;current_info&#39;],
+                &#39;hours_info&#39;: research[&#39;hours_info&#39;],
+                &#39;visitor_tips&#39;: research[&#39;visitor_tips&#39;],
+                &#39;venue_summary&#39;: research[&#39;venue_summary&#39;],
+                &#39;research_confidence&#39;: research[&#39;research_confidence&#39;]
+            }
+    
+    return adventure
+</code></pre>
+<p><strong>Final Adventure Structure:</strong></p>
+<pre><code language="language-python" class="language-python">{
+    &#34;title&#34;: &#34;Coffee &amp; Culture Tour&#34;,
+    &#34;theme&#34;: &#34;Artistic Coffee Journey&#34;,
+    &#34;tagline&#34;: &#34;Discover Boston&#39;s café culture and artistic soul&#34;,
+    &#34;description&#34;: &#34;A half-day adventure blending artisan coffee...&#34;,
+    &#34;duration&#34;: 4.5,
+    &#34;cost&#34;: 35,
+    &#34;steps&#34;: [
+        {
+            &#34;time&#34;: &#34;10:00 AM&#34;,
+            &#34;activity&#34;: &#34;Morning Coffee at Thinking Cup&#34;,
+            &#34;details&#34;: &#34;Start your day at this beloved South End café...&#34;,
+            &#34;insider_tip&#34;: &#34;Try their signature cappuccino and arrive before 11 AM&#34;,
+            &#34;venue_research&#34;: {
+                &#34;current_info&#34;: &#34;Open today until 6 PM&#34;,
+                &#34;hours_info&#34;: &#34;Mon-Fri: 7 AM - 6 PM&#34;,
+                &#34;visitor_tips&#34;: [
+                    &#34;Arrive before 11 AM to avoid crowds&#34;,
+                    &#34;Try the pastries from their in-house baker&#34;
+                ],
+                &#34;venue_summary&#34;: &#34;Popular artisan coffee shop known for...&#34;,
+                &#34;research_confidence&#34;: 0.89
+            }
+        },
+        {
+            &#34;time&#34;: &#34;11:30 AM&#34;,
+            &#34;activity&#34;: &#34;Art at the MFA&#34;,
+            &#34;details&#34;: &#34;Explore the Museum of Fine Arts...&#34;,
+            &#34;insider_tip&#34;: &#34;Start with the contemporary wing&#34;,
+            &#34;venue_research&#34;: {...}
+        }
+    ],
+    &#34;map_url&#34;: &#34;https://www.google.com/maps/dir/?...&#34;,
+    &#34;routing_info&#34;: {
+        &#34;routing_available&#34;: true,
+        &#34;recommended_mode&#34;: &#34;walking&#34;,
+        &#34;total_distance&#34;: &#34;2.3 miles&#34;,
+        &#34;estimated_time&#34;: &#34;45 minutes&#34;
+    },
+    &#34;venues_research&#34;: [/* full research data for all venues */]
+}
+</code></pre>
 
 
       </google-codelab-step>
@@ -243,10 +894,10 @@ MongoDB + Redis + ChromaDB
         <h2 is-upgraded>Why Tavily?</h2>
 <p>Tavily provides <strong>real-time web data</strong> that traditional databases can&#39;t offer:</p>
 <ul>
-<li>🕐 Current venue hours (changes daily)</li>
-<li>💰 Live prices and deals</li>
-<li>⭐ Recent reviews and ratings</li>
-<li>📅 Up-to-date event information</li>
+<li>Current venue hours (changes daily)</li>
+<li>Live prices and deals</li>
+<li>Recent reviews and ratings</li>
+<li>Up-to-date event information</li>
 </ul>
 <h2 is-upgraded>Multi-Step Research Strategy</h2>
 <p><strong>Step 1: Tavily Search API</strong></p>
@@ -314,34 +965,34 @@ await redis.set(cache_key, research_data, ex=86400)  # 24hr TTL
 <tr><td colspan="1" rowspan="1"><p><strong>Research</strong></p>
 </td><td colspan="1" rowspan="1"><p>20.0s</p>
 </td><td colspan="1" rowspan="1"><p>2.5s</p>
-</td><td colspan="1" rowspan="1"><p>⚡ 87.5%</p>
+</td><td colspan="1" rowspan="1"><p>87.5%</p>
 </td></tr>
 <tr><td colspan="1" rowspan="1"><p><strong>Caching</strong></p>
 </td><td colspan="1" rowspan="1"><p>2.5s/venue</p>
 </td><td colspan="1" rowspan="1"><p>0.1s/venue</p>
-</td><td colspan="1" rowspan="1"><p>🚀 96%</p>
+</td><td colspan="1" rowspan="1"><p>96%</p>
 </td></tr>
 <tr><td colspan="1" rowspan="1"><p><strong>Adventures</strong></p>
 </td><td colspan="1" rowspan="1"><p>9.0s</p>
 </td><td colspan="1" rowspan="1"><p>3.0s</p>
-</td><td colspan="1" rowspan="1"><p>✨ 67%</p>
+</td><td colspan="1" rowspan="1"><p>67%</p>
 </td></tr>
 <tr><td colspan="1" rowspan="1"><p><strong>Total Pipeline</strong></p>
 </td><td colspan="1" rowspan="1"><p><strong>33.3s</strong></p>
 </td><td colspan="1" rowspan="1"><p><strong>4.2s</strong></p>
-</td><td colspan="1" rowspan="1"><p><strong>🎯 87% faster</strong></p>
+</td><td colspan="1" rowspan="1"><p><strong>87% faster</strong></p>
 </td></tr>
 </table>
 <h2 is-upgraded>Optimization #1: Parallel Research</h2>
 <p class="image-container"><img alt="Parallel Research" src="img\\aabfab71b0429ac8.png"></p>
-<p><strong>Sequential Processing (❌ Slow):</strong></p>
+<p><strong>Sequential Processing (Slow):</strong></p>
 <pre><code>Venue 1: 2.5s
 Venue 2: 2.5s
 ...
 Venue 8: 2.5s
 Total: 20 seconds
 </code></pre>
-<p><strong>Parallel Processing (✅ Fast):</strong></p>
+<p><strong>Parallel Processing (Fast):</strong></p>
 <pre><code language="language-python" class="language-python">async with asyncio.TaskGroup() as tg:
     tasks = [tg.create_task(research_venue(v)) 
              for v in venues]
@@ -373,13 +1024,13 @@ Total: 20 seconds
 }
 </code></pre>
 <h2 is-upgraded>Optimization #3: Async Adventure Creation</h2>
-<p><strong>Sequential Creation (❌ Slow):</strong></p>
+<p><strong>Sequential Creation (Slow):</strong></p>
 <pre><code>Adventure 1: 3.0s
 Adventure 2: 3.0s
 Adventure 3: 3.0s
 Total: 9.0 seconds
 </code></pre>
-<p><strong>Async Creation (✅ Fast):</strong></p>
+<p><strong>Async Creation (Fast):</strong></p>
 <pre><code language="language-python" class="language-python">adventures = await asyncio.gather(*[
     create_single(theme) for theme in themes
 ])
@@ -455,7 +1106,7 @@ Total: 9.0 seconds
 <p><strong>Scenario:</strong></p>
 <ul>
 <li>User has 5 saved adventures</li>
-<li>All rated 5★</li>
+<li>All rated 5 stars</li>
 <li>Common themes: coffee, art, culture</li>
 </ul>
 <p><strong>Result:</strong></p>
@@ -927,7 +1578,7 @@ npm run build
 </li>
 <li><strong>ProgressTracker</strong> - Visual feedback<ul>
 <li>Animated progress bar</li>
-<li>Agent-specific emojis</li>
+<li>Agent-specific indicators</li>
 <li>Step-by-step status</li>
 </ul>
 </li>
@@ -1028,7 +1679,6 @@ npm run build
         <h2 is-upgraded>Documentation</h2>
 <ul>
 <li><a href="https://github.com/lambdabypi/miniquest-adventure-planner" target="_blank">GitHub Repository</a></li>
-<li><a href="TECHNICAL_DOCUMENTATION.md" target="_blank">Full Technical Docs</a></li>
 <li><a href="https://d3ihmux7ocq5bh.cloudfront.net/docs" target="_blank">API Documentation</a></li>
 </ul>
 <h2 is-upgraded>Learn More</h2>
@@ -1050,8 +1700,8 @@ npm run build
 <li>GitHub: @lambdabypi</li>
 <li>Email: shreyas.atneu@gmail.com</li>
 </ul>
-<p><strong>Thank you for exploring MiniQuest!</strong> 🚀</p>
-<p>Built with ❤️ using LangGraph, Tavily API, and AWS</p>
+<p><strong>Thank you for exploring MiniQuest!</strong></p>
+<p>Built with care using LangGraph, Tavily API, and AWS</p>
 
 
       </google-codelab-step>
