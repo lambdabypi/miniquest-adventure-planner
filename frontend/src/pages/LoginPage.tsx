@@ -97,13 +97,10 @@ const LoginPage: React.FC = () => {
 			<GlassCard style={{ maxWidth: '450px', width: '100%' }}>
 				{/* Header */}
 				<div style={{ textAlign: 'center', marginBottom: '35px' }}>
-					<div className="hero-icon" style={{ fontSize: '3rem', marginBottom: '15px' }}>
-						🗺️
-					</div>
 					<h1 className="hero-title" style={{ fontSize: '2.5rem', marginBottom: '10px' }}>
 						Welcome Back
 					</h1>
-					<p className="page-subheader" style={{ marginBottom: 0 }}>
+					<p className="page-subheader, text-black" style={{ marginBottom: 0 }}>
 						Sign in to continue your adventure planning
 					</p>
 				</div>
@@ -204,9 +201,9 @@ const LoginPage: React.FC = () => {
 
 				{/* Footer */}
 				<div style={{ textAlign: 'center', marginTop: '25px' }}>
-					<p className="auth-text">
+					<p className="auth-text, text-black">
 						Don't have an account?{' '}
-						<Link to="/register" className="auth-link">
+						<Link to="/register" className="auth-link, text-black">
 							Sign Up
 						</Link>
 					</p>
@@ -221,7 +218,7 @@ const LoginPage: React.FC = () => {
 						border: '1px solid rgba(167, 139, 250, 0.2)',
 						borderRadius: '12px',
 						fontSize: '0.85rem',
-						color: 'rgba(255, 255, 255, 0.7)',
+						color: 'rgba(0, 0, 0, 0.7)',
 						textAlign: 'center',
 					}}
 				>

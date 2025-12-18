@@ -112,8 +112,8 @@ const PasswordStrengthIndicator: React.FC<PasswordStrengthIndicatorProps> = ({
 								alignItems: 'center',
 								gap: '8px',
 								color: isValid
-									? '#10b981'
-									: 'rgba(255, 255, 255, 0.5)',
+									? '#048359ff'
+									: 'rgba(0, 0, 0, 0.5)',
 								transition: 'color 0.2s ease',
 							}}
 						>
@@ -137,10 +137,10 @@ const PasswordStrengthIndicator: React.FC<PasswordStrengthIndicatorProps> = ({
 					style={{
 						marginTop: '10px',
 						padding: '8px 12px',
-						background: 'rgba(245, 158, 11, 0.1)',
+						background: 'rgba(127, 134, 236, 0.37)',
 						border: '1px solid rgba(245, 158, 11, 0.2)',
 						borderRadius: '8px',
-						color: '#fbbf24',
+						color: '#000000ff',
 						fontSize: '0.8rem',
 						display: 'flex',
 						alignItems: 'center',

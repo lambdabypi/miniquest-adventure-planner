@@ -42,7 +42,7 @@ const HomePage: React.FC = () => {
 					textAlign: 'left',
 				}}>
 					<h3 style={{
-						color: 'white',
+						color: 'black',
 						fontSize: '1.1rem',
 						marginBottom: '15px',
 						textAlign: 'center',
@@ -51,7 +51,7 @@ const HomePage: React.FC = () => {
 						✨ Discover Local Adventures
 					</h3>
 					<p style={{
-						color: 'rgba(255, 255, 255, 0.9)',
+						color: 'rgba(0, 0, 0, 0.9)',
 						fontSize: '0.95rem',
 						lineHeight: '1.7',
 						marginBottom: '20px',
@@ -70,22 +70,22 @@ const HomePage: React.FC = () => {
 					}}>
 						<div style={{
 							background: 'rgba(255, 255, 255, 0.15)',
-							border: '1px solid rgba(255, 255, 255, 0.3)',
+							border: '1px solid rgba(0, 0, 0, 0.3)',
 							padding: '8px 16px',
 							borderRadius: '20px',
 							fontSize: '0.9rem',
-							color: 'white',
+							color: 'black',
 							fontWeight: '600',
 						}}>
 							📍 Boston
 						</div>
 						<div style={{
 							background: 'rgba(255, 255, 255, 0.15)',
-							border: '1px solid rgba(255, 255, 255, 0.3)',
+							border: '1px solid rgba(0, 0, 0, 0.3)',
 							padding: '8px 16px',
 							borderRadius: '20px',
 							fontSize: '0.9rem',
-							color: 'white',
+							color: 'black',
 							fontWeight: '600',
 						}}>
 							📍 New York City
@@ -94,11 +94,11 @@ const HomePage: React.FC = () => {
 
 					{/* Quick Examples */}
 					<div style={{
-						background: 'rgba(0, 0, 0, 0.15)',
+						background: 'rgba(124, 77, 77, 0.15)',
 						borderRadius: '12px',
 						padding: '15px',
 					}}>
-						<div style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.8rem', marginBottom: '10px', fontWeight: '600' }}>
+						<div style={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.8rem', marginBottom: '10px', fontWeight: '600' }}>
 							💡 Try asking:
 						</div>
 						<div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -108,7 +108,7 @@ const HomePage: React.FC = () => {
 								'"Art galleries and wine bars"'
 							].map((example, idx) => (
 								<div key={idx} style={{
-									color: 'rgba(255, 255, 255, 0.85)',
+									color: 'rgba(0, 0, 0, 0.85)',
 									fontSize: '0.85rem',
 									padding: '6px 12px',
 									background: 'rgba(255, 255, 255, 0.08)',
@@ -131,6 +131,7 @@ const HomePage: React.FC = () => {
 							padding: '14px 32px',
 							fontSize: '1.05rem',
 							fontWeight: '700',
+							color: 'black',
 						}}
 					>
 						{isAuthenticated ? '🚀 Start Exploring' : '🚀 Get Started'}
@@ -143,6 +144,7 @@ const HomePage: React.FC = () => {
 							padding: '14px 32px',
 							fontSize: '1.05rem',
 							fontWeight: '700',
+							color: 'black',
 						}}
 					>
 						📖 Learn More
@@ -152,7 +154,7 @@ const HomePage: React.FC = () => {
 				{/* Tech Stack */}
 				<div className="tech-stack">
 					<div style={{
-						color: 'rgba(255, 255, 255, 0.6)',
+						color: 'rgba(0, 0, 0, 0.6)',
 						fontSize: '0.8rem',
 						marginBottom: '12px',
 						fontWeight: '600',
@@ -160,11 +162,11 @@ const HomePage: React.FC = () => {
 						Powered by:
 					</div>
 					<div className="tech-stack-container">
-						<TechBadge>LangGraph</TechBadge>
-						<TechBadge>Tavily API</TechBadge>
-						<TechBadge>OpenAI GPT-4</TechBadge>
-						<TechBadge>Google Maps</TechBadge>
-						<TechBadge>MongoDB</TechBadge>
+						<TechBadge variant="feature">LangGraph</TechBadge>
+						<TechBadge variant="feature">Tavily API</TechBadge>
+						<TechBadge variant="feature">OpenAI GPT-4</TechBadge>
+						<TechBadge variant="feature">Google Maps</TechBadge>
+						<TechBadge variant="feature">MongoDB</TechBadge>
 					</div>
 				</div>
 			</GlassCard>

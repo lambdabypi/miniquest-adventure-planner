@@ -34,21 +34,21 @@ const NavigationBar: React.FC = () => {
 							<>
 								<NavLink
 									icon="📍"
-									label="Adventures"
+									label="Create Adventures"
 									onClick={() => navigate('/app')}
 									active={isActive('/app')}
+								/>
+								<NavLink
+									icon="💾"
+									label="Saved Adventures"
+									onClick={() => navigate('/saved-adventures')}
+									active={isActive('/saved-adventures')}
 								/>
 								<NavLink
 									icon="📊"
 									label="Analytics"
 									onClick={() => navigate('/analytics')}
 									active={isActive('/analytics')}
-								/>
-								<NavLink
-									icon="💾"
-									label="Saved"
-									onClick={() => navigate('/saved-adventures')}
-									active={isActive('/saved-adventures')}
 								/>
 								<NavLink
 									icon="ℹ️"

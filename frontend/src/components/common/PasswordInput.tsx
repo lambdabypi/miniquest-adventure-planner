@@ -41,7 +41,7 @@ const PasswordInput: React.FC<PasswordInputProps> = ({
 					background: 'rgba(255, 255, 255, 0.05)',
 					border: '1px solid rgba(255, 255, 255, 0.1)',
 					borderRadius: '12px',
-					color: 'white',
+					color: 'black',
 					fontSize: '1rem',
 					outline: 'none',
 					transition: 'all 0.3s ease',

@@ -121,13 +121,10 @@ const RegisterPage: React.FC = () => {
 			<GlassCard style={{ maxWidth: '500px', width: '100%' }}>
 				{/* Header */}
 				<div style={{ textAlign: 'center', marginBottom: '30px' }}>
-					<div className="hero-icon" style={{ fontSize: '3rem', marginBottom: '15px' }}>
-						🗺️
-					</div>
 					<h1 className="hero-title" style={{ fontSize: '2.5rem', marginBottom: '10px' }}>
 						Create Account
 					</h1>
-					<p className="page-subheader" style={{ marginBottom: 0 }}>
+					<p className="page-subheader, text-black" style={{ marginBottom: 0 }}>
 						Join MiniQuest and start planning adventures
 					</p>
 				</div>
@@ -136,6 +133,7 @@ const RegisterPage: React.FC = () => {
 				<form onSubmit={handleSubmit} className="form-section">
 					<GlassInput
 						type="text"
+						color='black'
 						placeholder="Full Name"
 						value={fullName}
 						onChange={(e) => setFullName(e.target.value)}
@@ -156,7 +154,7 @@ const RegisterPage: React.FC = () => {
 							<div
 								style={{
 									fontSize: '0.85rem',
-									color: 'rgba(255, 255, 255, 0.6)',
+									color: 'rgba(0, 0, 0, 0.6)',
 									marginTop: '6px',
 									marginLeft: '4px',
 								}}
@@ -255,7 +253,7 @@ const RegisterPage: React.FC = () => {
 						<div
 							style={{
 								fontSize: '0.85rem',
-								color: 'rgba(255, 255, 255, 0.5)',
+								color: 'rgba(0, 0, 0, 0.5)',
 								textAlign: 'center',
 								marginTop: '-8px',
 							}}
@@ -268,9 +266,9 @@ const RegisterPage: React.FC = () => {
 
 				{/* Footer */}
 				<div style={{ textAlign: 'center', marginTop: '25px' }}>
-					<p className="auth-text">
+					<p className="auth-text, text-black">
 						Already have an account?{' '}
-						<Link to="/login" className="auth-link">
+						<Link to="/login" className="auth-link, text-black">
 							Sign In
 						</Link>
 					</p>
