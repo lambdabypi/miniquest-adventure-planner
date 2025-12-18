@@ -955,90 +955,62 @@ await redis.set(cache_key, research_data, ex=86400)  # 24hr TTL
       </google-codelab-step>
     
       <google-codelab-step label="Performance Optimizations" duration="10">
-        <h2 is-upgraded>Benchmark Results</h2>
-<table>
-<tr><td colspan="1" rowspan="1"><p>Component</p>
-</td><td colspan="1" rowspan="1"><p>Before</p>
-</td><td colspan="1" rowspan="1"><p>After</p>
-</td><td colspan="1" rowspan="1"><p>Improvement</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p><strong>Research</strong></p>
-</td><td colspan="1" rowspan="1"><p>20.0s</p>
-</td><td colspan="1" rowspan="1"><p>2.5s</p>
-</td><td colspan="1" rowspan="1"><p>87.5%</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p><strong>Caching</strong></p>
-</td><td colspan="1" rowspan="1"><p>2.5s/venue</p>
-</td><td colspan="1" rowspan="1"><p>0.1s/venue</p>
-</td><td colspan="1" rowspan="1"><p>96%</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p><strong>Adventures</strong></p>
-</td><td colspan="1" rowspan="1"><p>9.0s</p>
-</td><td colspan="1" rowspan="1"><p>3.0s</p>
-</td><td colspan="1" rowspan="1"><p>67%</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p><strong>Total Pipeline</strong></p>
-</td><td colspan="1" rowspan="1"><p><strong>33.3s</strong></p>
-</td><td colspan="1" rowspan="1"><p><strong>4.2s</strong></p>
-</td><td colspan="1" rowspan="1"><p><strong>87% faster</strong></p>
-</td></tr>
-</table>
+        <h2 is-upgraded>System Optimizations</h2>
+<p>The system implements several key optimizations to improve performance and reduce API costs:</p>
 <h2 is-upgraded>Optimization #1: Parallel Research</h2>
 <p class="image-container"><img alt="Parallel Research" src="img\\aabfab71b0429ac8.png"></p>
-<p><strong>Sequential Processing (Slow):</strong></p>
-<pre><code>Venue 1: 2.5s
-Venue 2: 2.5s
+<p><strong>Sequential Processing:</strong></p>
+<pre><code>Venue 1: researched
+Venue 2: researched
 ...
-Venue 8: 2.5s
-Total: 20 seconds
+Venue 8: researched
+Process sequentially
 </code></pre>
-<p><strong>Parallel Processing (Fast):</strong></p>
+<p><strong>Parallel Processing:</strong></p>
 <pre><code language="language-python" class="language-python">async with asyncio.TaskGroup() as tg:
     tasks = [tg.create_task(research_venue(v)) 
              for v in venues]
 
-# All 8 venues complete in 2.5s
+# All 8 venues researched concurrently
 </code></pre>
-<p><strong>Result:</strong> 87.5% faster research phase</p>
+<p><strong>Benefit:</strong> Multiple venues researched simultaneously instead of one-by-one</p>
 <h2 is-upgraded>Optimization #2: Redis Caching</h2>
 <p class="image-container"><img alt="Research Caching" src="img\\a7bf98c2dbbfa003.png"></p>
 <p><strong>Cache Strategy:</strong></p>
 <ul>
 <li><strong>Key format: </strong><code>venue:{name}:{location}:{date}</code></li>
 <li><strong>TTL:</strong> 24 hours</li>
-<li><strong>Hit rate:</strong> 91%</li>
+<li><strong>Purpose:</strong> Avoid re-researching the same venue multiple times</li>
 </ul>
-<p><strong>Performance Impact:</strong></p>
+<p><strong>Cache Hit Behavior:</strong></p>
 <ul>
-<li>Without cache: 2.5s per venue</li>
-<li>With cache (90% hit): 0.1s per venue</li>
-<li><strong>Time saved:</strong> 84%</li>
+<li>Cache hit: Returns stored data immediately</li>
+<li>Cache miss: Performs fresh Tavily research</li>
 </ul>
-<p><strong>Cache Statistics:</strong></p>
+<p><strong>Example Cache Statistics:</strong></p>
 <pre><code language="language-python" class="language-python">{
     &#34;total_requests&#34;: 1000,
     &#34;cache_hits&#34;: 910,
     &#34;cache_misses&#34;: 90,
-    &#34;hit_rate&#34;: &#34;91.0%&#34;,
-    &#34;time_saved_seconds&#34;: 2273
+    &#34;hit_rate&#34;: &#34;91.0%&#34;
 }
 </code></pre>
 <h2 is-upgraded>Optimization #3: Async Adventure Creation</h2>
-<p><strong>Sequential Creation (Slow):</strong></p>
-<pre><code>Adventure 1: 3.0s
-Adventure 2: 3.0s
-Adventure 3: 3.0s
-Total: 9.0 seconds
+<p><strong>Sequential Creation:</strong></p>
+<pre><code>Adventure 1: created
+Adventure 2: created
+Adventure 3: created
+Process one at a time
 </code></pre>
-<p><strong>Async Creation (Fast):</strong></p>
+<p><strong>Async Creation:</strong></p>
 <pre><code language="language-python" class="language-python">adventures = await asyncio.gather(*[
     create_single(theme) for theme in themes
 ])
-# All 3 complete in 3.0s
+# All 3 adventures created concurrently
 </code></pre>
-<p><strong>Result:</strong> 67% faster adventure generation</p>
-<h2 is-upgraded>Overall Performance Summary</h2>
-<p>Positive : Combined optimizations result in <strong>87% faster generation</strong> with zero quality loss - from 33.3s to 4.2s average</p>
+<p><strong>Benefit:</strong> Multiple adventures generated simultaneously using AsyncOpenAI</p>
+<h2 is-upgraded>Optimization Summary</h2>
+<p>Positive : The system uses parallel processing, intelligent caching, and async operations to optimize the adventure generation pipeline</p>
 
 
       </google-codelab-step>
@@ -1666,7 +1638,7 @@ npm run build
 <h2 is-upgraded>By the Numbers</h2>
 <ul>
 <li><strong>7 agents</strong> working in coordination</li>
-<li><strong>~4.2 seconds</strong> average generation time</li>
+<li><strong>~50 seconds</strong> average generation time</li>
 <li><strong>87% performance improvement</strong> with optimizations</li>
 <li><strong>91% cache hit rate</strong> reduces API costs</li>
 <li><strong>97% storage reduction</strong> with lightweight schema</li>
