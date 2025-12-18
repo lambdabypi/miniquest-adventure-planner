@@ -123,7 +123,7 @@ const LoginPage: React.FC = () => {
 							<div style={{
 								fontSize: '0.9rem',
 								fontWeight: '600',
-								color: '#fca5a5',
+								color: '#0000009d',
 								marginBottom: '3px',
 							}}>
 								Session Expired
