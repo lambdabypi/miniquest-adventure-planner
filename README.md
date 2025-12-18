@@ -231,7 +231,7 @@ Technology: OpenAI GPT-4o
 Example: Generates 20+ diverse venue suggestions per category
 ```
 
-#### 4. Tavily Research Agent
+#### 4. Discovery Agent
 ```python
 Role: Real-time web research on venues
 Input: Venue names + location
@@ -373,15 +373,6 @@ adventures = await asyncio.gather(*[
     create_adventure_async(venues) for venues in grouped_venues
 ])
 ```
-
-### Benchmark Results
-
-| Scenario | Time | vs Baseline |
-|----------|------|-------------|
-| Cold Cache | ~4.0s | 80% faster |
-| Warm Cache | ~1.5s | 92% faster |
-| Parallel Research | ~3.5s | 65% faster |
-
 ---
 
 ## Frontend Features
@@ -509,7 +500,7 @@ npm run build
 │   │   │   ├── creation/      # Adventure creator
 │   │   │   ├── intent/        # Intent parser
 │   │   │   ├── location/      # Location resolver
-│   │   │   ├── research/      # Tavily integration
+│   │   │   ├── discovery/      # Tavily integration
 │   │   │   ├── routing/       # Google Maps
 │   │   │   └── scouting/      # Venue discovery
 │   │   ├── api/            # REST API endpoints
