@@ -21,7 +21,7 @@ https://lambdabypi.github.io/miniquest-adventure-planner/
 
 ## Demo Video
 
-**[Watch Demo Video (5 min)](https://youtu.be/pG7te3TTtT0)**
+**[Watch Demo Video (5 min)](https://youtu.be/WLp9KBaMAjU)**
 
 ---
 
