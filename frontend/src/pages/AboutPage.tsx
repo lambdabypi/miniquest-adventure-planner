@@ -146,7 +146,7 @@ const AboutPage: React.FC = () => {
 				}}>
 					{[
 						{ num: '1', title: 'Tell us what you want', desc: 'Type in what you\'re interested in exploring' },
-						{ num: '2', title: '7 AI agents get to work', desc: 'LocationParser, VenueScout, TavilyResearch, and more' },
+						{ num: '2', title: '7 AI agents get to work', desc: 'LocationParser, VenueScout, DiscoveryAgent, and more' },
 						{ num: '3', title: 'Live research happens', desc: 'Real-time venue discovery, hours, reviews, directions' },
 						{ num: '4', title: 'Get 3 curated adventures', desc: 'Personalized itineraries with maps and routing' }
 					].map((step, idx) => (
