@@ -5,6 +5,7 @@ from typing import List, Dict, Optional
 from openai import AsyncOpenAI
 import googlemaps
 import json
+import re
 from datetime import datetime
 from ..base import BaseAgent, ValidationError, ProcessingError
 from ...core.config import settings
@@ -178,7 +179,7 @@ class VenueScoutAgent(BaseAgent):
     
     def _convert_google_place_to_venue(self, place: Dict, location: str, preference: str) -> Optional[Dict]:
         """
-        ✅ FIXED: Convert Google Place to venue format with business_status
+        ✅ FIXED: Convert Google Place to venue format with FULL address and correct city names
         """
         try:
             name = place.get('name', '')
@@ -191,22 +192,24 @@ class VenueScoutAgent(BaseAgent):
                 logger.warning(f"⚠️ Filtering closed venue in conversion: {name}")
                 return None
             
-            # Get address
-            address = place.get('vicinity', '') or place.get('formatted_address', '')
+            # ✅ Get FULL address (formatted_address includes city name correctly)
+            full_address = place.get('formatted_address', '') or place.get('vicinity', '')
+            address_hint = place.get('vicinity', '') or full_address
             
             # Extract neighborhood from address
-            neighborhood = self._extract_neighborhood(address)
+            neighborhood = self._extract_neighborhood(full_address)
             
             # Determine venue type
             venue_type = self._google_types_to_venue_type(place.get('types', []))
             
             return {
                 "name": name,
-                "address_hint": address,
+                "address": full_address,  # ✅ FULL address with correct city name
+                "address_hint": address_hint,  # ✅ Keep short version for display
                 "neighborhood": neighborhood or location.split(',')[0],
                 "type": venue_type,
                 "category": preference.lower(),
-                "current_status_confidence": "High",  # Google only returns operating businesses
+                "current_status_confidence": "High",
                 "establishment_type": "Verified",
                 "google_place_id": place.get('place_id', ''),
                 "google_rating": place.get('rating'),
@@ -354,7 +357,7 @@ class VenueScoutAgent(BaseAgent):
     
     def _build_scout_prompt(self, preferences: List[str], location: str, user_query: str) -> str:
         """
-        ✅ FIXED: Build scouting prompt with stronger closure warnings
+        ✅ FIXED: Build scouting prompt with general address requirements (works for any metro area)
         """
         return f"""You are a local expert for {location} with CURRENT knowledge as of {self.current_year}.
 Find 8-10 diverse, well-known venues that are CURRENTLY OPERATING for: {preferences}.
@@ -369,17 +372,66 @@ USER INTERESTS: {preferences}
 3. **NEVER suggest temporarily closed venues** - verify they are accepting visitors
 4. **DIVERSE types** - mix of museums, cafes, parks, restaurants, bars, galleries
 5. **WELL-ESTABLISHED** venues with good reputations and active operations
+6. **EXACT FULL ADDRESSES WITH CORRECT CITY NAMES** - This is CRITICAL for routing:
+   ✅ ALWAYS include the ACTUAL city/town name (not just the metro area name)
+   ✅ Format: "Street Address, City, State ZIP" or "Street Address, City, State"
+   ✅ Use the specific municipality name, NOT the general metro area name
+   ❌ WRONG: Using metro name for all venues (e.g., "Boston" for Cambridge venues)
+   ✅ RIGHT: Using actual city name (e.g., "Cambridge" for Cambridge venues)
+
+⚠️ METRO AREA GEOGRAPHY - COMMON EXAMPLES:
+**Boston Metro:**
+- Boston (city) has neighborhoods: Back Bay, Fenway, Downtown, North End, Jamaica Plain, etc.
+- Separate cities: Cambridge, Somerville, Brookline, Newton, Quincy, Medford, etc.
+- NEVER use "Boston, MA" for venues in Cambridge, Somerville, Brookline, etc.
+
+**New York Metro:**
+- Manhattan: Use "New York, NY" (borough name optional: "Manhattan, NY")
+- Brooklyn: Use "Brooklyn, NY" (NOT "New York, NY")
+- Queens: Use "Queens, NY" (NOT "New York, NY")
+- Bronx: Use "Bronx, NY" or "The Bronx, NY"
+- Staten Island: Use "Staten Island, NY"
+- Separate cities: Jersey City, NJ; Hoboken, NJ; Yonkers, NY; etc.
+
+**San Francisco Bay Area:**
+- San Francisco (city) vs. Oakland vs. Berkeley vs. Palo Alto vs. San Jose
+- NEVER use "San Francisco" for Oakland or Berkeley venues
+
+**Chicago Metro:**
+- Chicago (city) with neighborhoods vs. Evanston vs. Oak Park vs. Naperville
+
+⚠️ ADDRESS EXAMPLES - CORRECT CITY NAMES:
+Boston Metro:
+- "32 Quincy Street, Cambridge, MA 02138" (Cambridge, NOT Boston)
+- "290 Harvard St, Brookline, MA 02446" (Brookline, NOT Boston)
+- "465 Huntington Ave, Boston, MA 02115" (Boston proper)
+- "395 Artisan Way, Somerville, MA 02145" (Somerville, NOT Boston)
+
+New York Metro:
+- "11 W 53rd St, New York, NY 10019" (Manhattan/New York City)
+- "200 Eastern Parkway, Brooklyn, NY 11238" (Brooklyn, NOT just "New York")
+- "36-01 35th Ave, Queens, NY 11106" (Queens, NOT just "New York")
+- "1 Museum Lane, Jersey City, NJ 07305" (Jersey City, NOT New York)
+
+⚠️ HOW TO GET IT RIGHT:
+1. Look up the venue's actual address (not just the metro area)
+2. Check which specific city/town/borough it's in
+3. Use that exact city name in the address
+4. Don't default to using the major metro area name for everything
 
 ⚠️ COMMON MISTAKES TO AVOID:
 - DO NOT include venues that closed in recent years
 - DO NOT include venues "under renovation" unless they have partial access
 - DO NOT include venues that have moved/relocated without noting the new location
 - DO NOT include seasonal venues outside their operating season
+- DO NOT use metro area name when venue is in a separate city/town/borough
+- DO NOT assume all venues in a metro area share the same city name
 
-Return ONLY valid JSON array of 8-10 diverse, OPERATING venues:
+Return ONLY valid JSON array of 8-10 diverse, OPERATING venues with FULL, ACCURATE addresses:
 [
   {{
     "name": "Museum of Fine Arts, Boston",
+    "address": "465 Huntington Ave, Boston, MA 02115",
     "address_hint": "465 Huntington Ave",
     "neighborhood": "Fenway",
     "type": "museum",
@@ -388,9 +440,30 @@ Return ONLY valid JSON array of 8-10 diverse, OPERATING venues:
     "establishment_type": "Institution"
   }},
   {{
+    "name": "Harvard Art Museums",
+    "address": "32 Quincy Street, Cambridge, MA 02138",
+    "address_hint": "32 Quincy Street",
+    "neighborhood": "Harvard Square",
+    "type": "museum",
+    "category": "art",
+    "current_status_confidence": "High",
+    "establishment_type": "Institution"
+  }},
+  {{
+    "name": "Brooklyn Museum",
+    "address": "200 Eastern Parkway, Brooklyn, NY 11238",
+    "address_hint": "200 Eastern Parkway",
+    "neighborhood": "Prospect Heights",
+    "type": "museum",
+    "category": "art",
+    "current_status_confidence": "High",
+    "establishment_type": "Institution"
+  }},
+  {{
     "name": "Thinking Cup",
+    "address": "165 Tremont St, Boston, MA 02111",
     "address_hint": "165 Tremont St",
-    "neighborhood": "Downtown",
+    "neighborhood": "Downtown Crossing",
     "type": "coffee_shop",
     "category": "coffee",
     "current_status_confidence": "High",
@@ -398,18 +471,48 @@ Return ONLY valid JSON array of 8-10 diverse, OPERATING venues:
   }}
 ]
 
-Focus ONLY on venues you are confident are currently operating in {self.current_year}."""
+Focus ONLY on venues you are confident are currently operating in {self.current_year}.
+Include the FULL ADDRESS with the CORRECT, SPECIFIC city/town/borough name - NOT just the metro area name.
+This is essential for accurate routing. Remember: Cambridge ≠ Boston, Brooklyn ≠ Manhattan, Oakland ≠ San Francisco."""
     
     def _validate_venue(self, venue: Dict) -> bool:
         """
-        ✅ FIXED: Validate venue with stricter closure checking
+        ✅ ENHANCED: Validate venue with flexible address checking (works for any metro area)
         """
-        required_fields = ['name', 'type', 'category']
+        # Required fields now include 'address'
+        required_fields = ['name', 'address', 'type', 'category']
         for field in required_fields:
             if not venue.get(field):
+                logger.warning(f"❌ Missing required field '{field}' for venue: {venue.get('name')}")
                 return False
         
         name = venue.get('name', '').lower()
+        address = venue.get('address', '')
+        address_lower = address.lower()
+        
+        # ✅ GENERAL: Check if address has state abbreviation pattern
+        # Matches patterns like ", MA 02115" or ", NY 10001" or just ", MA" or ", NY"
+        state_pattern = r',\s*[A-Z]{2}(\s+\d{5})?'
+        has_state_format = bool(re.search(state_pattern, address))
+        
+        # Alternative: Check for common address patterns
+        has_comma = ',' in address  # Most US addresses have commas separating parts
+        
+        # Check for common US state abbreviations (covers most major metros)
+        common_states = ['ma', 'ny', 'ca', 'il', 'tx', 'fl', 'wa', 'pa', 'nj', 'ct', 'ri', 
+                        'ga', 'nc', 'va', 'md', 'co', 'az', 'or', 'mn', 'mi', 'oh']
+        has_state_abbrev = any(f' {state} ' in address_lower or f', {state}' in address_lower 
+                              for state in common_states)
+        
+        # Accept if address has proper formatting (state format OR comma with state)
+        is_valid_address = has_state_format or (has_comma and has_state_abbrev)
+        
+        if not is_valid_address:
+            logger.warning(f"❌ Address appears incomplete or improperly formatted:")
+            logger.warning(f"   Venue: {venue.get('name')}")
+            logger.warning(f"   Address: {address}")
+            logger.warning(f"   Expected format: 'Street, City, State ZIP' or 'Street, City, State'")
+            return False
         
         # ✅ EXPANDED: More closure indicators
         closure_indicators = [
@@ -445,7 +548,7 @@ Focus ONLY on venues you are confident are currently operating in {self.current_
             },
             'research_priority': 'verify_current_status',
             'enhanced_search_query': (
-                f"{venue.get('name')} {venue.get('address_hint', '')} {location} "
+                f"{venue.get('name')} {venue.get('address', venue.get('address_hint', ''))} "
                 f"current {self.current_year} operating hours status"
             )
         })
