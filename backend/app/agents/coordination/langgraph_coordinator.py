@@ -490,33 +490,53 @@ class LangGraphCoordinator:
         return location
     
     def _convert_to_enhanced_locations(self, researched_venues: list, city_name: str) -> list:
-        """Convert venues to locations with proper addresses"""
+        """
+        ✅ FIXED: Convert venues to locations PRESERVING original addresses
+        """
         enhanced_locations = []
         
         for venue in researched_venues:
             venue_name = venue.get("name", "Unknown")
             
-            if venue.get("address_hint"):
-                address_hint = venue["address_hint"]
-                if city_name.split(',')[0].lower() in address_hint.lower():
-                    address = address_hint
-                else:
-                    address = f"{address_hint}, {city_name}"
-            elif venue.get("address"):
+            # ✅ PRIORITY 1: Use full address if available (VenueScout provides this)
+            if venue.get("address"):
                 address = venue["address"]
+                logger.debug(f"✅ Using full address: {venue_name} → {address}")
+            
+            # PRIORITY 2: Use address_hint if it looks complete
+            elif venue.get("address_hint"):
+                address_hint = venue["address_hint"]
+                
+                # Check if address_hint already has city/state (complete address)
+                has_state = any(state in address_hint.upper() for state in [' MA', ' NY', ' CA', ' IL'])
+                has_comma = ',' in address_hint
+                
+                if has_state or (has_comma and len(address_hint.split(',')) >= 2):
+                    # address_hint is already complete
+                    address = address_hint
+                    logger.debug(f"✅ address_hint is complete: {venue_name} → {address}")
+                else:
+                    # address_hint is incomplete, append city
+                    address = f"{address_hint}, {city_name}"
+                    logger.debug(f"⚠️ Appending city to hint: {venue_name} → {address}")
+            
+            # PRIORITY 3: Use neighborhood + city
             elif venue.get("neighborhood"):
                 address = f"{venue_name}, {venue['neighborhood']}, {city_name}"
+                logger.warning(f"⚠️ Using neighborhood fallback: {venue_name} → {address}")
+            
+            # PRIORITY 4: Just venue name + city
             else:
                 address = f"{venue_name}, {city_name}"
+                logger.warning(f"⚠️ Using name + city fallback: {venue_name} → {address}")
             
             enhanced_locations.append({
                 "name": venue_name,
                 "address": address,
                 "type": venue.get("type", "attraction")
             })
-            
-            logger.debug(f"✅ {venue_name} → {address}")
         
+        logger.info(f"✅ Converted {len(enhanced_locations)} venues to enhanced locations")
         return enhanced_locations
     
     def _extract_venues_from_steps(self, steps: List[Dict]) -> List[str]:

@@ -357,127 +357,113 @@ class VenueScoutAgent(BaseAgent):
     
     def _build_scout_prompt(self, preferences: List[str], location: str, user_query: str) -> str:
         """
-        ✅ FIXED: Build scouting prompt with general address requirements (works for any metro area)
+        ✅ ULTRA-FIXED: Build scouting prompt with MANDATORY address format checking
         """
         return f"""You are a local expert for {location} with CURRENT knowledge as of {self.current_year}.
-Find 8-10 diverse, well-known venues that are CURRENTLY OPERATING for: {preferences}.
+    Find 8-10 diverse, well-known venues that are CURRENTLY OPERATING for: {preferences}.
 
-USER LOCATION: {location}
-USER REQUEST: "{user_query}"
-USER INTERESTS: {preferences}
+    USER LOCATION: {location}
+    USER REQUEST: "{user_query}"
+    USER INTERESTS: {preferences}
 
-🚨 CRITICAL REQUIREMENTS:
-1. **ONLY venues that are CURRENTLY OPEN AND OPERATIONAL** in {self.current_year}
-2. **NEVER suggest permanently closed venues** - double-check before including
-3. **NEVER suggest temporarily closed venues** - verify they are accepting visitors
-4. **DIVERSE types** - mix of museums, cafes, parks, restaurants, bars, galleries
-5. **WELL-ESTABLISHED** venues with good reputations and active operations
-6. **EXACT FULL ADDRESSES WITH CORRECT CITY NAMES** - This is CRITICAL for routing:
-   ✅ ALWAYS include the ACTUAL city/town name (not just the metro area name)
-   ✅ Format: "Street Address, City, State ZIP" or "Street Address, City, State"
-   ✅ Use the specific municipality name, NOT the general metro area name
-   ❌ WRONG: Using metro name for all venues (e.g., "Boston" for Cambridge venues)
-   ✅ RIGHT: Using actual city name (e.g., "Cambridge" for Cambridge venues)
+    🚨 MANDATORY ADDRESS FORMAT - THIS IS YOUR #1 PRIORITY:
 
-⚠️ METRO AREA GEOGRAPHY - COMMON EXAMPLES:
-**Boston Metro:**
-- Boston (city) has neighborhoods: Back Bay, Fenway, Downtown, North End, Jamaica Plain, etc.
-- Separate cities: Cambridge, Somerville, Brookline, Newton, Quincy, Medford, etc.
-- NEVER use "Boston, MA" for venues in Cambridge, Somerville, Brookline, etc.
+    **BEFORE including ANY venue, you MUST:**
+    1. Look up its ACTUAL physical address
+    2. Identify which SPECIFIC city/town it's located in
+    3. Use that EXACT city name (NOT the metro area name)
 
-**New York Metro:**
-- Manhattan: Use "New York, NY" (borough name optional: "Manhattan, NY")
-- Brooklyn: Use "Brooklyn, NY" (NOT "New York, NY")
-- Queens: Use "Queens, NY" (NOT "New York, NY")
-- Bronx: Use "Bronx, NY" or "The Bronx, NY"
-- Staten Island: Use "Staten Island, NY"
-- Separate cities: Jersey City, NJ; Hoboken, NJ; Yonkers, NY; etc.
+    **Common Boston Metro Area Mistakes (DO NOT MAKE THESE):**
+    ❌ WRONG: Harvard Art Museums → "32 Quincy Street, Boston, MA"
+    ✅ RIGHT: Harvard Art Museums → "32 Quincy Street, Cambridge, MA 02138"
 
-**San Francisco Bay Area:**
-- San Francisco (city) vs. Oakland vs. Berkeley vs. Palo Alto vs. San Jose
-- NEVER use "San Francisco" for Oakland or Berkeley venues
+    ❌ WRONG: Tatte Bakery (Beacon Hill) → "70 Charles St, Boston, MA"  
+    ✅ RIGHT: Tatte Bakery → "70 Charles St, Boston, MA 02114"
 
-**Chicago Metro:**
-- Chicago (city) with neighborhoods vs. Evanston vs. Oak Park vs. Naperville
+    ❌ WRONG: Davis Square venues → "Somerville, Boston, MA"
+    ✅ RIGHT: Davis Square venues → "[Address], Somerville, MA"
 
-⚠️ ADDRESS EXAMPLES - CORRECT CITY NAMES:
-Boston Metro:
-- "32 Quincy Street, Cambridge, MA 02138" (Cambridge, NOT Boston)
-- "290 Harvard St, Brookline, MA 02446" (Brookline, NOT Boston)
-- "465 Huntington Ave, Boston, MA 02115" (Boston proper)
-- "395 Artisan Way, Somerville, MA 02145" (Somerville, NOT Boston)
+    **ADDRESS VALIDATION CHECKLIST (Check EVERY venue):**
+    □ Does the address include a SPECIFIC city name? (not just "MA")
+    □ Is the city name CORRECT for where the venue actually is?
+    □ Is it Cambridge? Use "Cambridge, MA" (NOT "Boston, MA")
+    □ Is it Somerville? Use "Somerville, MA" (NOT "Boston, MA")
+    □ Is it Brookline? Use "Brookline, MA" (NOT "Boston, MA")
+    □ Is it actually in Boston proper? Then use "Boston, MA"
 
-New York Metro:
-- "11 W 53rd St, New York, NY 10019" (Manhattan/New York City)
-- "200 Eastern Parkway, Brooklyn, NY 11238" (Brooklyn, NOT just "New York")
-- "36-01 35th Ave, Queens, NY 11106" (Queens, NOT just "New York")
-- "1 Museum Lane, Jersey City, NJ 07305" (Jersey City, NOT New York)
+    🎯 GEOGRAPHIC REALITY CHECK:
+    **Boston Metro Area Geography:**
+    - Boston (city): Downtown, Back Bay, North End, South End, Fenway, Beacon Hill, etc.
+    - Cambridge (separate city): Harvard Square, MIT, Central Square, Kendall Square
+    - Somerville (separate city): Davis Square, Union Square, Ball Square
+    - Brookline (separate town): Coolidge Corner, Brookline Village
 
-⚠️ HOW TO GET IT RIGHT:
-1. Look up the venue's actual address (not just the metro area)
-2. Check which specific city/town/borough it's in
-3. Use that exact city name in the address
-4. Don't default to using the major metro area name for everything
+    **If a venue is in CAMBRIDGE:**
+    - Harvard University → Cambridge
+    - MIT → Cambridge  
+    - Harvard Square → Cambridge
+    - Central Square → Cambridge
+    - Kendall Square → Cambridge
 
-⚠️ COMMON MISTAKES TO AVOID:
-- DO NOT include venues that closed in recent years
-- DO NOT include venues "under renovation" unless they have partial access
-- DO NOT include venues that have moved/relocated without noting the new location
-- DO NOT include seasonal venues outside their operating season
-- DO NOT use metro area name when venue is in a separate city/town/borough
-- DO NOT assume all venues in a metro area share the same city name
+    **If a venue is in SOMERVILLE:**
+    - Davis Square → Somerville
+    - Union Square → Somerville
+    - Assembly Row → Somerville
 
-Return ONLY valid JSON array of 8-10 diverse, OPERATING venues with FULL, ACCURATE addresses:
-[
-  {{
-    "name": "Museum of Fine Arts, Boston",
-    "address": "465 Huntington Ave, Boston, MA 02115",
-    "address_hint": "465 Huntington Ave",
-    "neighborhood": "Fenway",
-    "type": "museum",
-    "category": "art",
-    "current_status_confidence": "High",
-    "establishment_type": "Institution"
-  }},
-  {{
-    "name": "Harvard Art Museums",
-    "address": "32 Quincy Street, Cambridge, MA 02138",
-    "address_hint": "32 Quincy Street",
-    "neighborhood": "Harvard Square",
-    "type": "museum",
-    "category": "art",
-    "current_status_confidence": "High",
-    "establishment_type": "Institution"
-  }},
-  {{
-    "name": "Brooklyn Museum",
-    "address": "200 Eastern Parkway, Brooklyn, NY 11238",
-    "address_hint": "200 Eastern Parkway",
-    "neighborhood": "Prospect Heights",
-    "type": "museum",
-    "category": "art",
-    "current_status_confidence": "High",
-    "establishment_type": "Institution"
-  }},
-  {{
-    "name": "Thinking Cup",
-    "address": "165 Tremont St, Boston, MA 02111",
-    "address_hint": "165 Tremont St",
-    "neighborhood": "Downtown Crossing",
-    "type": "coffee_shop",
-    "category": "coffee",
-    "current_status_confidence": "High",
-    "establishment_type": "Business"
-  }}
-]
+    ⚠️ OTHER REQUIREMENTS:
+    1. **ONLY venues that are CURRENTLY OPEN AND OPERATIONAL** in {self.current_year}
+    2. **NEVER suggest permanently closed venues**
+    3. **DIVERSE types** - mix of museums, cafes, parks, restaurants
+    4. **WELL-ESTABLISHED** venues with good reputations
 
-Focus ONLY on venues you are confident are currently operating in {self.current_year}.
-Include the FULL ADDRESS with the CORRECT, SPECIFIC city/town/borough name - NOT just the metro area name.
-This is essential for accurate routing. Remember: Cambridge ≠ Boston, Brooklyn ≠ Manhattan, Oakland ≠ San Francisco."""
+    📋 REQUIRED JSON FORMAT - CHECK ADDRESSES TWICE:
+    [
+    {{
+        "name": "Harvard Art Museums",
+        "address": "32 Quincy Street, Cambridge, MA 02138",  ← ✅ CAMBRIDGE (verify this!)
+        "address_hint": "32 Quincy Street",
+        "neighborhood": "Harvard Square",
+        "type": "museum",
+        "category": "art",
+        "current_status_confidence": "High",
+        "establishment_type": "Institution"
+    }},
+    {{
+        "name": "Museum of Fine Arts, Boston",
+        "address": "465 Huntington Ave, Boston, MA 02115",  ← ✅ BOSTON (verify this!)
+        "address_hint": "465 Huntington Ave",
+        "neighborhood": "Fenway",
+        "type": "museum",
+        "category": "art",
+        "current_status_confidence": "High",
+        "establishment_type": "Institution"
+    }},
+    {{
+        "name": "Tatte Bakery & Cafe",
+        "address": "70 Charles St, Boston, MA 02114",  ← ✅ BOSTON, with ZIP (verify this!)
+        "address_hint": "70 Charles St",
+        "neighborhood": "Beacon Hill",
+        "type": "coffee_shop",
+        "category": "coffee",
+        "current_status_confidence": "High",
+        "establishment_type": "Business"
+    }}
+    ]
+
+    🔍 FINAL VERIFICATION BEFORE SUBMITTING:
+    For EACH venue, verify:
+    1. ✅ Address includes full street address
+    2. ✅ Address includes CORRECT city name
+    3. ✅ Address includes state (MA)
+    4. ✅ ZIP code included (preferred)
+    5. ✅ City name matches where venue actually is (Cambridge ≠ Boston)
+
+    Focus ONLY on venues you are confident are currently operating in {self.current_year}.
+    THE ADDRESS MUST BE CORRECT - THIS IS ESSENTIAL FOR ROUTING."""
     
     def _validate_venue(self, venue: Dict) -> bool:
         """
-        ✅ ENHANCED: Validate venue with flexible address checking (works for any metro area)
+        ✅ ENHANCED: Validate venue with better closure detection
         """
         # Required fields now include 'address'
         required_fields = ['name', 'address', 'type', 'category']
@@ -491,37 +477,40 @@ This is essential for accurate routing. Remember: Cambridge ≠ Boston, Brooklyn
         address_lower = address.lower()
         
         # ✅ GENERAL: Check if address has state abbreviation pattern
-        # Matches patterns like ", MA 02115" or ", NY 10001" or just ", MA" or ", NY"
         state_pattern = r',\s*[A-Z]{2}(\s+\d{5})?'
         has_state_format = bool(re.search(state_pattern, address))
         
         # Alternative: Check for common address patterns
-        has_comma = ',' in address  # Most US addresses have commas separating parts
+        has_comma = ',' in address
         
-        # Check for common US state abbreviations (covers most major metros)
+        # Check for common US state abbreviations
         common_states = ['ma', 'ny', 'ca', 'il', 'tx', 'fl', 'wa', 'pa', 'nj', 'ct', 'ri', 
                         'ga', 'nc', 'va', 'md', 'co', 'az', 'or', 'mn', 'mi', 'oh']
         has_state_abbrev = any(f' {state} ' in address_lower or f', {state}' in address_lower 
-                              for state in common_states)
+                            for state in common_states)
         
-        # Accept if address has proper formatting (state format OR comma with state)
+        # Accept if address has proper formatting
         is_valid_address = has_state_format or (has_comma and has_state_abbrev)
         
         if not is_valid_address:
             logger.warning(f"❌ Address appears incomplete or improperly formatted:")
             logger.warning(f"   Venue: {venue.get('name')}")
             logger.warning(f"   Address: {address}")
-            logger.warning(f"   Expected format: 'Street, City, State ZIP' or 'Street, City, State'")
             return False
         
-        # ✅ EXPANDED: More closure indicators
-        closure_indicators = [
-            'closed', 'former', 'old', 'previous', 'was', 'used to be',
-            'defunct', 'abandoned', 'no longer', 'shut down', 'discontinued'
+        # ✅ IMPROVED: More specific closure detection (avoid false positives)
+        # Only check closure indicators at START of name or as standalone words
+        closure_patterns = [
+            r'\b(closed|former|defunct|abandoned|shut down)\b',  # Must be whole words
+            r'^(old|previous)\s',  # Must be at start
+            r'\bwas\b.*\b(open|operating)',  # "was open" pattern
+            r'\bno longer\b',  # "no longer" pattern
         ]
-        if any(indicator in name for indicator in closure_indicators):
-            logger.warning(f"❌ Rejecting venue with closure indicator: {venue.get('name')}")
-            return False
+        
+        for pattern in closure_patterns:
+            if re.search(pattern, name):
+                logger.warning(f"❌ Rejecting venue with closure indicator: {venue.get('name')}")
+                return False
         
         # Google Places results are pre-validated
         if venue.get('proximity_based'):

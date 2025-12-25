@@ -1,4 +1,4 @@
-# backend/app/agents/research/tavily_research_agent.py
+# backend/app/agents/research/discovery_agent.py
 """OPTIMIZED Tavily Research Agent - Parallel + Cached + Single Search"""
 
 from typing import List, Dict, Optional
