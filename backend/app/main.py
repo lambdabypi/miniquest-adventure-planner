@@ -175,8 +175,8 @@ async def add_cors_headers(request, call_next):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://d1nrqhtd83kmw6.cloudfront.net",  # Frontend CloudFront
-        "https://d3ihmux7ocq5bh.cloudfront.net",  # Backend CloudFront
+        "https://project-572cd754-7f2b-465c-b68.web.app",  # ✅ Firebase
+        "https://project-572cd754-7f2b-465c-b68.firebaseapp.com",
         "http://localhost:3000",
         "http://localhost:8000"
     ],

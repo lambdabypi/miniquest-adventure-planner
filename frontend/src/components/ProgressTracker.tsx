@@ -1,5 +1,6 @@
 // frontend/src/components/ProgressTracker.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useTheme, t } from '../contexts/ThemeContext';
 
 interface ProgressUpdate {
 	step: string;
@@ -17,183 +18,138 @@ interface ProgressTrackerProps {
 	isVisible: boolean;
 }
 
-const ProgressTracker: React.FC<ProgressTrackerProps> = ({
-	currentProgress,
-	progressHistory,
-	isVisible
-}) => {
+const AGENT_EMOJI: Record<string, string> = {
+	Coordinator: '🎯', LocationParser: '📍', RAG: '🧠',
+	IntentParser: '🤔', VenueScout: '🔍', TavilyResearch: '🔬',
+	ResearchSummary: '📊', RoutingAgent: '🗺️', AdventureCreator: '✨',
+};
+
+const STATUS_COLOR: Record<string, string> = {
+	complete: '#10b981', in_progress: '#3b82f6', error: '#ef4444', clarification_needed: '#f59e0b',
+};
+
+const ProgressTracker: React.FC<ProgressTrackerProps> = ({ currentProgress, progressHistory, isVisible }) => {
+	const { isDark } = useTheme();
+	const tk = t(isDark);
+	const [displayPct, setDisplayPct] = useState(0);
+	const target = Math.round((currentProgress?.progress || 0) * 100);
+
+	// Animate percentage counter
+	useEffect(() => {
+		if (displayPct === target) return;
+		const step = target > displayPct ? 1 : -1;
+		const timer = setTimeout(() => setDisplayPct(p => p + step), 12);
+		return () => clearTimeout(timer);
+	}, [displayPct, target]);
+
 	if (!isVisible) return null;
-
-	const getAgentEmoji = (agent: string): string => {
-		const emojiMap: Record<string, string> = {
-			'Coordinator': '🎯',
-			'LocationParser': '📍',
-			'RAG': '🧠',
-			'IntentParser': '🤔',
-			'VenueScout': '🔍',
-			'TavilyResearch': '🔬',
-			'ResearchSummary': '📊',
-			'RoutingAgent': '🗺️',
-			'AdventureCreator': '✨'
-		};
-		return emojiMap[agent] || '⚙️';
-	};
-
-	const getStatusColor = (status: string): string => {
-		switch (status) {
-			case 'complete': return '#10b981';
-			case 'in_progress': return '#3b82f6';
-			case 'error': return '#ef4444';
-			case 'clarification_needed': return '#f59e0b';
-			default: return '#64748b';
-		}
-	};
 
 	return (
 		<div style={{
-			background: 'white',
-			border: '1px solid #e2e8f0',
-			borderRadius: '12px',
-			padding: '20px',
-			marginBottom: '20px',
-			boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+			background: tk.progressCardBg,
+			backdropFilter: 'blur(16px)',
+			WebkitBackdropFilter: 'blur(16px)',
+			border: `1px solid ${tk.progressCardBorder}`,
+			borderRadius: '14px', padding: '20px', marginBottom: '20px',
+			animation: 'slideDown 0.3s cubic-bezier(0.4,0,0.2,1)',
 		}}>
-			<div style={{
-				display: 'flex',
-				alignItems: 'center',
-				gap: '10px',
-				marginBottom: '15px'
-			}}>
-				<div style={{ fontSize: '1.2rem' }}>🔄</div>
-				<div style={{
-					fontSize: '1rem',
-					fontWeight: '600',
-					color: '#1e293b'
-				}}>
+			{/* Header */}
+			<div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+				<div style={{ fontSize: '1.2rem', animation: 'spin 1s linear infinite' }}>🔄</div>
+				<div style={{ fontSize: '1rem', fontWeight: 700, color: tk.textPrimary }}>
 					Adventure Generation Progress
 				</div>
-			</div>
-
-			{/* Progress Bar */}
-			<div style={{ marginBottom: '20px' }}>
 				<div style={{
-					width: '100%',
-					height: '10px',
-					background: '#e2e8f0',
-					borderRadius: '5px',
-					overflow: 'hidden',
-					position: 'relative'
+					marginLeft: 'auto', fontSize: '1.4rem', fontWeight: 800,
+					color: '#a78bfa', fontVariantNumeric: 'tabular-nums',
+					transition: 'color 0.3s',
 				}}>
-					<div style={{
-						width: `${(currentProgress?.progress || 0) * 100}%`,
-						height: '100%',
-						background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
-						transition: 'width 0.5s ease',
-						position: 'relative',
-						overflow: 'hidden'
-					}}>
-						{/* Animated shimmer effect */}
-						<div style={{
-							position: 'absolute',
-							top: 0,
-							left: 0,
-							right: 0,
-							bottom: 0,
-							background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-							animation: currentProgress?.status === 'in_progress' ? 'shimmer 2s infinite' : 'none'
-						}} />
-					</div>
-				</div>
-				<div style={{
-					display: 'flex',
-					justifyContent: 'space-between',
-					alignItems: 'center',
-					marginTop: '8px'
-				}}>
-					<div style={{
-						fontSize: '0.75rem',
-						color: '#64748b'
-					}}>
-						{currentProgress?.step || 'Initializing...'}
-					</div>
-					<div style={{
-						fontSize: '0.85rem',
-						fontWeight: '600',
-						color: '#1e293b'
-					}}>
-						{Math.round((currentProgress?.progress || 0) * 100)}%
-					</div>
+					{displayPct}%
 				</div>
 			</div>
 
-			{/* Current Step */}
+			{/* Progress bar */}
+			<div style={{
+				width: '100%', height: 10,
+				background: tk.progressTrackBg,
+				borderRadius: 5, overflow: 'hidden', marginBottom: 8, position: 'relative',
+			}}>
+				<div style={{
+					width: `${target}%`, height: '100%',
+					background: 'linear-gradient(90deg, #7c3aed, #3b82f6, #06b6d4)',
+					backgroundSize: '200% 100%',
+					borderRadius: 5,
+					transition: 'width 0.5s cubic-bezier(0.4,0,0.2,1)',
+					animation: currentProgress?.status === 'in_progress' ? 'shimmer-bg 2s linear infinite' : 'none',
+					position: 'relative',
+				}}>
+					{/* Glow tip */}
+					<div style={{
+						position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)',
+						width: 14, height: 14, borderRadius: '50%',
+						background: 'white', boxShadow: '0 0 10px 4px rgba(124,58,237,0.6)',
+						opacity: currentProgress?.status === 'in_progress' ? 1 : 0,
+						transition: 'opacity 0.3s',
+					}} />
+				</div>
+			</div>
+
+			<div style={{ fontSize: '0.75rem', color: tk.textMuted, marginBottom: 16 }}>
+				{currentProgress?.step || 'Initializing…'}
+			</div>
+
+			{/* Current agent card */}
 			{currentProgress && (
 				<div style={{
-					background: currentProgress.status === 'in_progress' ? '#f0f9ff' : '#f8fafc',
-					border: `1px solid ${currentProgress.status === 'in_progress' ? '#bae6fd' : '#e2e8f0'}`,
-					borderRadius: '8px',
-					padding: '15px',
-					marginBottom: '15px'
+					background: currentProgress.status === 'in_progress' ? tk.stepCardBg : tk.stepCardIdleBg,
+					border: `1px solid ${currentProgress.status === 'in_progress' ? tk.stepCardBorder : tk.stepCardIdleBorder}`,
+					borderRadius: '10px', padding: '14px', marginBottom: 14,
+					transition: 'all 0.3s',
+					animation: 'fadeInUp 0.3s ease',
 				}}>
-					<div style={{
-						display: 'flex',
-						alignItems: 'center',
-						gap: '12px',
-						marginBottom: currentProgress.details ? '10px' : '0'
-					}}>
-						<span style={{ fontSize: '1.8rem' }}>
-							{getAgentEmoji(currentProgress.agent)}
+					<div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+						<span style={{
+							fontSize: '1.8rem',
+							display: 'inline-block',
+							animation: currentProgress.status === 'in_progress' ? 'bounce 0.8s ease infinite' : 'none',
+						}}>
+							{AGENT_EMOJI[currentProgress.agent] || '⚙️'}
 						</span>
 						<div style={{ flex: 1 }}>
-							<div style={{
-								fontWeight: '600',
-								color: '#1e293b',
-								fontSize: '0.95rem',
-								marginBottom: '4px'
-							}}>
+							<div style={{ fontWeight: 600, color: tk.textPrimary, fontSize: '0.95rem', marginBottom: 3 }}>
 								{currentProgress.agent}
 							</div>
-							<div style={{
-								fontSize: '0.85rem',
-								color: '#64748b',
-								lineHeight: '1.4'
-							}}>
+							<div style={{ fontSize: '0.85rem', color: tk.textSecondary, lineHeight: 1.4 }}>
 								{currentProgress.message}
 							</div>
 						</div>
 						{currentProgress.status === 'in_progress' && (
-							<div className="spinner-large" />
+							<div style={{
+								width: 20, height: 20,
+								border: '3px solid rgba(59,130,246,0.3)',
+								borderTopColor: '#3b82f6',
+								borderRadius: '50%',
+								animation: 'spin 0.8s linear infinite',
+							}} />
 						)}
 						{currentProgress.status === 'complete' && (
 							<div style={{
-								color: '#10b981',
-								fontSize: '1.5rem'
-							}}>
-								✓
-							</div>
+								color: '#10b981', fontSize: '1.4rem',
+								animation: 'popIn 0.3s cubic-bezier(0.4,0,0.2,1)',
+							}}>✓</div>
 						)}
 					</div>
-
-					{/* Details */}
 					{currentProgress.details && (
 						<div style={{
-							fontSize: '0.75rem',
-							color: '#64748b',
-							marginTop: '10px',
-							paddingTop: '10px',
-							borderTop: '1px solid #e2e8f0',
-							display: 'grid',
-							gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-							gap: '8px'
+							fontSize: '0.75rem', color: tk.textMuted,
+							marginTop: 10, paddingTop: 10,
+							borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#e2e8f0'}`,
+							display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 6,
 						}}>
-							{Object.entries(currentProgress.details).map(([key, value]) => (
-								<div key={key}>
-									<span style={{ fontWeight: '600', textTransform: 'capitalize' }}>
-										{key.replace(/_/g, ' ')}:
-									</span>{' '}
-									<span>
-										{typeof value === 'object' ? JSON.stringify(value) : String(value)}
-									</span>
+							{Object.entries(currentProgress.details).map(([k, v]) => (
+								<div key={k}>
+									<span style={{ fontWeight: 600, textTransform: 'capitalize' }}>{k.replace(/_/g, ' ')}: </span>
+									<span>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
 								</div>
 							))}
 						</div>
@@ -201,62 +157,29 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({
 				</div>
 			)}
 
-			{/* Progress History */}
-			<div style={{
-				borderTop: '1px solid #e2e8f0',
-				paddingTop: '15px'
-			}}>
-				<div style={{
-					fontSize: '0.8rem',
-					fontWeight: '600',
-					color: '#64748b',
-					marginBottom: '10px'
-				}}>
+			{/* History */}
+			<div style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#e2e8f0'}`, paddingTop: 12 }}>
+				<div style={{ fontSize: '0.78rem', fontWeight: 600, color: tk.textMuted, marginBottom: 8 }}>
 					Recent Steps:
 				</div>
-				<div style={{
-					maxHeight: '150px',
-					overflowY: 'auto',
-					fontSize: '0.8rem'
-				}}>
-					{progressHistory.slice(-8).reverse().map((update, idx) => (
-						<div
-							key={idx}
-							style={{
-								display: 'flex',
-								alignItems: 'center',
-								gap: '10px',
-								padding: '8px 0',
-								borderBottom: idx < progressHistory.slice(-8).length - 1 ? '1px solid #f1f5f9' : 'none',
-								opacity: update.status === 'complete' ? 0.7 : 1
-							}}
-						>
-							<span style={{ fontSize: '1.2rem' }}>
-								{getAgentEmoji(update.agent)}
-							</span>
+				<div style={{ maxHeight: 150, overflowY: 'auto' }}>
+					{progressHistory.slice(-8).reverse().map((upd, i) => (
+						<div key={i} style={{
+							display: 'flex', alignItems: 'center', gap: 10,
+							padding: '6px 0',
+							borderBottom: i < Math.min(progressHistory.length, 8) - 1
+								? `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9'}`
+								: 'none',
+							opacity: upd.status === 'complete' ? 0.6 : 1,
+							transition: 'opacity 0.3s',
+						}}>
+							<span style={{ fontSize: '1.1rem' }}>{AGENT_EMOJI[upd.agent] || '⚙️'}</span>
 							<div style={{ flex: 1 }}>
-								<div style={{
-									color: '#1e293b',
-									fontSize: '0.8rem',
-									fontWeight: '500'
-								}}>
-									{update.agent}
-								</div>
-								<div style={{
-									color: '#64748b',
-									fontSize: '0.75rem'
-								}}>
-									{update.message}
-								</div>
+								<div style={{ color: tk.textPrimary, fontSize: '0.8rem', fontWeight: 500 }}>{upd.agent}</div>
+								<div style={{ color: tk.textSecondary, fontSize: '0.75rem' }}>{upd.message}</div>
 							</div>
-							<div style={{
-								fontSize: '0.7rem',
-								color: getStatusColor(update.status),
-								fontWeight: '600'
-							}}>
-								{update.status === 'complete' ? '✓' :
-									update.status === 'error' ? '✗' :
-										update.status === 'in_progress' ? '⏳' : '•'}
+							<div style={{ fontSize: '0.7rem', color: STATUS_COLOR[upd.status], fontWeight: 600 }}>
+								{upd.status === 'complete' ? '✓' : upd.status === 'error' ? '✗' : upd.status === 'in_progress' ? '⏳' : '•'}
 							</div>
 						</div>
 					))}
@@ -264,24 +187,31 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({
 			</div>
 
 			<style>{`
-				@keyframes shimmer {
-					0% { transform: translateX(-100%); }
-					100% { transform: translateX(100%); }
-				}
-				
-				.spinner-large {
-					width: 20px;
-					height: 20px;
-					border: 3px solid rgba(59, 130, 246, 0.3);
-					border-top-color: #3b82f6;
-					border-radius: 50%;
-					animation: spin 0.8s linear infinite;
-				}
-				
-				@keyframes spin {
-					to { transform: rotate(360deg); }
-				}
-			`}</style>
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shimmer-bg {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        @keyframes popIn {
+          0% { transform: scale(0); opacity: 0; }
+          70% { transform: scale(1.2); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
 		</div>
 	);
 };

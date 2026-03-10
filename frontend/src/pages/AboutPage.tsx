@@ -1,188 +1,245 @@
 // frontend/src/pages/AboutPage.tsx
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTheme, t } from '../contexts/ThemeContext';
 
-import React from 'react';
+const AGENTS = [
+	{ icon: '📍', name: 'LocationParser', desc: 'Detects the target city from your natural language query.' },
+	{ icon: '🤔', name: 'IntentParser', desc: 'Understands what you want — food, culture, outdoors, nightlife.' },
+	{ icon: '🔍', name: 'VenueScout', desc: 'Finds 10 candidate venues using knowledge-base or Places API.' },
+	{ icon: '🔬', name: 'TavilyResearch', desc: 'Runs 8 parallel live web searches for hours, menus, and tips.' },
+	{ icon: '📊', name: 'ResearchSummary', desc: 'Distills raw research into concise, structured venue insights.' },
+	{ icon: '🗺️', name: 'RoutingAgent', desc: 'Calls Google Maps to find the optimal stop order and distances.' },
+	{ icon: '✨', name: 'AdventureCreator', desc: 'Assembles 3 themed itineraries with timing, narrative, and maps.' },
+];
+
+const STEPS = [
+	{ n: '01', title: 'Describe your vibe', desc: 'Type what you\'re in the mood for — as casual or specific as you like.' },
+	{ n: '02', title: '7 agents go to work', desc: 'Location, venues, live research, routing, and creation in parallel.' },
+	{ n: '03', title: 'Watch it live', desc: 'A real-time progress tracker shows every agent as it completes.' },
+	{ n: '04', title: 'Pick your adventure', desc: 'Choose from 3 curated itineraries, each with a map link and insider tips.' },
+];
+
+const USECASES = [
+	{ icon: '🏙️', text: 'Weekend exploration' },
+	{ icon: '☕', text: 'Afternoon coffee & culture' },
+	{ icon: '🎨', text: 'Museum-hopping' },
+	{ icon: '🍽️', text: 'Dinner + evening plans' },
+	{ icon: '📸', text: 'Photo expedition' },
+	{ icon: '🤝', text: 'First date ideas' },
+];
+
+const STATS = [
+	{ val: '7', label: 'AI Agents' },
+	{ val: '~75s', label: 'Avg Generation' },
+	{ val: '90%+', label: 'Cache Hit Rate' },
+	{ val: '45+', label: 'Live Insights' },
+];
 
 const AboutPage: React.FC = () => {
+	const navigate = useNavigate();
+	const { isDark } = useTheme();
+	const tk = t(isDark);
+	const [scrollY, setScrollY] = useState(0);
+	const [visibleSections, setVisibleSections] = useState<Set<string>>(new Set());
+
+	useEffect(() => {
+		const onScroll = () => setScrollY(window.scrollY);
+		window.addEventListener('scroll', onScroll, { passive: true });
+		return () => window.removeEventListener('scroll', onScroll);
+	}, []);
+
+	// Intersection observer for scroll-triggered animations
+	useEffect(() => {
+		const observer = new IntersectionObserver(
+			entries => entries.forEach(e => {
+				if (e.isIntersecting) setVisibleSections(prev => new Set([...prev, e.target.id]));
+			}),
+			{ threshold: 0.15 }
+		);
+		document.querySelectorAll('[data-section]').forEach(el => observer.observe(el));
+		return () => observer.disconnect();
+	}, []);
+
+	const sectionStyle = (id: string): React.CSSProperties => ({
+		opacity: visibleSections.has(id) ? 1 : 0,
+		transform: visibleSections.has(id) ? 'none' : 'translateY(24px)',
+		transition: 'opacity 0.6s ease, transform 0.6s ease',
+	});
+
 	return (
 		<div style={{
-			maxWidth: '900px',
-			margin: '0 auto',
-			padding: '40px 20px',
-			minHeight: 'calc(100vh - 70px)',
-			background: '#f8fafc'
+			minHeight: '100vh',
+			background: tk.pageBg,
+			position: 'relative', overflow: 'hidden',
+			color: tk.textPrimary,
+			fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
 		}}>
-			{/* Hero Section */}
+			{/* Parallax blobs */}
 			<div style={{
-				background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-				padding: '60px 40px',
-				borderRadius: '20px',
-				color: 'white',
-				textAlign: 'center',
-				marginBottom: '40px',
-				boxShadow: '0 10px 40px rgba(0,0,0,0.1)'
-			}}>
-				<h1 style={{ fontSize: '48px', marginBottom: '15px', fontWeight: 'bold' }}>
-					🗺️ MiniQuest
-				</h1>
-				<p style={{ fontSize: '20px', opacity: 0.95, lineHeight: '1.6' }}>
-					Discover spontaneous, personalized local adventures
-					<br />
-					powered by 7 AI agents working in parallel
-				</p>
+				position: 'fixed', borderRadius: '50%', filter: 'blur(100px)', pointerEvents: 'none', zIndex: 0,
+				top: '-10%', left: '-10%', width: 600, height: 600, background: tk.blob1,
+				transform: `translateY(${scrollY * 0.12}px)`, transition: 'background 0.5s',
+			}} />
+			<div style={{
+				position: 'fixed', borderRadius: '50%', filter: 'blur(100px)', pointerEvents: 'none', zIndex: 0,
+				bottom: '-15%', right: '-10%', width: 650, height: 650, background: tk.blob2,
+				transform: `translateY(${-scrollY * 0.08}px)`, transition: 'background 0.5s',
+			}} />
+
+			<div style={{ position: 'relative', zIndex: 1, maxWidth: 960, margin: '0 auto', padding: '80px 24px 80px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 64 }}>
+
+				{/* Hero */}
+				<div style={{ textAlign: 'center', maxWidth: 720, animation: 'fadeInUp 0.7s ease both' }}>
+					<div style={{
+						display: 'inline-block', background: isDark ? 'rgba(167,139,250,0.15)' : 'rgba(124,58,237,0.1)',
+						border: `1px solid ${isDark ? 'rgba(167,139,250,0.3)' : 'rgba(124,58,237,0.2)'}`,
+						color: tk.textAccent, borderRadius: 999, padding: '6px 18px',
+						fontSize: '0.82rem', fontWeight: 600, letterSpacing: '0.04em', marginBottom: 24,
+					}}>About MiniQuest</div>
+					<h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.2rem)', fontWeight: 800, lineHeight: 1.2, marginBottom: 20, color: tk.textPrimary }}>
+						Your city. Your afternoon.
+						<span style={{ background: 'linear-gradient(90deg, #a78bfa, #60a5fa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}> Perfectly planned.</span>
+					</h1>
+					<p style={{ fontSize: '1.05rem', color: tk.textSecondary, lineHeight: 1.8 }}>
+						MiniQuest is an AI-powered adventure planner for Boston and New York City.
+						It uses 7 specialized agents in a LangGraph workflow to turn a casual sentence
+						into a fully-researched, routed, half-day itinerary in under 90 seconds.
+					</p>
+				</div>
+
+				{/* Steps */}
+				<div id="steps" data-section style={{ width: '100%', ...sectionStyle('steps') }}>
+					<SectionLabel label="How It Works" color={tk.textAccent} />
+					<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+						{STEPS.map(({ n, title, desc }, i) => (
+							<div key={n} style={{
+								background: tk.cardBg, border: `1px solid ${tk.cardBorder}`,
+								borderRadius: 18, padding: '28px 22px', backdropFilter: 'blur(10px)',
+								transition: 'all 0.25s',
+								animation: `fadeInUp 0.5s ease ${i * 0.1}s both`,
+							}}
+								onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)'; (e.currentTarget as HTMLDivElement).style.borderColor = tk.textAccent; }}
+								onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'none'; (e.currentTarget as HTMLDivElement).style.borderColor = tk.cardBorder; }}
+							>
+								<div style={{ fontSize: '2.5rem', fontWeight: 800, color: isDark ? 'rgba(167,139,250,0.35)' : 'rgba(124,58,237,0.2)', lineHeight: 1, marginBottom: 14 }}>{n}</div>
+								<div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 8, color: tk.textPrimary }}>{title}</div>
+								<div style={{ fontSize: '0.83rem', color: tk.textMuted, lineHeight: 1.6 }}>{desc}</div>
+							</div>
+						))}
+					</div>
+				</div>
+
+				{/* Agents */}
+				<div id="agents" data-section style={{ width: '100%', ...sectionStyle('agents') }}>
+					<SectionLabel label="The 7 AI Agents" color={tk.textAccent} />
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+						{AGENTS.map(({ icon, name, desc }, i) => (
+							<div key={name} style={{
+								display: 'flex', alignItems: 'flex-start', gap: 16,
+								background: tk.cardBg, border: `1px solid ${tk.cardBorder}`,
+								borderRadius: 14, padding: '16px 20px', backdropFilter: 'blur(10px)',
+								transition: 'all 0.2s',
+								animation: `slideInLeft 0.5s ease ${i * 0.06}s both`,
+							}}
+								onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateX(4px)'; (e.currentTarget as HTMLDivElement).style.borderColor = tk.textAccent; }}
+								onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'none'; (e.currentTarget as HTMLDivElement).style.borderColor = tk.cardBorder; }}
+							>
+								<span style={{ fontSize: '1.6rem', flexShrink: 0, marginTop: 2 }}>{icon}</span>
+								<div>
+									<div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: 4, color: tk.textAccent }}>{name}</div>
+									<div style={{ fontSize: '0.83rem', color: tk.textMuted, lineHeight: 1.6 }}>{desc}</div>
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+
+				{/* Use cases */}
+				<div id="usecases" data-section style={{ width: '100%', ...sectionStyle('usecases') }}>
+					<SectionLabel label="Perfect For" color={tk.textAccent} />
+					<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+						{USECASES.map(({ icon, text }, i) => (
+							<div key={text} style={{
+								display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+								background: tk.cardBg, border: `1px solid ${tk.cardBorder}`,
+								borderRadius: 16, padding: '22px 16px', backdropFilter: 'blur(10px)',
+								textAlign: 'center', transition: 'all 0.25s',
+								animation: `fadeInUp 0.5s ease ${i * 0.07}s both`,
+							}}
+								onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px) scale(1.02)'; }}
+								onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'none'; }}
+							>
+								<span style={{ fontSize: '1.8rem' }}>{icon}</span>
+								<span style={{ fontSize: '0.85rem', fontWeight: 600, color: tk.textSecondary }}>{text}</span>
+							</div>
+						))}
+					</div>
+				</div>
+
+				{/* Stats */}
+				<div id="stats" data-section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', width: '100%', ...sectionStyle('stats') }}>
+					{STATS.map(({ val, label }, i) => (
+						<div key={label} style={{
+							flex: '1 1 140px', textAlign: 'center',
+							background: isDark ? 'rgba(167,139,250,0.1)' : 'rgba(124,58,237,0.07)',
+							border: `1px solid ${isDark ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.15)'}`,
+							borderRadius: 16, padding: '24px 20px',
+							animation: `popIn 0.5s cubic-bezier(0.4,0,0.2,1) ${i * 0.1}s both`,
+						}}>
+							<div style={{ fontSize: '2.2rem', fontWeight: 800, color: tk.textAccent, marginBottom: 6 }}>{val}</div>
+							<div style={{ fontSize: '0.82rem', color: tk.textMuted, fontWeight: 600 }}>{label}</div>
+						</div>
+					))}
+				</div>
+
+				{/* CTA */}
+				<div id="cta" data-section style={{ textAlign: 'center', maxWidth: 500, ...sectionStyle('cta') }}>
+					<div style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: 12, color: tk.textPrimary }}>Ready to explore?</div>
+					<p style={{ fontSize: '0.95rem', color: tk.textSecondary, marginBottom: 28, lineHeight: 1.6 }}>
+						Boston and NYC are waiting. Your next adventure is one query away.
+					</p>
+					<button
+						onClick={() => navigate('/register')}
+						style={{
+							background: 'linear-gradient(135deg, #7c3aed, #3b82f6)',
+							color: 'white', border: 'none', borderRadius: 14,
+							padding: '15px 36px', fontSize: '1.05rem', fontWeight: 700,
+							cursor: 'pointer', boxShadow: '0 4px 24px rgba(124,58,237,0.45)',
+							transition: 'all 0.2s',
+						}}
+						onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(124,58,237,0.55)'; }}
+						onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 24px rgba(124,58,237,0.45)'; }}
+					>
+						🚀 Get Started — Free
+					</button>
+				</div>
+
 			</div>
 
-			{/* What We Do */}
-			<section style={{
-				background: 'white',
-				padding: '40px',
-				borderRadius: '16px',
-				marginBottom: '30px',
-				boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
-			}}>
-				<h2 style={{
-					fontSize: '28px',
-					marginBottom: '20px',
-					color: '#667eea',
-					fontWeight: 'bold'
-				}}>
-					✨ What MiniQuest Does
-				</h2>
-				<div style={{ fontSize: '16px', lineHeight: '1.8', color: '#334155' }}>
-					<p style={{ marginBottom: '20px' }}>
-						MiniQuest helps you discover spontaneous, personalized local adventures in New York or Boston,
-						perfect for when you have <strong>1-6 hours</strong> and want to explore something new.
-					</p>
-					<ul style={{
-						listStyle: 'none',
-						padding: 0,
-						display: 'grid',
-						gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-						gap: '15px'
-					}}>
-						{[
-							'Short, spontaneous adventures (2-6 hours)',
-							'Local exploration in your chosen city',
-							'Curated itineraries based on interests',
-							'Real-time research on 70+ venues',
-							'Budget-friendly options ($30-150)',
-							'Same-day or "today" planning'
-						].map((item, idx) => (
-							<li key={idx} style={{
-								padding: '12px',
-								background: '#f0fdf4',
-								borderRadius: '8px',
-								border: '1px solid #cfeedaff',
-								display: 'flex',
-								alignItems: 'start',
-								gap: '10px'
-							}}>
-								<span>{item}</span>
-							</li>
-						))}
-					</ul>
-				</div>
-			</section>
-
-			{/* Perfect For */}
-			<section style={{
-				background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-				padding: '40px',
-				borderRadius: '16px',
-				color: 'white',
-				marginBottom: '30px'
-			}}>
-				<h2 style={{ fontSize: '28px', marginBottom: '20px', fontWeight: 'bold' }}>
-					💡 Perfect For:
-				</h2>
-				<div style={{
-					display: 'grid',
-					gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-					gap: '20px',
-					fontSize: '16px'
-				}}>
-					{[
-						{ icon: '🏙️', text: 'Weekend city exploration' },
-						{ icon: '☕', text: 'Afternoon coffee & culture' },
-						{ icon: '🎨', text: 'Museum-hopping days' },
-						{ icon: '🍽️', text: 'Dinner + evening plans' },
-						{ icon: '🚶', text: 'Walking tours' },
-						{ icon: '📸', text: 'Photo expedition days' }
-					].map((item, idx) => (
-						<div key={idx} style={{
-							background: 'rgba(255,255,255,0.15)',
-							backdropFilter: 'blur(10px)',
-							padding: '20px',
-							borderRadius: '12px',
-							textAlign: 'center',
-							border: '1px solid rgba(255,255,255,0.2)'
-						}}>
-							<div style={{ fontSize: '32px', marginBottom: '10px' }}>{item.icon}</div>
-							<div>{item.text}</div>
-						</div>
-					))}
-				</div>
-			</section>
-
-			{/* Features */}
-			<section style={{
-				background: 'white',
-				padding: '40px',
-				borderRadius: '16px',
-				marginBottom: '30px',
-				boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
-			}}>
-				<h2 style={{
-					fontSize: '28px',
-					marginBottom: '20px',
-					color: '#667eea',
-					fontWeight: 'bold'
-				}}>
-					🚀 How It Works
-				</h2>
-				<div style={{
-					display: 'grid',
-					gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-					gap: '20px'
-				}}>
-					{[
-						{ num: '1', title: 'Tell us what you want', desc: 'Type in what you\'re interested in exploring' },
-						{ num: '2', title: '7 AI agents get to work', desc: 'LocationParser, VenueScout, DiscoveryAgent, and more' },
-						{ num: '3', title: 'Live research happens', desc: 'Real-time venue discovery, hours, reviews, directions' },
-						{ num: '4', title: 'Get 3 curated adventures', desc: 'Personalized itineraries with maps and routing' }
-					].map((step, idx) => (
-						<div key={idx} style={{
-							padding: '25px',
-							background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
-							borderRadius: '12px',
-							border: '1px solid #bae6fd'
-						}}>
-							<div style={{
-								width: '40px',
-								height: '40px',
-								background: '#667eea',
-								color: 'white',
-								borderRadius: '50%',
-								display: 'flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-								fontSize: '20px',
-								fontWeight: 'bold',
-								marginBottom: '15px'
-							}}>
-								{step.num}
-							</div>
-							<h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#0369a1', fontWeight: '600' }}>
-								{step.title}
-							</h3>
-							<p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6' }}>
-								{step.desc}
-							</p>
-						</div>
-					))}
-				</div>
-			</section>
+			<style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideInLeft {
+          from { opacity: 0; transform: translateX(-16px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes popIn {
+          0% { transform: scale(0.85); opacity: 0; }
+          70% { transform: scale(1.05); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
 		</div>
 	);
 };
+
+const SectionLabel: React.FC<{ label: string; color: string }> = ({ label, color }) => (
+	<div style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em', color, textTransform: 'uppercase', marginBottom: 20 }}>
+		{label}
+	</div>
+);
 
 export default AboutPage;

@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { useTheme, t } from '../../contexts/ThemeContext';
 
 interface PasswordInputProps {
 	value: string;
@@ -23,6 +24,8 @@ const PasswordInput: React.FC<PasswordInputProps> = ({
 	minLength,
 }) => {
 	const [showPassword, setShowPassword] = useState(false);
+	const { isDark } = useTheme();
+	const tk = t(isDark);
 
 	return (
 		<div style={{ position: 'relative' }}>
@@ -34,41 +37,47 @@ const PasswordInput: React.FC<PasswordInputProps> = ({
 				required={required}
 				autoComplete={autoComplete}
 				minLength={minLength}
-				className="glass-input"
 				style={{
 					width: '100%',
-					padding: '14px 45px 14px 16px',
-					background: 'rgba(255, 255, 255, 0.05)',
-					border: '1px solid rgba(255, 255, 255, 0.1)',
-					borderRadius: '12px',
-					color: 'black',
-					fontSize: '1rem',
+					padding: '13px 45px 13px 16px',
+					background: tk.inputBg,
+					border: `1px solid ${tk.inputBorder}`,
+					borderRadius: 12,
+					color: tk.textPrimary,
+					fontSize: '0.95rem',
 					outline: 'none',
-					transition: 'all 0.3s ease',
-					backdropFilter: 'blur(10px)',
+					transition: 'border-color 0.2s, box-shadow 0.2s',
+					fontFamily: 'inherit',
+					boxSizing: 'border-box',
+				}}
+				onFocus={e => {
+					e.currentTarget.style.borderColor = '#7c3aed';
+					e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.15)';
+				}}
+				onBlur={e => {
+					e.currentTarget.style.borderColor = tk.inputBorder;
+					e.currentTarget.style.boxShadow = 'none';
 				}}
 			/>
 			<button
 				type="button"
-				onClick={() => setShowPassword(!showPassword)}
+				onClick={() => setShowPassword(v => !v)}
 				style={{
 					position: 'absolute',
-					right: '12px',
-					top: '50%',
+					right: 12, top: '50%',
 					transform: 'translateY(-50%)',
 					background: 'transparent',
 					border: 'none',
-					color: 'rgba(255, 255, 255, 0.6)',
+					color: tk.textMuted,
 					cursor: 'pointer',
-					padding: '8px',
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'center',
-					transition: 'color 0.2s ease',
-					fontSize: '1.2rem',
+					padding: 8,
+					display: 'flex', alignItems: 'center', justifyContent: 'center',
+					transition: 'color 0.2s',
+					fontSize: '1.1rem',
+					lineHeight: 1,
 				}}
-				onMouseOver={(e) => (e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)')}
-				onMouseOut={(e) => (e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)')}
+				onMouseOver={e => (e.currentTarget.style.color = tk.textPrimary)}
+				onMouseOut={e => (e.currentTarget.style.color = tk.textMuted)}
 				aria-label={showPassword ? 'Hide password' : 'Show password'}
 			>
 				{showPassword ? '🙈' : '👁️'}
