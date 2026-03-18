@@ -37,3 +37,8 @@ requests
 # Development
 pytest
 pytest-asyncio
+
+# OpenTelemetry for observability
+opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-http
+opentelemetry-instrumentation-fastapi

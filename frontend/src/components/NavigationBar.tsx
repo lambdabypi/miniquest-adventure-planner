@@ -6,6 +6,7 @@ import { useTheme, t } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 
 const NavigationBar: React.FC = () => {
+	const OBSERVABILITY_ENABLED = (import.meta as any).env.VITE_OBSERVABILITY_ENABLED === 'true';
 	const { isAuthenticated, user, logout } = useAuth();
 	const { toggleTheme, isDark } = useTheme();
 	const navigate = useNavigate();
@@ -23,6 +24,7 @@ const NavigationBar: React.FC = () => {
 		{ path: '/app', icon: '📍', label: 'Create Adventures' },
 		{ path: '/saved-adventures', icon: '💾', label: 'Saved Adventures' },
 		{ path: '/analytics', icon: '📊', label: 'Analytics' },
+		...(OBSERVABILITY_ENABLED ? [{ path: '/observability', icon: '🔭', label: 'Observability' }] : []),
 		{ path: '/about', icon: 'ℹ️', label: 'About' },
 	] : [];
 

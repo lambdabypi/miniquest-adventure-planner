@@ -13,6 +13,7 @@ import asyncio
 import googlemaps
 import urllib.parse
 from difflib import SequenceMatcher
+from ...core.telemetry import get_tracer
 
 from .workflow_state import AdventureState
 from ..location import LocationParserAgent
@@ -680,137 +681,165 @@ class LangGraphCoordinator:
     # ========================================
     
     async def generate_adventures(
-        self, 
-        user_input: str, 
-        user_address: Optional[str] = None,
-        user_id: Optional[str] = None
-    ) -> Tuple[List[Dict], Dict]:
-        """Main entry point - OPTIMIZED (without progress streaming)"""
-        
+    self,
+    user_input: str,
+    user_address: Optional[str] = None,
+    user_id: Optional[str] = None
+) -> Tuple[List[Dict], Dict]:
+        """Main entry point - OPTIMIZED with OTel tracing"""
+
         self.logger.info(f"🔄 Starting OPTIMIZED workflow: '{user_input[:50]}...'")
-        if user_id:
-            self.logger.info(f"👤 User: {user_id}")
-        
+
         start_time = time.time()
         self.timing_data = {}
-        
+
         initial_state = self._create_initial_state(user_input, user_address, user_id)
-        
-        try:
-            final_state = await self.workflow.ainvoke(initial_state)
-            
-            error = final_state.get("error")
-            if isinstance(error, dict) and error.get("type") == "clarification_needed":
-                return [], {"error": error}
-            
-            if final_state.get("error"):
-                return [], {"error": final_state["error"]}
-            
-            adventures = final_state.get("final_adventures", [])
-            total_time = time.time() - start_time
-            metadata = self._build_completion_metadata(final_state, total_time)
-            
-            self.logger.info(f"✅ OPTIMIZED workflow complete: {len(adventures)} adventures in {total_time:.2f}s")
-            
-            cache_stats = metadata.get("performance", {}).get("cache_stats", {})
-            if cache_stats:
-                self.logger.info(f"   Cache: {cache_stats.get('hit_rate', '0%')} hit rate, "
-                               f"saved ~{cache_stats.get('time_saved_estimate', '0s')}")
-            
-            return adventures, metadata
-            
-        except Exception as e:
-            self.logger.error(f"❌ Failed: {e}")
-            return [], {"error": str(e)}
+
+        tracer = get_tracer()
+
+        with tracer.start_as_current_span("miniquest.generate_adventures") as span:
+            span.set_attribute("service.name", "miniquest")
+            span.set_attribute("user.input", user_input[:200])
+            span.set_attribute("user.id", user_id or "anonymous")
+            span.set_attribute("location.provided", bool(user_address))
+
+            try:
+                final_state = await self.workflow.ainvoke(initial_state)
+
+                error = final_state.get("error")
+                if isinstance(error, dict) and error.get("type") == "clarification_needed":
+                    span.set_attribute("workflow.outcome", "clarification_needed")
+                    return [], {"error": error}
+
+                if final_state.get("error"):
+                    span.set_attribute("workflow.outcome", "error")
+                    span.set_attribute("error.message", str(final_state["error"]))
+                    return [], {"error": final_state["error"]}
+
+                adventures = final_state.get("final_adventures", [])
+                total_time = time.time() - start_time
+                metadata = self._build_completion_metadata(final_state, total_time)
+
+                span.set_attribute("workflow.outcome", "success")
+                span.set_attribute("adventures.count", len(adventures))
+                span.set_attribute("workflow.duration_seconds", round(total_time, 2))
+                span.set_attribute("target.location", final_state.get("target_location", "unknown"))
+
+                cache_stats = metadata.get("performance", {}).get("cache_stats", {})
+                if cache_stats:
+                    span.set_attribute("cache.hit_rate", cache_stats.get("hit_rate", "0%"))
+                    span.set_attribute("cache.hits", cache_stats.get("hits", 0))
+
+                self.logger.info(f"✅ Workflow complete: {len(adventures)} adventures in {total_time:.2f}s")
+                return adventures, metadata
+
+            except Exception as e:
+                span.set_attribute("workflow.outcome", "exception")
+                span.set_attribute("error.message", str(e))
+                self.logger.error(f"❌ Failed: {e}")
+                return [], {"error": str(e)}
     
     async def generate_adventures_with_progress(
-        self, 
-        user_input: str, 
+        self,
+        user_input: str,
         user_address: Optional[str] = None,
         user_id: Optional[str] = None,
         progress_callback: Optional[Callable] = None
     ) -> Tuple[List[Dict], Dict]:
         """Generate adventures with real-time progress streaming"""
-        
+
         self.progress_callback = progress_callback
-        
+
         self._emit_progress({
-            "step": "initialize",
-            "agent": "Coordinator",
-            "status": "in_progress",
-            "message": "Starting adventure generation...",
-            "progress": 0.0
+            "step": "initialize", "agent": "Coordinator",
+            "status": "in_progress", "message": "Starting adventure generation...", "progress": 0.0
         })
-        
+
         self.logger.info(f"🔄 Starting OPTIMIZED workflow WITH PROGRESS: '{user_input[:50]}...'")
         if user_id:
             self.logger.info(f"👤 User: {user_id}")
-        
+
         start_time = time.time()
         self.timing_data = {}
-        
+
         initial_state = self._create_initial_state(user_input, user_address, user_id)
-        
-        try:
-            final_state = await self.workflow.ainvoke(initial_state)
-            
-            error = final_state.get("error")
-            if isinstance(error, dict) and error.get("type") == "clarification_needed":
+
+        # ✅ Wrap the entire streaming workflow in an OTel parent span
+        tracer = get_tracer()
+
+        with tracer.start_as_current_span("miniquest.generate_adventures") as span:
+            span.set_attribute("service.name", "miniquest")
+            span.set_attribute("user.input", user_input[:200])
+            span.set_attribute("user.id", user_id or "anonymous")
+            span.set_attribute("location.provided", bool(user_address))
+            span.set_attribute("streaming", True)
+
+            try:
+                final_state = await self.workflow.ainvoke(initial_state)
+
+                error = final_state.get("error")
+                if isinstance(error, dict) and error.get("type") == "clarification_needed":
+                    span.set_attribute("workflow.outcome", "clarification_needed")
+                    self._emit_progress({
+                        "step": "complete", "agent": "Coordinator",
+                        "status": "clarification_needed",
+                        "message": error.get("message", "Need more information"),
+                        "progress": 1.0, "error": error
+                    })
+                    return [], {"error": error}
+
+                if final_state.get("error"):
+                    span.set_attribute("workflow.outcome", "error")
+                    span.set_attribute("error.message", str(final_state["error"]))
+                    self._emit_progress({
+                        "step": "complete", "agent": "Coordinator",
+                        "status": "error",
+                        "message": f"Error: {final_state['error']}",
+                        "progress": 1.0, "error": final_state["error"]
+                    })
+                    return [], {"error": final_state["error"]}
+
+                adventures = final_state.get("final_adventures", [])
+                total_time = time.time() - start_time
+                metadata = self._build_completion_metadata(final_state, total_time)
+
+                span.set_attribute("workflow.outcome", "success")
+                span.set_attribute("adventures.count", len(adventures))
+                span.set_attribute("workflow.duration_seconds", round(total_time, 2))
+                span.set_attribute("target.location", final_state.get("target_location", "unknown"))
+
+                cache_stats = metadata.get("performance", {}).get("cache_stats", {})
+                if cache_stats:
+                    span.set_attribute("cache.hit_rate", cache_stats.get("hit_rate", "0%"))
+                    span.set_attribute("cache.hits", cache_stats.get("hits", 0))
+
                 self._emit_progress({
-                    "step": "complete",
-                    "agent": "Coordinator",
-                    "status": "clarification_needed",
-                    "message": error.get("message", "Need more information"),
+                    "step": "complete", "agent": "Coordinator",
+                    "status": "complete",
+                    "message": f"✅ Created {len(adventures)} adventures in {total_time:.1f}s",
                     "progress": 1.0,
-                    "error": error
+                    "details": {
+                        "adventure_count": len(adventures),
+                        "total_time": total_time,
+                        "cache_stats": cache_stats
+                    }
                 })
-                return [], {"error": error}
-            
-            if final_state.get("error"):
+
+                self.logger.info(f"✅ OPTIMIZED workflow complete: {len(adventures)} adventures in {total_time:.2f}s")
+                return adventures, metadata
+
+            except Exception as e:
+                span.set_attribute("workflow.outcome", "exception")
+                span.set_attribute("error.message", str(e))
+                self.logger.error(f"❌ Workflow error: {e}")
                 self._emit_progress({
-                    "step": "complete",
-                    "agent": "Coordinator",
-                    "status": "error",
-                    "message": f"Error: {final_state['error']}",
-                    "progress": 1.0,
-                    "error": final_state["error"]
+                    "step": "complete", "agent": "Coordinator",
+                    "status": "error", "message": f"Failed: {str(e)}",
+                    "progress": 1.0, "error": str(e)
                 })
-                return [], {"error": final_state["error"]}
-            
-            adventures = final_state.get("final_adventures", [])
-            total_time = time.time() - start_time
-            metadata = self._build_completion_metadata(final_state, total_time)
-            
-            self._emit_progress({
-                "step": "complete",
-                "agent": "Coordinator",
-                "status": "complete",
-                "message": f"✅ Created {len(adventures)} adventures in {total_time:.1f}s",
-                "progress": 1.0,
-                "details": {
-                    "adventure_count": len(adventures),
-                    "total_time": total_time,
-                    "cache_stats": metadata.get("performance", {}).get("cache_stats", {})
-                }
-            })
-            
-            self.logger.info(f"✅ OPTIMIZED workflow complete: {len(adventures)} adventures in {total_time:.2f}s")
-            
-            return adventures, metadata
-            
-        except Exception as e:
-            self.logger.error(f"❌ Workflow error: {e}")
-            self._emit_progress({
-                "step": "complete",
-                "agent": "Coordinator",
-                "status": "error",
-                "message": f"Failed: {str(e)}",
-                "progress": 1.0,
-                "error": str(e)
-            })
-            return [], {"error": str(e)}
-        finally:
-            self.progress_callback = None
+                return [], {"error": str(e)}
+            finally:
+                self.progress_callback = None
     
     def _create_initial_state(
         self, 
@@ -891,407 +920,444 @@ class LangGraphCoordinator:
     # ========================================
     
     async def _parse_location_node(self, state: AdventureState) -> AdventureState:
-        """Node 1/7"""
+        """Node 1/7 — with OTel span"""
         start_time = time.time()
-        
-        self._emit_progress({
-            "step": "parse_location",
-            "agent": "LocationParser",
-            "status": "in_progress",
-            "message": "Parsing target location...",
-            "progress": 0.14
-        })
-        
-        try:
-            result = await self.location_parser.process({
-                "user_input": state["user_input"],
-                "user_address": state.get("user_address")
+        tracer = get_tracer()
+
+        with tracer.start_as_current_span("miniquest.agent.location_parser") as span:
+            span.set_attribute("agent.name", "LocationParser")
+            span.set_attribute("agent.node", "parse_location")
+            span.set_attribute("agent.step", "1/7")
+            span.set_attribute("input.user_input_length", len(state.get("user_input", "")))
+
+            self._emit_progress({
+                "step": "parse_location", "agent": "LocationParser",
+                "status": "in_progress", "message": "Parsing target location...", "progress": 0.14
             })
-            
-            if result["success"]:
-                state["target_location"] = result["data"]["target_location"]
-                state["location_parsing_info"] = result["data"]
-                
-                self._emit_progress({
-                    "step": "parse_location",
-                    "agent": "LocationParser",
-                    "status": "complete",
-                    "message": f"Target: {state['target_location']}",
-                    "progress": 0.14,
-                    "details": {"location": state["target_location"]}
+
+            try:
+                result = await self.location_parser.process({
+                    "user_input": state["user_input"],
+                    "user_address": state.get("user_address")
                 })
-            else:
+
+                if result["success"]:
+                    state["target_location"] = result["data"]["target_location"]
+                    state["location_parsing_info"] = result["data"]
+                    span.set_attribute("output.target_location", state["target_location"])
+                    span.set_attribute("agent.outcome", "success")
+
+                    self._emit_progress({
+                        "step": "parse_location", "agent": "LocationParser",
+                        "status": "complete", "message": f"Target: {state['target_location']}",
+                        "progress": 0.14, "details": {"location": state["target_location"]}
+                    })
+                else:
+                    state["target_location"] = state.get("user_address", "Boston, MA")
+                    span.set_attribute("agent.outcome", "fallback")
+
+            except Exception as e:
                 state["target_location"] = state.get("user_address", "Boston, MA")
-        except Exception as e:
-            state["target_location"] = state.get("user_address", "Boston, MA")
-            self.logger.error(f"Location parsing error: {e}")
-        
-        self._track_timing("parse_location", time.time() - start_time)
+                span.set_attribute("agent.outcome", "error")
+                span.set_attribute("error.message", str(e))
+                self.logger.error(f"Location parsing error: {e}")
+
+            elapsed = time.time() - start_time
+            span.set_attribute("agent.duration_seconds", round(elapsed, 3))
+            self._track_timing("parse_location", elapsed)
+
         return state
-    
+
     async def _get_personalization_node(self, state: AdventureState) -> AdventureState:
-        """Node 1.5/7"""
+        """Node 1.5/7 — with OTel span"""
         start_time = time.time()
-        
-        self._emit_progress({
-            "step": "personalization",
-            "agent": "RAG",
-            "status": "in_progress",
-            "message": "Loading your preferences...",
-            "progress": 0.21
-        })
-        
-        user_id = state.get("user_id")
-        
-        if not user_id or not self.rag_system:
+        tracer = get_tracer()
+
+        with tracer.start_as_current_span("miniquest.agent.personalization") as span:
+            span.set_attribute("agent.name", "RAG")
+            span.set_attribute("agent.node", "get_personalization")
+            span.set_attribute("agent.step", "1.5/7")
+            span.set_attribute("input.has_user_id", bool(state.get("user_id")))
+            span.set_attribute("input.has_rag_system", bool(self.rag_system))
+
             self._emit_progress({
-                "step": "personalization",
-                "agent": "RAG",
-                "status": "complete",
-                "message": "No personalization data",
-                "progress": 0.21
+                "step": "personalization", "agent": "RAG",
+                "status": "in_progress", "message": "Loading your preferences...", "progress": 0.21
             })
-            state["user_personalization"] = None
-            return state
-        
-        try:
-            target_location = state.get("target_location", "general")
-            personalization = self.rag_system.get_user_personalization(
-                user_id=user_id,
-                location=target_location
-            )
-            
-            state["user_personalization"] = personalization
-            
-            if personalization.get("has_history"):
+
+            user_id = state.get("user_id")
+
+            if not user_id or not self.rag_system:
+                span.set_attribute("agent.outcome", "skipped")
                 self._emit_progress({
-                    "step": "personalization",
-                    "agent": "RAG",
-                    "status": "complete",
-                    "message": f"Found {personalization['total_adventures']} past adventures",
-                    "progress": 0.21,
-                    "details": {
-                        "total_adventures": personalization['total_adventures'],
-                        "avg_rating": personalization.get('average_rating', 0)
-                    }
+                    "step": "personalization", "agent": "RAG",
+                    "status": "complete", "message": "No personalization data", "progress": 0.21
                 })
-            else:
-                self._emit_progress({
-                    "step": "personalization",
-                    "agent": "RAG",
-                    "status": "complete",
-                    "message": "No history found (new user)",
-                    "progress": 0.21
-                })
-            
-        except Exception as e:
-            self.logger.error(f"Personalization error: {e}")
-            state["user_personalization"] = None
-        
-        self._track_timing("personalization", time.time() - start_time)
+                state["user_personalization"] = None
+                elapsed = time.time() - start_time
+                span.set_attribute("agent.duration_seconds", round(elapsed, 3))
+                self._track_timing("personalization", elapsed)
+                return state
+
+            try:
+                target_location = state.get("target_location", "general")
+                personalization = self.rag_system.get_user_personalization(
+                    user_id=user_id,
+                    location=target_location
+                )
+                state["user_personalization"] = personalization
+
+                span.set_attribute("agent.outcome", "success")
+                span.set_attribute("output.has_history", personalization.get("has_history", False))
+                span.set_attribute("output.total_adventures", personalization.get("total_adventures", 0))
+
+                if personalization.get("has_history"):
+                    self._emit_progress({
+                        "step": "personalization", "agent": "RAG",
+                        "status": "complete",
+                        "message": f"Found {personalization['total_adventures']} past adventures",
+                        "progress": 0.21
+                    })
+                else:
+                    self._emit_progress({
+                        "step": "personalization", "agent": "RAG",
+                        "status": "complete", "message": "No history found (new user)", "progress": 0.21
+                    })
+
+            except Exception as e:
+                span.set_attribute("agent.outcome", "error")
+                span.set_attribute("error.message", str(e))
+                self.logger.error(f"Personalization error: {e}")
+                state["user_personalization"] = None
+
+            elapsed = time.time() - start_time
+            span.set_attribute("agent.duration_seconds", round(elapsed, 3))
+            self._track_timing("personalization", elapsed)
+
         return state
-    
+
     async def _parse_intent_node(self, state: AdventureState) -> AdventureState:
-        """Node 2/7"""
+        """Node 2/7 — with OTel span"""
         start_time = time.time()
-        
-        self._emit_progress({
-            "step": "parse_intent",
-            "agent": "IntentParser",
-            "status": "in_progress",
-            "message": "Understanding your preferences...",
-            "progress": 0.28
-        })
-        
-        try:
-            personalization = state.get("user_personalization")
-            context_additions = []
-            
-            if personalization and personalization.get("has_history"):
-                context_additions.append(
-                    f"User has {personalization['total_adventures']} saved adventures "
-                    f"with avg rating {personalization['average_rating']:.1f}/5"
-                )
-                if personalization.get("favorite_locations"):
+        tracer = get_tracer()
+
+        with tracer.start_as_current_span("miniquest.agent.intent_parser") as span:
+            span.set_attribute("agent.name", "IntentParser")
+            span.set_attribute("agent.node", "parse_intent")
+            span.set_attribute("agent.step", "2/7")
+
+            self._emit_progress({
+                "step": "parse_intent", "agent": "IntentParser",
+                "status": "in_progress", "message": "Understanding your preferences...", "progress": 0.28
+            })
+
+            try:
+                personalization = state.get("user_personalization")
+                context_additions = []
+
+                if personalization and personalization.get("has_history"):
                     context_additions.append(
-                        f"Favorite locations: {', '.join(personalization['favorite_locations'][:3])}"
+                        f"User has {personalization['total_adventures']} saved adventures "
+                        f"with avg rating {personalization['average_rating']:.1f}/5"
                     )
-            
-            result = await self.intent_parser.process({
-                "user_input": state["user_input"],
-                "user_address": state.get("user_address"),
-                "personalization_context": " | ".join(context_additions) if context_additions else None
-            })
-            
-            if not result["success"] or result["data"].get("needs_clarification"):
-                error_data = result["data"]
-                state["error"] = {
-                    "type": "clarification_needed",
-                    "message": error_data.get("clarification_message", "Please be more specific"),
-                    "suggestions": error_data.get("suggestions", []),
-                    "out_of_scope": error_data.get("out_of_scope", False),
-                    "scope_issue": error_data.get("scope_issue"),
-                    "detected_city": error_data.get("detected_city"),
-                    "unrelated_query": error_data.get("unrelated_query", False),
-                    "query_type": error_data.get("query_type"),
-                }
-                
-                status = "error" if error_data.get("unrelated_query") or error_data.get("out_of_scope") else "clarification_needed"
-                
-                self._emit_progress({
-                    "step": "parse_intent",
-                    "agent": "IntentParser",
-                    "status": status,
-                    "message": error_data.get("clarification_message", "Need clarification"),
-                    "progress": 0.28,
-                    "error": state["error"]
+
+                result = await self.intent_parser.process({
+                    "user_input": state["user_input"],
+                    "user_address": state.get("user_address"),
+                    "personalization_context": " | ".join(context_additions) if context_additions else None
                 })
-                
-                return state
-            
-            state["parsed_preferences"] = result["data"]["parsed_preferences"]
-            prefs = result["data"]["parsed_preferences"].get("preferences", [])
-            
-            self._emit_progress({
-                "step": "parse_intent",
-                "agent": "IntentParser",
-                "status": "complete",
-                "message": f"Looking for: {', '.join(prefs[:3])}{'...' if len(prefs) > 3 else ''}",
-                "progress": 0.28,
-                "details": {"preferences": prefs}
-            })
-            
-        except Exception as e:
-            logger.error(f"Intent error: {e}")
-        
-        self._track_timing("parse_intent", time.time() - start_time)
+
+                if not result["success"] or result["data"].get("needs_clarification"):
+                    error_data = result["data"]
+                    state["error"] = {
+                        "type": "clarification_needed",
+                        "message": error_data.get("clarification_message", "Please be more specific"),
+                        "suggestions": error_data.get("suggestions", []),
+                        "out_of_scope": error_data.get("out_of_scope", False),
+                        "scope_issue": error_data.get("scope_issue"),
+                        "detected_city": error_data.get("detected_city"),
+                        "unrelated_query": error_data.get("unrelated_query", False),
+                        "query_type": error_data.get("query_type"),
+                    }
+                    span.set_attribute("agent.outcome", "clarification_needed")
+                    span.set_attribute("intent.out_of_scope", str(error_data.get("out_of_scope", False)))
+                    return state
+
+                state["parsed_preferences"] = result["data"]["parsed_preferences"]
+                prefs = result["data"]["parsed_preferences"].get("preferences", [])
+
+                span.set_attribute("agent.outcome", "success")
+                span.set_attribute("intent.preferences", str(prefs))
+                span.set_attribute("intent.mood", result["data"]["parsed_preferences"].get("mood", "unknown"))
+                span.set_attribute("intent.budget", str(result["data"]["parsed_preferences"].get("budget", 0)))
+
+                self._emit_progress({
+                    "step": "parse_intent", "agent": "IntentParser",
+                    "status": "complete",
+                    "message": f"Looking for: {', '.join(prefs[:3])}{'...' if len(prefs) > 3 else ''}",
+                    "progress": 0.28, "details": {"preferences": prefs}
+                })
+
+            except Exception as e:
+                span.set_attribute("agent.outcome", "error")
+                span.set_attribute("error.message", str(e))
+                logger.error(f"Intent error: {e}")
+
+            elapsed = time.time() - start_time
+            span.set_attribute("agent.duration_seconds", round(elapsed, 3))
+            self._track_timing("parse_intent", elapsed)
+
         return state
-    
+
+
     async def _scout_venues_node(self, state: AdventureState) -> AdventureState:
-        """Node 3/7"""
+        """Node 3/7 — with OTel span"""
         start_time = time.time()
-        
-        self._emit_progress({
-            "step": "scout_venues",
-            "agent": "VenueScout",
-            "status": "in_progress",
-            "message": "Searching for venues...",
-            "progress": 0.43
-        })
-        
-        try:
-            preferences = state.get("parsed_preferences", {})
-            result = await self.venue_scout.process({
-                "preferences": preferences.get("preferences", []),
-                "location": state.get("target_location", "Boston, MA"),
-                "user_query": state.get("user_input", "")
-            })
-            
-            if result["success"]:
-                venues = result["data"]["venues"]
-                state["scouted_venues"] = venues
-                
-                venue_names = [v.get("name", "Unknown") for v in venues[:5]]
-                more = f" and {len(venues) - 5} more" if len(venues) > 5 else ""
-                
-                self._emit_progress({
-                    "step": "scout_venues",
-                    "agent": "VenueScout",
-                    "status": "complete",
-                    "message": f"Found {len(venues)} venues: {', '.join(venue_names)}{more}",
-                    "progress": 0.43,
-                    "details": {
-                        "venue_count": len(venues),
-                        "venues": venue_names
-                    }
-                })
-        except Exception as e:
-            logger.error(f"Scout error: {e}")
-        
-        self._track_timing("scout_venues", time.time() - start_time)
-        return state
-    
-    async def _research_venues_node(self, state: AdventureState) -> AdventureState:
-        """Node 4/7"""
-        start_time = time.time()
-        
-        venues = state.get("scouted_venues", [])
-        
-        self._emit_progress({
-            "step": "research_venues",
-            "agent": "TavilyResearch",
-            "status": "in_progress",
-            "message": f"Researching {len(venues)} venues (parallel + cached)...",
-            "progress": 0.57
-        })
-        
-        try:
-            result = await self.research_agent.process({
-                "venues": venues,
-                "location": state.get("target_location", "Boston, MA"),
-                "max_venues": 8
-            })
-            
-            if result["success"]:
-                state["researched_venues"] = result["data"]["researched_venues"]
-                state["metadata"]["research_stats"] = result["data"]["research_stats"]
-                
-                stats = result["data"]["research_stats"]
-                elapsed = stats.get("elapsed_seconds", 0)
-                cache_hit_rate = stats.get("cache_hit_rate", "0%")
-                total_insights = stats.get("total_insights", 0)
-                
-                self._emit_progress({
-                    "step": "research_venues",
-                    "agent": "TavilyResearch",
-                    "status": "complete",
-                    "message": f"Research complete: {total_insights} insights in {elapsed:.1f}s (cache: {cache_hit_rate})",
-                    "progress": 0.71,
-                    "details": {
-                        "cache_hit_rate": cache_hit_rate,
-                        "total_insights": total_insights,
-                        "elapsed_seconds": elapsed
-                    }
-                })
-                
-        except Exception as e:
-            logger.error(f"Research error: {e}")
-        
-        self._track_timing("research_venues", time.time() - start_time)
-        return state
-    
-    async def _summarize_research_node(self, state: AdventureState) -> AdventureState:
-        """Node 5/7"""
-        start_time = time.time()
-        
-        self._emit_progress({
-            "step": "summarize_research",
-            "agent": "ResearchSummary",
-            "status": "in_progress",
-            "message": "Structuring research insights...",
-            "progress": 0.71
-        })
-        
-        try:
-            researched_venues = state.get("researched_venues", [])
-            
-            if not researched_venues:
-                return state
-            
-            result = await self.research_summary_agent.process({
-                "researched_venues": researched_venues
-            })
-            
-            if result["success"]:
-                state["researched_venues"] = result["data"]["summarized_venues"]
-                state["metadata"]["research_summarized"] = True
-                
-                self._emit_progress({
-                    "step": "summarize_research",
-                    "agent": "ResearchSummary",
-                    "status": "complete",
-                    "message": "Research summarized and structured",
-                    "progress": 0.71
-                })
-        except Exception as e:
-            logger.error(f"Summary error: {e}")
-        
-        self._track_timing("summarize_research", time.time() - start_time)
-        return state
-    
-    async def _enhance_routing_node(self, state: AdventureState) -> AdventureState:
-        """Node 6/7"""
-        start_time = time.time()
-        
-        self._emit_progress({
-            "step": "enhance_routing",
-            "agent": "RoutingAgent",
-            "status": "in_progress",
-            "message": "Preparing location data for routing...",
-            "progress": 0.85
-        })
-        
-        try:
-            city_name = self._extract_city_name(state.get("target_location", "Boston, MA"))
-            
-            enhanced_locations = self._convert_to_enhanced_locations(
-                state.get("researched_venues", []),
-                city_name
-            )
-            
-            state["enhanced_locations"] = enhanced_locations
-            
+        tracer = get_tracer()
+
+        with tracer.start_as_current_span("miniquest.agent.venue_scout") as span:
+            span.set_attribute("agent.name", "VenueScout")
+            span.set_attribute("agent.node", "scout_venues")
+            span.set_attribute("agent.step", "3/7")
+            span.set_attribute("input.location", state.get("target_location", "unknown"))
+
             self._emit_progress({
-                "step": "enhance_routing",
-                "agent": "RoutingAgent",
-                "status": "complete",
-                "message": f"Prepared {len(enhanced_locations)} locations for routing",
-                "progress": 0.85,
-                "details": {"location_count": len(enhanced_locations)}
+                "step": "scout_venues", "agent": "VenueScout",
+                "status": "in_progress", "message": "Searching for venues...", "progress": 0.43
             })
-        except Exception as e:
-            logger.error(f"Routing prep error: {e}")
-        
-        self._track_timing("enhance_routing", time.time() - start_time)
+
+            try:
+                preferences = state.get("parsed_preferences", {})
+                result = await self.venue_scout.process({
+                    "preferences": preferences.get("preferences", []),
+                    "location": state.get("target_location", "Boston, MA"),
+                    "user_query": state.get("user_input", "")
+                })
+
+                if result["success"]:
+                    venues = result["data"]["venues"]
+                    state["scouted_venues"] = venues
+
+                    span.set_attribute("agent.outcome", "success")
+                    span.set_attribute("output.venues_found", len(venues))
+                    span.set_attribute("output.search_strategy", result["data"].get("search_strategy", "unknown"))
+
+                    self._emit_progress({
+                        "step": "scout_venues", "agent": "VenueScout",
+                        "status": "complete", "message": f"Found {len(venues)} venues",
+                        "progress": 0.43, "details": {"venue_count": len(venues)}
+                    })
+
+            except Exception as e:
+                span.set_attribute("agent.outcome", "error")
+                span.set_attribute("error.message", str(e))
+                logger.error(f"Scout error: {e}")
+
+            elapsed = time.time() - start_time
+            span.set_attribute("agent.duration_seconds", round(elapsed, 3))
+            self._track_timing("scout_venues", elapsed)
+
         return state
-    
-    async def _create_adventures_node(self, state: AdventureState) -> AdventureState:
-        """Node 7/7"""
+
+
+    async def _research_venues_node(self, state: AdventureState) -> AdventureState:
+        """Node 4/7 — with OTel span"""
         start_time = time.time()
-        
-        self._emit_progress({
-            "step": "create_adventures",
-            "agent": "AdventureCreator",
-            "status": "in_progress",
-            "message": "Creating personalized adventures...",
-            "progress": 0.85
-        })
-        
-        try:
-            personalization = state.get("user_personalization")
-            
-            result = await self.adventure_creator.process({
-                "researched_venues": state.get("researched_venues", []),
-                "enhanced_locations": state.get("enhanced_locations", []),
-                "parsed_preferences": state.get("parsed_preferences", {}),
-                "target_location": state.get("target_location", "Boston, MA"),
-                "user_personalization": personalization
+        tracer = get_tracer()
+        venues = state.get("scouted_venues", [])
+
+        with tracer.start_as_current_span("miniquest.agent.tavily_research") as span:
+            span.set_attribute("agent.name", "TavilyResearch")
+            span.set_attribute("agent.node", "research_venues")
+            span.set_attribute("agent.step", "4/7")
+            span.set_attribute("input.venues_to_research", len(venues))
+
+            self._emit_progress({
+                "step": "research_venues", "agent": "TavilyResearch",
+                "status": "in_progress",
+                "message": f"Researching {len(venues)} venues (parallel + cached)...", "progress": 0.57
             })
-            
-            if result["success"]:
-                adventures = result["data"]["adventures"]
-                
-                self._emit_progress({
-                    "step": "create_adventures",
-                    "agent": "AdventureCreator",
-                    "status": "in_progress",
-                    "message": f"Generating optimized routes for {len(adventures)} adventures...",
-                    "progress": 0.92,
-                    "details": {"adventure_count": len(adventures)}
+
+            try:
+                result = await self.research_agent.process({
+                    "venues": venues,
+                    "location": state.get("target_location", "Boston, MA"),
+                    "max_venues": 8
                 })
-                
-                adventures = await self._add_individual_routing_to_adventures(
-                    adventures,
-                    state.get("enhanced_locations", []),
-                    state.get("user_address"),
-                    state.get("target_location", "Boston, MA")
+
+                if result["success"]:
+                    state["researched_venues"] = result["data"]["researched_venues"]
+                    state["metadata"]["research_stats"] = result["data"]["research_stats"]
+
+                    stats = result["data"]["research_stats"]
+                    span.set_attribute("agent.outcome", "success")
+                    span.set_attribute("output.venues_researched", stats.get("total_venues", 0))
+                    span.set_attribute("output.total_insights", stats.get("total_insights", 0))
+                    span.set_attribute("output.cache_hit_rate", stats.get("cache_hit_rate", "0%"))
+                    span.set_attribute("output.avg_confidence", round(stats.get("avg_confidence", 0), 2))
+
+                    self._emit_progress({
+                        "step": "research_venues", "agent": "TavilyResearch",
+                        "status": "complete",
+                        "message": f"Research complete: {stats.get('total_insights', 0)} insights",
+                        "progress": 0.71
+                    })
+
+            except Exception as e:
+                span.set_attribute("agent.outcome", "error")
+                span.set_attribute("error.message", str(e))
+                logger.error(f"Research error: {e}")
+
+            elapsed = time.time() - start_time
+            span.set_attribute("agent.duration_seconds", round(elapsed, 3))
+            self._track_timing("research_venues", elapsed)
+
+        return state
+
+
+    async def _summarize_research_node(self, state: AdventureState) -> AdventureState:
+        """Node 5/7 — with OTel span"""
+        start_time = time.time()
+        tracer = get_tracer()
+
+        with tracer.start_as_current_span("miniquest.agent.research_summary") as span:
+            span.set_attribute("agent.name", "ResearchSummary")
+            span.set_attribute("agent.node", "summarize_research")
+            span.set_attribute("agent.step", "5/7")
+            span.set_attribute("input.venues_to_summarize", len(state.get("researched_venues", [])))
+
+            self._emit_progress({
+                "step": "summarize_research", "agent": "ResearchSummary",
+                "status": "in_progress", "message": "Structuring research insights...", "progress": 0.71
+            })
+
+            try:
+                researched_venues = state.get("researched_venues", [])
+                if not researched_venues:
+                    span.set_attribute("agent.outcome", "skipped")
+                    return state
+
+                result = await self.research_summary_agent.process({
+                    "researched_venues": researched_venues
+                })
+
+                if result["success"]:
+                    state["researched_venues"] = result["data"]["summarized_venues"]
+                    state["metadata"]["research_summarized"] = True
+                    span.set_attribute("agent.outcome", "success")
+                    span.set_attribute("output.venues_summarized", result["data"].get("total_summarized", 0))
+
+            except Exception as e:
+                span.set_attribute("agent.outcome", "error")
+                span.set_attribute("error.message", str(e))
+                logger.error(f"Summary error: {e}")
+
+            elapsed = time.time() - start_time
+            span.set_attribute("agent.duration_seconds", round(elapsed, 3))
+            self._track_timing("summarize_research", elapsed)
+
+        return state
+
+
+    async def _enhance_routing_node(self, state: AdventureState) -> AdventureState:
+        """Node 6/7 — with OTel span"""
+        start_time = time.time()
+        tracer = get_tracer()
+
+        with tracer.start_as_current_span("miniquest.agent.routing") as span:
+            span.set_attribute("agent.name", "RoutingAgent")
+            span.set_attribute("agent.node", "enhance_routing")
+            span.set_attribute("agent.step", "6/7")
+
+            self._emit_progress({
+                "step": "enhance_routing", "agent": "RoutingAgent",
+                "status": "in_progress", "message": "Preparing location data for routing...", "progress": 0.85
+            })
+
+            try:
+                city_name = self._extract_city_name(state.get("target_location", "Boston, MA"))
+                enhanced_locations = self._convert_to_enhanced_locations(
+                    state.get("researched_venues", []), city_name
                 )
-                
-                state["final_adventures"] = adventures
-                
-                self._emit_progress({
-                    "step": "create_adventures",
-                    "agent": "AdventureCreator",
-                    "status": "complete",
-                    "message": f"Created {len(adventures)} complete adventures with optimized routes",
-                    "progress": 1.0,
-                    "details": {"adventure_count": len(adventures)}
+                state["enhanced_locations"] = enhanced_locations
+
+                span.set_attribute("agent.outcome", "success")
+                span.set_attribute("output.locations_prepared", len(enhanced_locations))
+                span.set_attribute("output.google_maps_enabled", self.route_optimization_enabled)
+
+            except Exception as e:
+                span.set_attribute("agent.outcome", "error")
+                span.set_attribute("error.message", str(e))
+                logger.error(f"Routing prep error: {e}")
+
+            elapsed = time.time() - start_time
+            span.set_attribute("agent.duration_seconds", round(elapsed, 3))
+            self._track_timing("enhance_routing", elapsed)
+
+        return state
+
+
+    async def _create_adventures_node(self, state: AdventureState) -> AdventureState:
+        """Node 7/7 — with OTel span"""
+        start_time = time.time()
+        tracer = get_tracer()
+
+        with tracer.start_as_current_span("miniquest.agent.adventure_creator") as span:
+            span.set_attribute("agent.name", "AdventureCreator")
+            span.set_attribute("agent.node", "create_adventures")
+            span.set_attribute("agent.step", "7/7")
+            span.set_attribute("input.venues_available", len(state.get("researched_venues", [])))
+            span.set_attribute("input.locations_available", len(state.get("enhanced_locations", [])))
+
+            self._emit_progress({
+                "step": "create_adventures", "agent": "AdventureCreator",
+                "status": "in_progress", "message": "Creating personalized adventures...", "progress": 0.85
+            })
+
+            try:
+                result = await self.adventure_creator.process({
+                    "researched_venues": state.get("researched_venues", []),
+                    "enhanced_locations": state.get("enhanced_locations", []),
+                    "parsed_preferences": state.get("parsed_preferences", {}),
+                    "target_location": state.get("target_location", "Boston, MA"),
+                    "user_personalization": state.get("user_personalization")
                 })
-                
-        except Exception as e:
-            logger.error(f"Creation error: {e}")
-        
-        self._track_timing("create_adventures", time.time() - start_time)
+
+                if result["success"]:
+                    adventures = result["data"]["adventures"]
+
+                    adventures = await self._add_individual_routing_to_adventures(
+                        adventures,
+                        state.get("enhanced_locations", []),
+                        state.get("user_address"),
+                        state.get("target_location", "Boston, MA")
+                    )
+
+                    state["final_adventures"] = adventures
+
+                    span.set_attribute("agent.outcome", "success")
+                    span.set_attribute("output.adventures_created", len(adventures))
+                    span.set_attribute("output.google_routes_used",
+                        sum(1 for a in adventures
+                            if a.get("routing_info", {}).get("optimization_method") == "google_maps_directions_api")
+                    )
+
+                    self._emit_progress({
+                        "step": "create_adventures", "agent": "AdventureCreator",
+                        "status": "complete",
+                        "message": f"Created {len(adventures)} complete adventures",
+                        "progress": 1.0
+                    })
+
+            except Exception as e:
+                span.set_attribute("agent.outcome", "error")
+                span.set_attribute("error.message", str(e))
+                logger.error(f"Creation error: {e}")
+
+            elapsed = time.time() - start_time
+            span.set_attribute("agent.duration_seconds", round(elapsed, 3))
+            self._track_timing("create_adventures", elapsed)
+
         return state
     
     # ========================================

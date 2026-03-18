@@ -9,13 +9,14 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AdventuresPage from './pages/AdventuresPage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import ObservabilityPage from './pages/ObservabilityPage';
 import SavedAdventuresPage from './pages/SavedAdventuresPage';
 import AboutPage from './pages/AboutPage';
 import './App.css';
 
 const DARK_BG = 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)';
 const LIGHT_BG = 'linear-gradient(135deg, #e0e7ff 0%, #f0fdf4 50%, #fef9c3 100%)';
-
+const OBSERVABILITY_ENABLED = (import.meta as any).env.VITE_OBSERVABILITY_ENABLED === 'true';
 // ── Protected / Public route guards ──────────────────────────
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -83,6 +84,9 @@ const AppShell: React.FC = () => {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/app" element={<ProtectedRoute><AdventuresPage /></ProtectedRoute>} />
         <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
+        {OBSERVABILITY_ENABLED && (
+          <Route path="/observability" element={<ObservabilityPage />} />
+        )}
         <Route path="/saved-adventures" element={<ProtectedRoute><SavedAdventuresPage /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

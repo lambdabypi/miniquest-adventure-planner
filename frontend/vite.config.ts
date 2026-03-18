@@ -18,6 +18,7 @@ const spaFallbackPlugin = (): Plugin => ({
       if (
         url.startsWith('/api') ||
         url.startsWith('/health') ||
+        url.startsWith('/prometheus') ||
         url.startsWith('/@') ||
         url.includes('.') ||
         url.startsWith('/src')
@@ -54,7 +55,13 @@ export default defineConfig({
         target: 'http://backend:8000',
         changeOrigin: true,
         secure: false,
-      }
+      },
+      '/prometheus': {
+        target: 'http://host.docker.internal:9090',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/prometheus/, ''),
+      },
     },
     hmr: {
       overlay: true,

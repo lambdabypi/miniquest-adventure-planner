@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 import logging
 import sys
 import os
+from .core.telemetry import setup_telemetry
 
 from .core.config import settings
 from .agents.coordination import LangGraphCoordinator
@@ -63,6 +64,12 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 Starting MiniQuest API (OPTIMIZED)...")
     
     try:
+        # Initialize telemetry first so we can trace startup
+        setup_telemetry(
+            api_key="shreyas-test-key",
+            service_name="miniquest"
+        )
+
         # Initialize RAG system first (SINGLETON)
         rag_system = None
         
