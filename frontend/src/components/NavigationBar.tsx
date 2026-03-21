@@ -22,6 +22,7 @@ const NavigationBar: React.FC = () => {
 
 	const NAV_LINKS = isAuthenticated ? [
 		{ path: '/app', icon: '📍', label: 'Create Adventures' },
+		{ path: '/social', icon: '🌍', label: 'Community' },
 		{ path: '/saved-adventures', icon: '💾', label: 'Saved Adventures' },
 		{ path: '/analytics', icon: '📊', label: 'Analytics' },
 		...(OBSERVABILITY_ENABLED ? [{ path: '/observability', icon: '🔭', label: 'Observability' }] : []),

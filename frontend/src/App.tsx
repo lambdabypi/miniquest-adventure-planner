@@ -11,6 +11,8 @@ import AdventuresPage from './pages/AdventuresPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import ObservabilityPage from './pages/ObservabilityPage';
 import SavedAdventuresPage from './pages/SavedAdventuresPage';
+import SharedAdventurePage from './pages/SharedAdventurePage';
+import SocialPage from './pages/SocialPage';
 import AboutPage from './pages/AboutPage';
 import './App.css';
 
@@ -88,6 +90,8 @@ const AppShell: React.FC = () => {
           <Route path="/observability" element={<ObservabilityPage />} />
         )}
         <Route path="/saved-adventures" element={<ProtectedRoute><SavedAdventuresPage /></ProtectedRoute>} />
+        <Route path="/shared/:shareId" element={<SharedAdventurePage />} />
+        <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

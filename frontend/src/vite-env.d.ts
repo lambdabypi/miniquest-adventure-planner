@@ -3,6 +3,7 @@
 
 interface ImportMetaEnv {
 	readonly VITE_API_URL: string;
+	readonly VITE_OBSERVABILITY_ENABLED: string;
 	// Add other env variables here as needed
 	// readonly VITE_ANOTHER_VAR: string;
 }

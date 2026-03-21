@@ -1,7 +1,8 @@
 // frontend/src/components/ChatSidebar.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Conversation } from '../api/chat';
 import { useTheme, t } from '../contexts/ThemeContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 interface ChatSidebarProps {
 	conversations: Conversation[];
@@ -11,16 +12,23 @@ interface ChatSidebarProps {
 	onNewChat: () => void;
 	onDeleteConversation: (conversationId: string) => void;
 	layoutMode: 'chat-left' | 'chat-right';
+	onRequestOpen?: (trigger: () => void) => void;
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
 	conversations, currentConversationId, loading,
-	onLoadConversation, onNewChat, onDeleteConversation, layoutMode,
+	onLoadConversation, onNewChat, onDeleteConversation, layoutMode, onRequestOpen,
 }) => {
 	const { isDark } = useTheme();
 	const tk = t(isDark);
+	const isMobile = useIsMobile();
 	const [showSidebar, setShowSidebar] = useState(false);
-	const isOnLeft = layoutMode === 'chat-left';
+	const isOnLeft = isMobile ? true : layoutMode === 'chat-left';
+
+	// Expose open trigger to parent
+	useEffect(() => {
+		onRequestOpen?.(() => setShowSidebar(true));
+	}, [onRequestOpen]);
 
 	const handleNewChat = () => { setShowSidebar(false); onNewChat(); };
 	const handleLoadConversation = (id: string) => { setShowSidebar(false); onLoadConversation(id); };
@@ -117,33 +125,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 				</button>
 			</div>
 
-			{/* Toggle button */}
-			{!showSidebar && (
-				<button
-					onClick={() => setShowSidebar(true)}
-					style={{
-						position: 'fixed',
-						bottom: '20px',
-						left: isOnLeft ? '370px' : 'auto',
-						right: isOnLeft ? 'auto' : '370px',
-						zIndex: 1000,
-						background: 'linear-gradient(135deg, #7c3aed, #3b82f6)',
-						color: 'white', border: 'none', borderRadius: '12px',
-						padding: '11px 20px', cursor: 'pointer',
-						fontSize: '0.88rem', fontWeight: 600,
-						boxShadow: '0 4px 16px rgba(124,58,237,0.45)',
-						transition: 'all 0.25s',
-						display: 'flex', alignItems: 'center', gap: 8,
-						animation: 'float 3s ease-in-out infinite',
-					}}
-					onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px) scale(1.04)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(124,58,237,0.6)'; }}
-					onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,58,237,0.45)'; }}
-				>
-					<span>💬</span>
-					<span>History</span>
-				</button>
-			)}
-
 			{/* Overlay */}
 			{showSidebar && (
 				<div
@@ -158,20 +139,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 			)}
 
 			<style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; } to { opacity: 1; }
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideInItem {
           from { opacity: 0; transform: translateX(-12px); }
           to { opacity: 1; transform: translateX(0); }
         }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
-        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
       `}</style>
 		</>
 	);
