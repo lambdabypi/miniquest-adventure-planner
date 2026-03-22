@@ -55,7 +55,7 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ currentProgress, prog
 		}}>
 			{/* Header */}
 			<div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-				<div style={{ fontSize: '1.2rem', animation: 'spin 1s linear infinite' }}>🔄</div>
+				<div style={{ fontSize: '1.2rem', animation: 'spin 1s linear infinite' }}>⭕</div>
 				<div style={{ fontSize: '1rem', fontWeight: 700, color: tk.textPrimary }}>
 					Adventure Generation Progress
 				</div>
