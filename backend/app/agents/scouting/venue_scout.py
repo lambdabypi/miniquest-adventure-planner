@@ -3,6 +3,7 @@
 
 from typing import List, Dict, Optional
 from openai import AsyncOpenAI
+import asyncio
 import googlemaps
 import json
 import re
@@ -65,41 +66,32 @@ class VenueScoutAgent(BaseAgent):
             self.log_processing("Using KNOWLEDGE-BASED search", f"Finding popular venues in {location}")
             return await self._knowledge_based_search(preferences, location, user_query)
     
-    async def _proximity_search(self, preferences: List[str], location: str, user_query: str) -> Dict:
-        """
-        Use Google Places to find ACTUAL nearby venues.
-        
-        Strategy: Geocode user address → Search within radius → Filter by preferences
-        """
+    async def _proximity_search(self, preferences, location, user_query):
         try:
-            # Step 1: Geocode user location
-            self.log_processing("Geocoding location", location)
             geocode_result = self.gmaps.geocode(location)
-            
             if not geocode_result:
-                self.log_warning("Geocoding failed - falling back to knowledge-based")
                 return await self._knowledge_based_search(preferences, location, user_query)
-            
+
             lat = geocode_result[0]['geometry']['location']['lat']
             lng = geocode_result[0]['geometry']['location']['lng']
-            
-            self.log_processing("Location found", f"{lat}, {lng}")
-            
-            # Step 2: Search nearby for each preference
-            all_nearby_venues = []
-            
-            for pref in preferences[:5]:  # Limit to 5 preferences
-                nearby = self._search_nearby_by_preference(lat, lng, pref, location)
-                all_nearby_venues.extend(nearby)
-                self.log_processing(f"Found {len(nearby)} venues for '{pref}'")
-            
-            # Step 3: Deduplicate and diversify
+
+            # ✅ PARALLEL: run all preference searches concurrently
+            import asyncio, functools
+            loop = asyncio.get_event_loop()
+
+            async def search_one(pref):
+                return await loop.run_in_executor(
+                    None,
+                    functools.partial(self._search_nearby_by_preference, lat, lng, pref, location)
+                )
+
+            results = await asyncio.gather(*[search_one(p) for p in preferences[:5]])
+            all_nearby_venues = [v for sublist in results for v in sublist]
+
             unique_venues = self._deduplicate_venues(all_nearby_venues)
             diverse_venues = self._select_diverse_venues(unique_venues, target_count=10)
-            
-            # Step 4: Enhance with metadata
             enhanced_venues = [self._enhance_venue(v, location) for v in diverse_venues]
-            
+
             result = {
                 "venues": enhanced_venues,
                 "total_found": len(enhanced_venues),
@@ -109,13 +101,10 @@ class VenueScoutAgent(BaseAgent):
                 "search_strategy": "proximity_based",
                 "user_coordinates": {"lat": lat, "lng": lng}
             }
-            
-            self.log_success(f"Proximity search: {len(enhanced_venues)} nearby venues")
+            self.log_success(f"Parallel proximity search: {len(enhanced_venues)} venues")
             return self.create_response(True, result)
-            
         except Exception as e:
             self.log_error(f"Proximity search failed: {e}")
-            # Fallback to knowledge-based
             return await self._knowledge_based_search(preferences, location, user_query)
     
     def _search_nearby_by_preference(self, lat: float, lng: float, preference: str, location: str) -> List[Dict]:

@@ -8,6 +8,8 @@ from .auth import router as auth_router, get_current_user
 from .analytics import router as analytics_router
 from .chat import router as chat_router
 from .saved_adventures import router as saved_adventures_router
+from .share import router as share_router
+from .social import router as social_router
 
 __all__ = [
     'adventures_router',
@@ -17,5 +19,7 @@ __all__ = [
     'analytics_router',
     'chat_router',
     'saved_adventures_router',
+    'share_router',
+    'social_router',
     'get_current_user',
 ]

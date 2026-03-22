@@ -8,7 +8,8 @@ import logging
 import sys
 import os
 from .core.telemetry import setup_telemetry
-
+from .api.routes.social import router as social_router
+from .api.routes.share import router as share_router
 from .core.config import settings
 from .agents.coordination import LangGraphCoordinator
 from .database import MongoDBClient
@@ -225,6 +226,8 @@ app.include_router(testing_router)
 app.include_router(analytics_router)
 app.include_router(chat_router)
 app.include_router(saved_adventures_router)
+app.include_router(social_router)
+app.include_router(share_router)
 
 # ========================================
 # ✅ NEW: PERFORMANCE & CACHE ROUTES

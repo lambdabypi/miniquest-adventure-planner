@@ -99,18 +99,18 @@ class ResearchSummaryAgent:
                 venue_summary = venue.get("venue_summary", "")
                 
                 all_text = f"""
-CURRENT INFO: {current_info[:1500]}
+CURRENT INFO: {current_info[:200]}
 
-HOURS INFO: {hours_info[:800]}
+HOURS INFO: {hours_info[:200]}
 
-VENUE SUMMARY: {venue_summary[:600]}
+VENUE SUMMARY: {venue_summary[:200]}
 """.strip()
             
             venues_data.append({
                 "id": i,
                 "name": venue.get("name", "Unknown Venue"),
                 "type": venue.get("type", "attraction"),
-                "research_text": all_text[:2400],  # ✅ Optimized: 2400 chars max
+                "research_text": all_text[:600],  # ✅ Optimized: 2400 chars max
                 "visitor_tips": venue.get("visitor_tips", [])[:10],
                 "research_confidence": venue.get("research_confidence", 0.0),
                 "total_insights": venue.get("total_insights", 0),
@@ -126,7 +126,7 @@ VENUE SUMMARY: {venue_summary[:600]}
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,   # ✅ Low for accurate extraction
-                max_tokens=6000    # ✅ Optimized: 6000 for 8 venues
+                max_tokens=2000    # ✅ Optimized: 2000 for 8 venues
             )
             
             content = self._clean_json_response(response.choices[0].message.content)

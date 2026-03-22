@@ -58,6 +58,19 @@ from .chat_models import (
     Conversation,
     ConversationResponse
 )
+from .share_models import (
+    CreateShareRequest,
+    SharedItineraryResponse,
+    PublicItineraryResponse,
+)
+from .social_models import (
+    CreatePostRequest,
+    PostLikeResponse,
+    CommentRequest,
+    CommentResponse,
+    PostResponse,
+    PostListResponse,
+)
 
 __all__ = [
     # ========================================
@@ -135,4 +148,18 @@ __all__ = [
     'ConversationMetadata',
     'Conversation',
     'ConversationResponse',
+	
+    # ========================================
+    # SOCIAL MODELS (Future Feature)
+    # ========================================
+
+    'CreateShareRequest',
+    'SharedItineraryResponse',
+    'PublicItineraryResponse',
+    'CreatePostRequest',
+    'PostLikeResponse',
+    'CommentRequest',
+    'CommentResponse',
+    'PostResponse',
+    'PostListResponse',
 ]

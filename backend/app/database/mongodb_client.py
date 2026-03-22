@@ -191,6 +191,30 @@ class MongoDBClient:
             logger.info("   ✅ saved_adventures: 8 indexes (user-saved full data)")
             logger.info("   ✅ users: 2 indexes")
             logger.info("   ✅ chat_conversations: 2 indexes")
+
+            # ========================================
+            # social_posts
+            # ========================================
+            await db["social_posts"].create_index([
+                ("created_at", DESCENDING)
+            ], name="social_posts_created_idx")
+            await db["social_posts"].create_index([
+                ("user_id", ASCENDING),
+                ("created_at", DESCENDING)
+            ], name="social_posts_user_idx")
+            await db["social_posts"].create_index([
+                ("tags", ASCENDING)
+            ], name="social_posts_tags_idx")
+
+            # ========================================
+            # shared_itineraries
+            # ========================================
+            await db["shared_itineraries"].create_index([
+                ("share_id", ASCENDING)
+            ], unique=True, name="shared_itineraries_id_idx")
+            await db["shared_itineraries"].create_index([
+                ("expires_at", ASCENDING)
+            ], expireAfterSeconds=0, name="shared_itineraries_ttl_idx")
             
         except Exception as e:
             logger.error(f"⚠️ Error creating indexes: {e}")
