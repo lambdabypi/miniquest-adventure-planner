@@ -516,26 +516,82 @@ class LangGraphCoordinator:
         
         return location
     
-    def _convert_to_enhanced_locations(self, researched_venues: list, city_name: str) -> list:
+    
+    def _find_nearest_branch(self, venue_name: str, resolved_address: str, origin: str) -> Optional[str]:
+        """
+        For franchise venues (e.g. Tatte Bakery & Cafe), use Google Places Text Search
+        to find ALL branches near the origin and return the closest one's address.
+        Falls back to resolved_address if Google Maps is unavailable or finds nothing better.
+        """
+        if not self.route_optimization_enabled:
+            return resolved_address
+
+        try:
+            # Geocode the origin to get lat/lng
+            origin_geocode = self.gmaps.geocode(origin)
+            if not origin_geocode:
+                return resolved_address
+
+            origin_lat = origin_geocode[0]["geometry"]["location"]["lat"]
+            origin_lng = origin_geocode[0]["geometry"]["location"]["lng"]
+
+            # Search for all branches of this venue near origin
+            results = self.gmaps.places(
+                query=venue_name,
+                location=(origin_lat, origin_lng),
+                radius=5000,  # 5km radius
+            )
+
+            candidates = results.get("results", [])
+            if not candidates:
+                return resolved_address
+
+            # Find the closest candidate by straight-line distance
+            def _distance_sq(place):
+                loc = place["geometry"]["location"]
+                dlat = loc["lat"] - origin_lat
+                dlng = loc["lng"] - origin_lng
+                return dlat * dlat + dlng * dlng
+
+            nearest = min(candidates, key=_distance_sq)
+            nearest_address = nearest.get("formatted_address") or nearest.get("vicinity", "")
+
+            if nearest_address and nearest_address != resolved_address:
+                logger.info(
+                    f"   🏪 Nearest branch swap: '{resolved_address}' → '{nearest_address}' "
+                    f"(closer to origin '{origin}')"
+                )
+                return nearest_address
+
+            return resolved_address
+
+        except Exception as e:
+            logger.warning(f"Nearest branch lookup failed for '{venue_name}': {e}")
+            return resolved_address
+
+    def _convert_to_enhanced_locations(
+        self,
+        researched_venues: list,
+        city_name: str,
+        origin: Optional[str] = None,   # ✅ NEW — user address or target city
+    ) -> list:
         """
         Convert researched venues to routable location dicts.
 
         Address priority:
           0. verified_address from TavilyResearch (extracted from live content)
+             → for franchises, swapped for the nearest branch via Google Places
           1. Full street address already on the venue dict
           2. address_hint + city
           3. venue name + neighbourhood + city
-          4. venue name + city  (geocodable fallback — never raw city-only)
+          4. venue name + city  (geocodable fallback)
         """
         enhanced_locations = []
 
-        # ── helpers defined ONCE, before the loop ────────────────────────────
         def _clean(s: str) -> str:
-            """Collapse newlines / extra whitespace that regex extraction can leave."""
             return re.sub(r"\s+", " ", s.strip())
 
         def _has_street(s: str) -> bool:
-            """True when the string contains a real street-level component."""
             if not s:
                 return False
             s = _clean(s)
@@ -550,7 +606,9 @@ class LangGraphCoordinator:
         def _is_city_only(s: str) -> bool:
             return bool(s) and not _has_street(s)
 
-        # ─────────────────────────────────────────────────────────────────────
+        # Resolve origin for nearest-branch lookups
+        effective_origin = origin or city_name
+
         for venue in researched_venues:
             venue_name = venue.get("name", "Unknown")
 
@@ -559,10 +617,14 @@ class LangGraphCoordinator:
             if raw_verified:
                 cleaned = _clean(raw_verified)
                 if _has_street(cleaned):
-                    logger.debug(f"✅ [{venue_name}] research-verified: {cleaned}")
+                    # ✅ NEW: for franchises, find the nearest branch instead
+                    final_address = self._find_nearest_branch(
+                        venue_name, cleaned, effective_origin
+                    )
+                    logger.debug(f"✅ [{venue_name}] research-verified: {final_address}")
                     enhanced_locations.append({
                         "name":    venue_name,
-                        "address": cleaned,
+                        "address": final_address,
                         "type":    venue.get("type", "attraction"),
                     })
                     continue
@@ -571,23 +633,16 @@ class LangGraphCoordinator:
             hint    = venue.get("address_hint", "").strip()
             hood    = venue.get("neighborhood", "").strip()
 
-            # ── Priority 1: full street address on the venue dict ─────────────
             if _has_street(address):
                 routable = address
                 logger.debug(f"✅ [{venue_name}] full street address: {routable}")
-
-            # ── Priority 2: address_hint has a street component ───────────────
             elif _has_street(hint):
                 city_part = city_name.split(",")[0].strip()
                 routable  = hint if city_part.lower() in hint.lower() else f"{hint}, {city_name}"
                 logger.debug(f"✅ [{venue_name}] hint + city: {routable}")
-
-            # ── Priority 3: meaningful neighbourhood ──────────────────────────
             elif hood and not _is_city_only(hood):
                 routable = f"{venue_name}, {hood}, {city_name}"
                 logger.info(f"⚠️ [{venue_name}] name + neighbourhood: {routable}")
-
-            # ── Priority 4: name + city (always geocodable) ───────────────────
             else:
                 routable = f"{venue_name}, {city_name}"
                 logger.warning(f"⚠️ [{venue_name}] name + city fallback: {routable}")
@@ -600,7 +655,6 @@ class LangGraphCoordinator:
 
         logger.info(f"✅ Converted {len(enhanced_locations)} venues to enhanced locations")
         return enhanced_locations
-    
     
     def _calculate_string_similarity(self, str1: str, str2: str) -> float:
         """
@@ -1155,14 +1209,20 @@ class LangGraphCoordinator:
             try:
                 preferences = state.get("parsed_preferences", {})
                 result = await self.venue_scout.process({
-                    "preferences":      preferences.get("preferences", []),
-                    "location":         state.get("target_location", "Boston, MA"),
-                    "user_query":       state.get("user_input", ""),
-                    "generation_options": state.get("generation_options", {}),  # ✅ NEW
+                    "preferences":        preferences.get("preferences", []),
+                    "location":           state.get("target_location", "Boston, MA"),
+                    "user_query":         state.get("user_input", ""),
+                    "generation_options": state.get("generation_options", {}),
                 })
 
                 if result["success"]:
                     venues = result["data"]["venues"]
+
+                    # ✅ Fetch official websites for Google Places venues
+                    if result["data"].get("search_strategy") == "google_places_primary":
+                        venues = await self.venue_scout._fetch_websites_for_venues(venues)
+                        logger.info(f"   🌐 Websites fetched for {sum(1 for v in venues if v.get('website'))} venues")
+
                     state["scouted_venues"] = venues
 
                     span.set_attribute("agent.outcome", "success")
@@ -1206,10 +1266,15 @@ class LangGraphCoordinator:
             })
 
             try:
+                # ✅ Size the research pool to match stops_per_adventure
+                # Need stops*3 venues so 3 adventures can each pick a non-overlapping set
+                stops = max(1, min(6, int(state.get("generation_options", {}).get("stops_per_adventure", 3))))
+                max_venues = min(stops * 3, 18)  # e.g. 9 for 3 stops, 18 for 6 stops
+
                 result = await self.research_agent.process({
                     "venues": venues,
                     "location": state.get("target_location", "Boston, MA"),
-                    "max_venues": 8
+                    "max_venues": max_venues,
                 })
 
                 if result["success"]:
@@ -1222,6 +1287,7 @@ class LangGraphCoordinator:
                     span.set_attribute("output.total_insights", stats.get("total_insights", 0))
                     span.set_attribute("output.cache_hit_rate", stats.get("cache_hit_rate", "0%"))
                     span.set_attribute("output.avg_confidence", round(stats.get("avg_confidence", 0), 2))
+                    span.set_attribute("output.max_venues_requested", max_venues)
 
                     self._emit_progress({
                         "step": "research_venues", "agent": "TavilyResearch",
@@ -1240,7 +1306,6 @@ class LangGraphCoordinator:
             self._track_timing("research_venues", elapsed)
 
         return state
-
 
     async def _summarize_research_node(self, state: AdventureState) -> AdventureState:
         """Node 5/7 — with OTel span"""
@@ -1304,7 +1369,9 @@ class LangGraphCoordinator:
             try:
                 city_name = self._extract_city_name(state.get("target_location", "Boston, MA"))
                 enhanced_locations = self._convert_to_enhanced_locations(
-                    state.get("researched_venues", []), city_name
+                    state.get("researched_venues", []),
+                    city_name,
+                    origin=state.get("user_address") or state.get("target_location"),
                 )
                 state["enhanced_locations"] = enhanced_locations
 

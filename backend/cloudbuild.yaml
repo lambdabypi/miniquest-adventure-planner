@@ -1,0 +1,29 @@
+steps:
+  # Pull the previous image to use as cache (ignore failure on first run)
+  - name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - docker pull us-east1-docker.pkg.dev/project-572cd754-7f2b-465c-b68/miniquest/backend:latest || true
+
+  # Build using the cached image
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --cache-from
+      - us-east1-docker.pkg.dev/project-572cd754-7f2b-465c-b68/miniquest/backend:latest
+      - -t
+      - us-east1-docker.pkg.dev/project-572cd754-7f2b-465c-b68/miniquest/backend:latest
+      - .
+
+  # Push the new image
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - us-east1-docker.pkg.dev/project-572cd754-7f2b-465c-b68/miniquest/backend:latest
+
+images:
+  - us-east1-docker.pkg.dev/project-572cd754-7f2b-465c-b68/miniquest/backend:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

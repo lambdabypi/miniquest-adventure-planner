@@ -301,13 +301,16 @@ VIBE / MOOD WORDS → you MUST translate to real venue types in preferences[]:
   "drinks" / "bar hopping"             → bars, breweries, cocktail bars, wine bars
   "date night" / "romantic"            → restaurants, wine bars, rooftop bars
   "chill" / "relaxing"                 → coffee shops, parks, bookstores
-  "foodie" / "brunch"                  → restaurants, cafes, food markets
+  "brunch" / "mimosas" / "brunch spots" → brunch spots, cafes, bakeries
+  "foodie" / "lunch" / "dinner"        → restaurants, cafes, food markets
   "artsy" / "cultural"                 → art galleries, museums
   "friends" / "group"                  → bars, restaurants, bowling, escape rooms
   "birthday" / "celebration"           → bars, cocktail bars, restaurants, rooftop bars
   "hidden gems"                        → dive bars, local cafes, indie shops
   "rainy day"                          → museums, coffee shops, bookstores, cinemas
   IMPORTANT: Do NOT put the vibe word itself in preferences[]. Use venue types ONLY.
+  IMPORTANT: "brunch" and "mimosas" MUST map to "brunch spots" — NOT "restaurants" or "cafes", 
+  and similiarly for any other related queries.
 
 BUDGET PARSING — accept any of these forms:
   - Dollar amount: "$40", "40 dollars", "under $50"   → numeric value

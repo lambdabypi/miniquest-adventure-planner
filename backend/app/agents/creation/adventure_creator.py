@@ -84,11 +84,11 @@ class AdventureCreatorAgent(BaseAgent):
         researched_venues: List[Dict],
         enhanced_locations: List[Dict],
         target_location: str,
-        stops: int = 3,           # ✅ NEW — sized so 3 adventures can each pick a different set
+        stops: int = 3,
     ) -> List[Dict]:
-        # Need stops*3 venues minimum so adventures don't overlap.
-        # Cap at 12 (Tavily typically returns 8-12).
-        pool_size = min(max(stops * 3, 8), 12)
+        # Need stops*3 venues so 3 adventures can each pick a non-overlapping set.
+        # Cap at 18 to support up to 6 stops (6*3=18), matching the research node ceiling.
+        pool_size = min(max(stops * 3, 8), 18)
         profiles = []
         for i, venue in enumerate(researched_venues[:pool_size]):
             maps_data = enhanced_locations[i] if i < len(enhanced_locations) else {}

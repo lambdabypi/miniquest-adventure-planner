@@ -2,5 +2,6 @@
 """Scouting module exports"""
 
 from .venue_scout import VenueScoutAgent
+from .tavily_scout import TavilyVenueScout
 
-__all__ = ['VenueScoutAgent']
+__all__ = ['VenueScoutAgent', 'TavilyVenueScout']
