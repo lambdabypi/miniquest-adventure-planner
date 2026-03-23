@@ -21,7 +21,7 @@ The full pipeline completes in roughly 4 seconds on a warm cache. The ResearchSu
 
 ---
 ## Technical Documentation
-[https://lambdabypi.github.io/miniquest-adventure-planner/miniquest-technical-complete/index.html#0](Technical Documentation)
+[Technical Documentation](https://lambdabypi.github.io/miniquest-adventure-planner/miniquest-technical-complete/index.html#0)
 
 ## Live deployment
 
