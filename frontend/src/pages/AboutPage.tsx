@@ -4,20 +4,19 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme, t } from '../contexts/ThemeContext';
 
 const AGENTS = [
-	{ icon: '📍', name: 'LocationParser', desc: 'Detects the target city from your natural language query.' },
-	{ icon: '🤔', name: 'IntentParser', desc: 'Understands what you want — food, culture, outdoors, nightlife.' },
-	{ icon: '🔍', name: 'VenueScout', desc: 'Finds 10 candidate venues using knowledge-base or Places API.' },
-	{ icon: '🔬', name: 'TavilyResearch', desc: 'Runs 8 parallel live web searches for hours, menus, and tips.' },
-	{ icon: '📊', name: 'ResearchSummary', desc: 'Distills raw research into concise, structured venue insights.' },
-	{ icon: '🗺️', name: 'RoutingAgent', desc: 'Calls Google Maps to find the optimal stop order and distances.' },
-	{ icon: '✨', name: 'AdventureCreator', desc: 'Assembles 3 themed itineraries with timing, narrative, and maps.' },
+	{ icon: '🤔', name: 'IntentParser', desc: 'Reads your request and extracts themes, activities, meal context, group size, and time-of-day — including vibe words like "chill", "party", or "date night".' },
+	{ icon: '📍', name: 'LocationParser', desc: 'Resolves your location to a canonical city name and coordinates. Only Boston and NYC are supported — anything else is caught here.' },
+	{ icon: '🔍', name: 'VenueScout', desc: 'Uses GPT-4o to generate 15-20 diverse venue candidates based on your intent and city.' },
+	{ icon: '🔬', name: 'TavilyResearch', desc: 'Runs 8 parallel live web searches — one per venue — pulling current hours, prices, reviews, and standout details.' },
+	{ icon: '🗺️', name: 'RoutingAgent', desc: 'Calculates optimal stop order, builds Google Maps deep links, and injects per-step transit directions (live MBTA for Boston).' },
+	{ icon: '✨', name: 'AdventureCreator', desc: 'Assembles 3 themed, narrative itineraries from the researched and routed venues, anchored to the real-time city clock.' },
 ];
 
 const STEPS = [
-	{ n: '01', title: 'Describe your vibe', desc: 'Type what you\'re in the mood for — as casual or specific as you like.' },
-	{ n: '02', title: '7 agents go to work', desc: 'Location, venues, live research, routing, and creation in parallel.' },
-	{ n: '03', title: 'Watch it live', desc: 'A real-time progress tracker shows every agent as it completes.' },
-	{ n: '04', title: 'Pick your adventure', desc: 'Choose from 3 curated itineraries, each with a map link and insider tips.' },
+	{ n: '01', title: 'Describe your vibe', desc: 'Type anything — "rainy afternoon in Brooklyn" or just tap a vibe chip.' },
+	{ n: '02', title: '6 agents go to work', desc: 'Location, intent, venues, live research, routing, and creation run in sequence.' },
+	{ n: '03', title: 'Watch it happen', desc: 'A real-time progress tracker shows each agent as it completes.' },
+	{ n: '04', title: 'Pick your adventure', desc: 'Choose from 3 curated itineraries, each with a map link, transit directions, and insider details.' },
 ];
 
 const USECASES = [
@@ -25,15 +24,24 @@ const USECASES = [
 	{ icon: '☕', text: 'Afternoon coffee & culture' },
 	{ icon: '🎨', text: 'Museum-hopping' },
 	{ icon: '🍽️', text: 'Dinner + evening plans' },
-	{ icon: '📸', text: 'Photo expedition' },
-	{ icon: '🤝', text: 'First date ideas' },
+	{ icon: '💑', text: 'Date night ideas' },
+	{ icon: '👥', text: 'Group days out' },
 ];
 
 const STATS = [
-	{ val: '7', label: 'AI Agents' },
-	{ val: '~75s', label: 'Avg Generation' },
+	{ val: '6', label: 'AI Agents' },
+	{ val: '~4s', label: 'Warm Cache' },
 	{ val: '90%+', label: 'Cache Hit Rate' },
-	{ val: '45+', label: 'Live Insights' },
+	{ val: '2', label: 'Cities' },
+];
+
+const FEATURES = [
+	{ icon: '🎲', title: 'Surprise Me', desc: 'One tap fires a random itinerary. No input needed.' },
+	{ icon: '👥', title: 'Group Mode', desc: 'Enter up to 6 people with individual preferences. MiniQuest finds a day that works for everyone.' },
+	{ icon: '💾', title: 'Save & Rate', desc: 'Save any itinerary, rate it, add notes. The more you save, the better your recommendations get.' },
+	{ icon: '🔗', title: 'Share Links', desc: 'Share any adventure with a public link that stays live for 30 days.' },
+	{ icon: '🌍', title: 'Community Feed', desc: 'See what other users are exploring. Post, like, and comment on adventures.' },
+	{ icon: '📊', title: 'Analytics', desc: 'Track your usage, favorite themes, top locations, and cache performance.' },
 ];
 
 const AboutPage: React.FC = () => {
@@ -49,7 +57,6 @@ const AboutPage: React.FC = () => {
 		return () => window.removeEventListener('scroll', onScroll);
 	}, []);
 
-	// Intersection observer for scroll-triggered animations
 	useEffect(() => {
 		const observer = new IntersectionObserver(
 			entries => entries.forEach(e => {
@@ -103,8 +110,8 @@ const AboutPage: React.FC = () => {
 					</h1>
 					<p style={{ fontSize: '1.05rem', color: tk.textSecondary, lineHeight: 1.8 }}>
 						MiniQuest is an AI-powered adventure planner for Boston and New York City.
-						It uses 7 specialized agents in a LangGraph workflow to turn a casual sentence
-						into a fully-researched, routed, half-day itinerary in under 90 seconds.
+						It runs 7 specialized agents in a LangGraph workflow to turn a casual sentence
+						into a fully-researched, routed, single-day itinerary in seconds.
 					</p>
 				</div>
 
@@ -155,6 +162,28 @@ const AboutPage: React.FC = () => {
 					</div>
 				</div>
 
+				{/* Features */}
+				<div id="features" data-section style={{ width: '100%', ...sectionStyle('features') }}>
+					<SectionLabel label="Features" color={tk.textAccent} />
+					<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+						{FEATURES.map(({ icon, title, desc }, i) => (
+							<div key={title} style={{
+								background: tk.cardBg, border: `1px solid ${tk.cardBorder}`,
+								borderRadius: 16, padding: '20px 20px', backdropFilter: 'blur(10px)',
+								transition: 'all 0.25s',
+								animation: `fadeInUp 0.5s ease ${i * 0.07}s both`,
+							}}
+								onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLDivElement).style.borderColor = tk.textAccent; }}
+								onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'none'; (e.currentTarget as HTMLDivElement).style.borderColor = tk.cardBorder; }}
+							>
+								<div style={{ fontSize: '1.5rem', marginBottom: 10 }}>{icon}</div>
+								<div style={{ fontWeight: 700, fontSize: '0.92rem', marginBottom: 6, color: tk.textPrimary }}>{title}</div>
+								<div style={{ fontSize: '0.82rem', color: tk.textMuted, lineHeight: 1.6 }}>{desc}</div>
+							</div>
+						))}
+					</div>
+				</div>
+
 				{/* Use cases */}
 				<div id="usecases" data-section style={{ width: '100%', ...sectionStyle('usecases') }}>
 					<SectionLabel label="Perfect For" color={tk.textAccent} />
@@ -197,7 +226,7 @@ const AboutPage: React.FC = () => {
 				<div id="cta" data-section style={{ textAlign: 'center', maxWidth: 500, ...sectionStyle('cta') }}>
 					<div style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: 12, color: tk.textPrimary }}>Ready to explore?</div>
 					<p style={{ fontSize: '0.95rem', color: tk.textSecondary, marginBottom: 28, lineHeight: 1.6 }}>
-						Boston and NYC are waiting. Your next adventure is one query away.
+						Boston and NYC are waiting. Your next adventure is one sentence away.
 					</p>
 					<button
 						onClick={() => navigate('/register')}
@@ -211,7 +240,7 @@ const AboutPage: React.FC = () => {
 						onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(124,58,237,0.55)'; }}
 						onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 24px rgba(124,58,237,0.45)'; }}
 					>
-						🚀 Get Started — Free
+						Get Started — Free
 					</button>
 				</div>
 

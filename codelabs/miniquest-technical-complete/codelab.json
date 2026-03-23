@@ -3,11 +3,11 @@
   "format": "html",
   "prefix": "https://storage.googleapis.com",
   "mainga": "UA-49880327-14",
-  "updated": "2025-12-18T18:33:30-05:00",
+  "updated": "2026-03-23T04:39:02-04:00",
   "id": "miniquest-technical-complete",
-  "duration": 130,
+  "duration": 84,
   "title": "MiniQuest: Complete Technical Documentation",
-  "summary": "MiniQuest Multi-Agent Adventure Planning System - Complete Technical Documentation",
+  "summary": "MiniQuest — AI-Powered Local Adventure Planner, Complete Technical Documentation",
   "source": "miniquest-technical-guide.md",
   "theme": "",
   "status": [
@@ -18,7 +18,7 @@
     "multi-agentsystems",
     "langgraph",
     "tavilyapi",
-    "aws"
+    "gcp"
   ],
   "tags": [
     "web"

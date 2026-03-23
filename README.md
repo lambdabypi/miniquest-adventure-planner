@@ -1,610 +1,327 @@
-﻿# MiniQuest - AI-Powered Local Adventure Planning
+﻿# MiniQuest
 
-**Multi-Agent Architecture | LangGraph | Tavily API | MongoDB Atlas | Google Maps API**
+MiniQuest is an AI-powered local adventure planner. You describe what you are in the mood for, and it generates three complete single-day itineraries backed by real-time research. It currently operates in **Boston, MA** and **New York City, NY**.
 
-A production-ready multi-agent system that generates personalized travel itineraries using real-time web research, RAG-based personalization and optimized routing.
-
----
-
-## Technical Documentation
-
-https://lambdabypi.github.io/miniquest-adventure-planner/
+It is not a list of recommendations. Each itinerary includes ordered venues, travel routes, live hours and prices, transit directions, and a narrative connecting the stops. Itineraries improve over time through RAG-based personalization built on your history.
 
 ---
 
-## Demo Video
+## How it works
 
-**[Watch Demo Video (5 min)](https://youtu.be/WLp9KBaMAjU)**
+Each request runs through a pipeline of six specialized AI agents coordinated by LangGraph:
 
----
+1. **LocationParser** resolves the location to coordinates and a canonical city name, with strict Boston/NYC guardrails. Defaults to Boston if nothing is found.
+2. **IntentParser** extracts themes, activities, meal constraints, group size, and time-of-day context. Also maps vibe words like "chill" or "party night" to concrete venue categories.
+3. **VenueScout** discovers venues using one of three paths in priority order: Google Places (primary, geocoded and proximity-ranked), Tavily live discovery (fallback if Maps is unavailable), or GPT-4o knowledge base (last resort). Websites are batch-fetched for Google Places results.
+4. **TavilyResearch** researches up to 18 venues in parallel using Tavily search and extract, pulling current hours, prices, reviews, and standout details. Results are cached in Redis for 24 hours.
+5. **RoutingAgent** resolves street-level addresses in parallel using Google Places, builds Google Maps deep links, and injects per-step transit directions. Uses typo-tolerant venue name matching with a name-similarity guard to prevent wrong-business substitutions.
+6. **AdventureCreator** generates three themed itineraries from the researched and routed venues using GPT-4o. Adventures are created concurrently via `asyncio.as_completed` and streamed to the frontend as each one finishes.
 
-## Key Features
-
-- **Multi-Agent AI System** - 7 specialized agents coordinated by LangGraph
-- **Real-Time Web Research** - Tavily API for current venue information
-- **RAG Personalization** - ChromaDB-based learning from user preferences
-- **Performance Optimized** - Parallel research (60-75% faster) + Caching (90%+ hit rate)
-- **Smart Routing** - Google Maps integration for optimal travel paths
-- **Modern UI** - React + TypeScript with glassmorphism design
-- **AWS Deployed** - Production-ready on AWS with auto-scaling
+The full pipeline completes in roughly 4 seconds on a warm cache. The ResearchSummary agent (`research_summary_agent.py`) still exists on disk but was removed from the active workflow — its function is handled directly by TavilyResearch and AdventureCreator.
 
 ---
 
-## What Makes MiniQuest Unique
+## Live deployment
 
-Unlike traditional travel planning tools, MiniQuest:
+| Service | URL |
+|---|---|
+| Web app | https://project-572cd754-7f2b-465c-b68.web.app |
+| Backend API | https://miniquest-backend-633153384860.us-east1.run.app |
+| API docs | https://miniquest-backend-633153384860.us-east1.run.app/docs |
 
-1. **Real-Time Intelligence**: Uses Tavily API to fetch current venue information (hours, prices, reviews) 
-   rather than relying on stale databases.
-
-2. **Multi-Agent Specialization**: 7 distinct agents with clear responsibilities vs monolithic systems. 
-   Each agent is independently testable and optimizable.
-
-3. **Production-Grade Performance**: 
-   - Parallel research: 60-75% speed improvement
-   - Smart caching: 90%+ hit rate
-   - Async operations throughout
-
-4. **Learning System**: RAG-based personalization learns from user preferences over time, 
-   improving recommendations with each interaction.
-
-5. **Complete User Journey**: From query to saved itinerary with Google Maps integration, 
-   not just a list of recommendations.
+The backend runs on GCP Cloud Run (us-east1). The frontend is on Firebase Hosting. All secrets are in GCP Secret Manager.
 
 ---
 
-## Tavily API Integration
+## Tech stack
 
-### Search API
-```python
-# Used in: TavilyResearchAgent
-response = tavily_client.search(
-    query=f"{venue_name} {location} hours prices reviews",
-    search_depth="advanced",
-    max_results=5
-)
-# Returns: Web pages with venue information
+**Backend**
+- Python 3.11, FastAPI, LangGraph
+- OpenAI GPT-4o and GPT-4o-mini
+- Tavily API (search and extract)
+- MongoDB Atlas (Cluster0)
+- ChromaDB for RAG-based personalization
+- Redis for research result caching
+- Google Maps API (routing and venue discovery)
+- MBTA V3 API for live Boston transit
+
+**Frontend**
+- React 18 with TypeScript, Vite
+- Glassmorphism design with full dark/light theme support
+- ThemeContext with `t(isDark)` token helper used across all components
+- Mobile-responsive via `useIsMobile` hook
+- Generation options: configurable stops per adventure (1-6) and diversity mode (standard, high, fresh)
+- Vibe chips, Surprise button, Group mode, and Onboarding modal on the main generator
+- OpenTelemetry observability dashboard (feature-flagged)
+
+**Mobile**
+- React Native 0.83, Expo SDK 55
+- Expo Router for file-based navigation
+- expo-blur, expo-linear-gradient, expo-secure-store
+
+**Infrastructure**
+- GCP Cloud Run (backend, us-east1)
+- Firebase Hosting (frontend)
+- GCP Artifact Registry for Docker images
+- GCP Cloud Build for CI/CD
+- GCP Secret Manager for all secrets
+- MongoDB Atlas, Redis
+
+---
+
+## Project structure
+
+```
+miniquest/
+├── backend/
+│   ├── app/
+│   │   ├── agents/
+│   │   │   ├── base/               # BaseAgent class
+│   │   │   ├── coordination/       # LangGraph coordinator and workflow state
+│   │   │   ├── creation/           # AdventureCreator agent
+│   │   │   ├── discovery/          # TavilyResearch agent and Redis research cache
+│   │   │   ├── intent/             # IntentParser agent
+│   │   │   ├── location/           # LocationParser agent
+│   │   │   ├── routing/            # EnhancedRoutingAgent
+│   │   │   └── scouting/           # VenueScout (Google Places / Tavily / GPT-4o)
+│   │   │                           # and TavilyScout (venue discovery via Tavily)
+│   │   ├── api/
+│   │   │   └── routes/             # adventures, auth, analytics, chat,
+│   │   │                           # saved_adventures, share, social, system, testing
+│   │   ├── core/
+│   │   │   ├── auth/               # JWT and bcrypt authentication
+│   │   │   ├── rag/                # ChromaDB RAG system
+│   │   │   ├── telemetry.py        # OpenTelemetry tracing setup
+│   │   │   └── config.py           # Settings from env / GCP Secret Manager
+│   │   ├── database/
+│   │   │   └── repositories/       # MongoDB repositories (users, analytics, chat, queries)
+│   │   ├── models/                 # Pydantic models including GenerationOptions
+│   │   ├── services/               # Analytics service
+│   │   └── utils/                  # Logger, validators
+│   ├── tests/
+│   ├── Dockerfile
+│   ├── cloudbuild.yaml
+│   └── requirements.txt
+│
+├── frontend/
+│   └── src/
+│       ├── api/                    # adventures, analytics, auth, chat, client, savedAdventures
+│       ├── components/             # AdventureForm, EnhancedAdventureCard, NavigationBar,
+│       │   │                       # ProgressTracker, ShareCard, SurpriseButton,
+│       │   │                       # GroupModeModal, OnboardingModal, OutOfScopeMessage,
+│       │   │                       # ChatSidebar, LocationDetector, and others
+│       │   └── common/             # GlassButton, GlassCard, GlassInput, StatCard, and others
+│       ├── contexts/               # AuthContext, ThemeContext
+│       ├── hooks/                  # useAdventures, useChatHistory, useIsMobile,
+│       │                           # useLocationDetection
+│       ├── pages/                  # Home, Adventures, Analytics, Observability, Saved,
+│       │                           # Shared, Social, Login, Register, About
+│       ├── types/                  # adventure.ts, api.ts
+│       └── utils/                  # formatters.ts
+│
+├── miniquest-mobile/
+│   ├── app/
+│   │   ├── (auth)/                 # login.tsx, register.tsx
+│   │   ├── (tabs)/                 # home.tsx, saved.tsx, _layout.tsx (tab bar)
+│   │   └── _layout.tsx             # Root layout with AuthProvider and route guards
+│   ├── api/                        # client.ts (Axios, reads token from expo-secure-store)
+│   ├── components/                 # AdventureCard.tsx
+│   ├── constants/                  # theme.ts (Colors object)
+│   ├── contexts/                   # AuthContext.tsx
+│   └── assets/                     # App icons (iOS, Android adaptive, monochrome, splash)
+│
+├── deploy-backend.ps1
+├── deploy-frontend.ps1
+├── deploy-all.ps1
+├── docker-compose.yml
+└── .env.example
 ```
 
-### Extract API
-```python
-# Deep content extraction
-response = tavily_client.extract(
-    urls=search_results_urls,
-    include_raw_content=False
-)
-# Returns: Structured data (hours, prices, descriptions)
+---
+
+## API endpoints
+
+**Auth** (`/api/auth`)
+```
+POST   /api/auth/register
+POST   /api/auth/login
+GET    /api/auth/me
 ```
 
-### API Call Optimization
-- **Parallel Execution**: 8 venues researched simultaneously
-- **Smart Caching**: Results cached for 24 hours
-- **Rate Limiting**: Respects 100 req/min limit
-- **Error Handling**: Graceful degradation on API failures
-
-### Example Flow
+**Adventures** (`/api/adventures`)
 ```
-User: "Coffee shops in Boston"
-  ↓
-Tavily Search: "Coffee shops Boston hours prices reviews"
-  ↓
-Returns: 5 web pages per venue
-  ↓
-Tavily Extract: Deep dive into top results
-  ↓
-Returns: Structured data (hours, prices, tips)
-  ↓
-Research Summary Agent: Synthesizes findings
-  ↓
-Final Result: "Open 7am-6pm, $3-7 range, known for cappuccinos"
+POST   /api/adventures
+GET    /api/adventures/history
 ```
 
-### Performance Metrics
-- Average searches per adventure: 10
-- Average extracts per adventure: 10
-- Total Tavily calls: ~20 per generation
-- With caching: ~2-3 calls per generation (90% hit rate)
+**Saved Adventures** (`/api/saved-adventures`)
+```
+POST   /api/saved-adventures
+GET    /api/saved-adventures
+GET    /api/saved-adventures/{id}
+PUT    /api/saved-adventures/{id}
+DELETE /api/saved-adventures/{id}
+GET    /api/saved-adventures/personalization/insights
+```
+
+**Chat** (`/api/chat`)
+```
+POST   /api/chat/conversations
+GET    /api/chat/conversations
+GET    /api/chat/conversations/{id}
+DELETE /api/chat/conversations/{id}
+```
+
+**Share** (`/api/share`)
+```
+POST   /api/share
+GET    /api/share/{share_id}
+```
+
+**Social** (`/api/social`)
+```
+GET    /api/social
+POST   /api/social
+POST   /api/social/{post_id}/like
+POST   /api/social/{post_id}/comments
+DELETE /api/social/{post_id}
+```
+
+**Analytics and system**
+```
+GET    /api/analytics/summary
+GET    /api/performance/cache/stats
+GET    /api/performance/info
+GET    /health
+GET    /api/status
+GET    /docs
+```
 
 ---
 
-## Architecture
+## Local development
 
-### System Overview
+**Prerequisites:** Python 3.11+, Node.js 18+, Docker Desktop, MongoDB Atlas account, OpenAI and Tavily API keys.
 
-<img src="images/SystemArchitecture.png" alt="Architecture" width="300" />
-
-### Technology Stack
-
-**Frontend:**
-- React 18 + TypeScript
-- Vite (dev server + build)
-- Axios (API client)
-- React Router (navigation)
-
-**Backend:**
-- Python 3.11
-- FastAPI (REST API)
-- LangGraph (agent orchestration)
-- OpenAI GPT-4o and GPT-4o-mini (intelligence)
-- Tavily API (web research)
-- MongoDB Atlas (database)
-- ChromaDB (vector storage)
-- Redis (caching)
-
-**Deployment:**
-- Docker + Docker Compose
-- AWS ECS / Elastic Beanstalk
-- AWS Secrets Manager
-- CloudWatch (monitoring)
-
----
-
-## Quick Start
-
-### Prerequisites
-
-- Docker & Docker Compose
-- MongoDB Atlas account
-- API Keys:
-  - OpenAI API key
-  - Tavily API key
-  - Google Maps API key (optional)
-
-### 1. Clone Repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/miniquest-adventure-planner.git
-cd miniquest-adventure-planner
-```
-
-### 2. Configure Environment
-```bash
-# Copy environment template
 cp .env.example .env
+# Fill in OPENAI_API_KEY, TAVILY_API_KEY, MONGODB_URL, JWT_SECRET_KEY
 
-# Edit with your credentials
-nano .env
-```
-
-Required variables:
-```env
-OPENAI_API_KEY=your_openai_key_here
-TAVILY_API_KEY=your_tavily_key_here
-MONGODB_URL=your_mongodb_atlas_connection_string
-JWT_SECRET_KEY=your_secure_random_key
-```
-
-### 3. Start Application
-```bash
-# Start all services
 docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Check status
-docker-compose ps
+# Frontend: http://localhost:3000
+# Backend:  http://localhost:8000
+# API docs: http://localhost:8000/docs
 ```
 
-### 4. Access Application
-
-- **Frontend:** http://localhost:3000
-- **Backend API:** http://localhost:8000
-- **API Docs:** http://localhost:8000/docs
-
----
-
-## Agent Architecture
-
-### Multi-Agent Workflow
-
-The system uses **7 specialized agents** coordinated by LangGraph:
-
-#### 1. Intent Parser Agent
-```python
-Role: Extract user preferences and interests
-Input: User natural language query
-Output: Structured preferences (themes, activities, constraints)
-Example: "coffee shops and museums" → {themes: ["coffee", "art"], activities: ["cafe", "museum"]}
-```
-
-#### 2. Location Parser Agent
-```python
-Role: Resolve and validate locations
-Input: Location string or address
-Output: Coordinates, validated location data
-Example: "Boston" → {lat: 42.3601, lon: -71.0589, city: "Boston", state: "MA"}
-```
-
-#### 3. Venue Scout Agent
-```python
-Role: Generate diverse venue candidates
-Input: Location + preferences
-Output: List of potential venues
-Technology: OpenAI GPT-4o
-Example: Generates 20+ diverse venue suggestions per category
-```
-
-#### 4. Discovery Agent
-```python
-Role: Real-time web research on venues
-Input: Venue names + location
-Output: Current hours, prices, descriptions, reviews
-Technology: Tavily Search + Extract APIs
-Features:
-  - Multi-step research (Search → Extract)
-  - Parallel execution (60-75% faster)
-  - Result caching (90%+ hit rate)
-```
-
-#### 5. Routing Agent
-```python
-Role: Calculate optimal travel routes
-Input: List of venues with coordinates
-Output: Route URL, travel times, optimized order
-Technology: Google Maps Directions API
-```
-
-#### 6. Adventure Creator Agent
-```python
-Role: Generate themed adventure narratives
-Input: Researched venues + routes
-Output: Complete adventure itineraries with stories
-Technology: OpenAI GPT-4o
-Features: Async execution for speed
-```
-
-#### 7. Research Summary Agent
-```python
-Role: Synthesize research findings
-Input: Raw Tavily research results
-Output: Structured venue details (hours, prices, descriptions)
-```
-
-### LangGraph Workflow
-```python
-# State transitions
-START → parse_intent → parse_location → scout_venues
-      → research_venues (parallel) → route_adventures
-      → create_adventures (async) → END
-
-# Error handling and routing built-in
-# Performance tracking at each step
-```
-
----
-
-## Database Schema
-
-### MongoDB Collections
-
-#### users
-```json
-{
-  "_id": "ObjectId",
-  "email": "user@example.com",
-  "username": "username",
-  "full_name": "User Name",
-  "hashed_password": "bcrypt_hash",
-  "created_at": "2025-01-15T12:00:00Z",
-  "total_queries": 42
-}
-```
-
-#### user_queries (Lightweight - Privacy-focused)
-```json
-{
-  "_id": "ObjectId",
-  "user_id": "user_object_id",
-  "user_input": "coffee shops and museums in Boston",
-  "adventures_count": 3,
-  "adventure_metadata": [
-    {
-      "title": "Coffee & Culture Tour",
-      "theme": "Artistic Coffee Journey"
-    }
-  ],
-  "metadata": {
-    "target_location": "Boston, MA",
-    "performance": {
-      "total_time_seconds": 4.2,
-      "cache_hits": 5,
-      "cache_misses": 2
-    },
-    "personalization": {
-      "applied": true,
-      "enhanced_query": "coffee shops museums art culture Boston"
-    }
-  },
-  "created_at": "2025-01-15T12:00:00Z"
-}
-```
-
-#### saved_adventures (Full Details - User-triggered only)
-```json
-{
-  "_id": "ObjectId",
-  "user_id": "user_object_id",
-  "adventure_data": {
-    "title": "Coffee & Culture Tour",
-    "theme": "Artistic Coffee Journey",
-    "locations": [...],
-    "route_url": "https://maps.google.com/...",
-    "narrative": "..."
-  },
-  "rating": 5,
-  "notes": "Loved this itinerary!",
-  "saved_at": "2025-01-15T12:00:00Z"
-}
-```
-
-### ChromaDB Collections
-
-**adventure_preferences** - Vector embeddings of saved adventures for RAG personalization
-
----
-
-## Performance Optimizations
-
-### 1. Parallel Research (60-75% faster)
-```python
-# Process multiple venues concurrently
-async with asyncio.TaskGroup() as tg:
-    tasks = [tg.create_task(research_venue(v)) for v in venues]
-```
-
-### 2. Research Caching (90%+ hit rate)
-```python
-# Redis-based caching with smart keys
-cache_key = f"venue:{venue_name}:{location}:{date}"
-# TTL: 24 hours for venue data
-```
-
-### 3. Async Adventure Creation (20-30% faster)
-```python
-# Non-blocking OpenAI calls
-adventures = await asyncio.gather(*[
-    create_adventure_async(venues) for venues in grouped_venues
-])
-```
----
-
-## Frontend Features
-
-### Pages
-- **Home** - Landing page with feature showcase
-- **Login/Register** - User authentication
-- **Adventure Generator** - Main interface
-- **Query History** - Past adventures with analytics
-- **Saved Adventures** - User's favorite itineraries
-- **Chat** - AI assistant interface
-
-### UI Components
-- Glassmorphism design
-- Real-time loading states
-- Interactive adventure cards
-- Performance analytics dashboard
-- Responsive layout
-
----
-
-## API Endpoints
-
-### Authentication
+**Backend only:**
 ```bash
-POST /api/auth/register - Create new user
-POST /api/auth/login - User login
-GET /api/auth/me - Current user info
+cd backend
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
 ```
 
-### Adventures
+**Frontend only:**
 ```bash
-POST /api/adventures - Generate adventures
-GET /api/adventures/history - Query history
-POST /api/saved-adventures - Save adventure
-GET /api/saved-adventures - Get saved adventures
+cd frontend
+npm install
+npm run dev
 ```
 
-### Analytics
+**Mobile:**
 ```bash
-GET /api/analytics/summary - System analytics
-GET /api/performance/cache/stats - Cache statistics
+cd miniquest-mobile
+npm install
+npx expo start
+# Press 'a' for Android emulator, 'i' for iOS simulator, 'w' for web
 ```
-
-### System
-```bash
-GET /health - Health check
-GET /api/status - System status
-GET /docs - Interactive API documentation
-```
-
-**Full API Documentation:** http://localhost:8000/docs
 
 ---
 
 ## Deployment
 
-### Local Development
-```bash
-# Start services
-docker-compose up -d
+Three PowerShell scripts in the project root handle all deployment. They require `gcloud` and `firebase` CLIs authenticated.
 
-# View backend logs
-docker-compose logs -f backend
-
-# View frontend logs
-docker-compose logs -f frontend
-
-# Restart service
-docker-compose restart backend
-
-# Stop all
-docker-compose down
+**Full stack:**
+```powershell
+.\deploy-all.ps1
 ```
 
-### AWS Deployment
+**Backend only:**
+```powershell
+.\deploy-backend.ps1
 
-**Option 1: Elastic Beanstalk (Recommended)**
-```bash
-cd backend
-eb init
-eb create miniquest-prod
-eb setenv OPENAI_API_KEY=xxx TAVILY_API_KEY=yyy MONGODB_URL=zzz
-eb deploy
+# Force Cloud Build instead of local Docker push
+.\deploy-backend.ps1 -ForceCloudBuild
+
+# Skip build and push, redeploy existing image
+.\deploy-backend.ps1 -SkipBuild -SkipPush
+
+# Tail logs after deploy
+.\deploy-backend.ps1 -WatchLogs
 ```
 
-**Option 2: ECS with Fargate**
-```bash
-# Build and push to ECR
-aws ecr get-login-password | docker login --username AWS --password-stdin ECR_URL
-docker build -t miniquest-backend .
-docker push ECR_URL/miniquest-backend:latest
+**Frontend only:**
+```powershell
+.\deploy-frontend.ps1
 
-# Deploy using ECS task definition
-aws ecs update-service --cluster miniquest --service miniquest-svc --force-new-deployment
+# Skip the npm build step
+.\deploy-frontend.ps1 -SkipBuild
 ```
+
+The backend script attempts a local Docker push to Artifact Registry and falls back to Cloud Build automatically on failure. The frontend script runs `npm run build` then `firebase deploy --only hosting`. Firebase must be initialized from inside the `frontend/` directory.
+
+**Post-deployment checks:**
+```powershell
+gcloud run services logs tail miniquest-backend --region us-east1
+gcloud run services describe miniquest-backend --region us-east1
+```
+
+---
+
+## Environment variables
+
+```bash
+# Required
+OPENAI_API_KEY=
+TAVILY_API_KEY=
+MONGODB_URL=
+JWT_SECRET_KEY=
+
+# Optional
+GOOGLE_MAPS_KEY=
+REDIS_URL=
+MBTA_API_KEY=
+
+# App settings
+ENVIRONMENT=production
+DEBUG=false
+LOG_LEVEL=INFO
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+CHROMADB_PATH=./chromadb
+EMBEDDING_MODEL=text-embedding-3-small
+
+# Frontend (Vite) — set in frontend/.env
+VITE_API_URL=https://miniquest-backend-633153384860.us-east1.run.app
+VITE_OBSERVABILITY_ENABLED=false   # set to true to enable /observability
+```
+
+All production values are stored in GCP Secret Manager and injected into Cloud Run at runtime via `--set-secrets`.
+
 ---
 
 ## Testing
+
 ```bash
-# Backend tests
 cd backend
+
 pytest
+pytest --cov=app tests/
 
-# Test RAG personalization
 python tests/test_rag_personalization.py
-
-# Test Tavily research
-python tests/tavily_diagnostic.py "Museum Name" "Boston"
-
-# Frontend build
-cd frontend
-npm run build
+python tests/test_optimized_system.py
+python tests/tavily_diagnostic.py "Thinking Cup" "Boston"
+python tests/check_auth.py
+python tests/quick_test.py
 ```
-
----
-
-## Project Structure
-```
-.
-├── backend/                 # Python FastAPI backend
-│   ├── app/
-│   │   ├── agents/         # Multi-agent system
-│   │   │   ├── coordination/  # LangGraph workflow
-│   │   │   ├── creation/      # Adventure creator
-│   │   │   ├── intent/        # Intent parser
-│   │   │   ├── location/      # Location resolver
-│   │   │   ├── discovery/      # Tavily integration
-│   │   │   ├── routing/       # Google Maps
-│   │   │   └── scouting/      # Venue discovery
-│   │   ├── api/            # REST API endpoints
-│   │   ├── core/           # Configuration, RAG
-│   │   ├── database/       # MongoDB repositories
-│   │   └── models/         # Pydantic models
-│   ├── tests/              # Test suite
-│   └── Dockerfile
-├── frontend/               # React TypeScript frontend
-│   ├── src/
-│   │   ├── api/           # API client
-│   │   ├── components/    # UI components
-│   │   ├── contexts/      # React contexts
-│   │   ├── pages/         # Page components
-│   │   └── App.tsx
-│   └── Dockerfile
-├── scripts/               # Utility scripts
-├── docker-compose.yml     # Orchestration
-├── .env.example           # Environment template
-└── README.md              # This file
-```
-
----
-
-## Security
-
-- JWT-based authentication
-- Password hashing (bcrypt)
-- Environment variable protection
-- CORS configuration
-- Input validation
-- Rate limiting (production)
-- AWS Secrets Manager integration
-
----
-
-## Monitoring
-
-### Health Checks
-```bash
-curl http://localhost:8000/health
-curl http://localhost:8000/api/status
-```
-
-### Performance Metrics
-```bash
-# Get cache statistics
-curl http://localhost:8000/api/performance/cache/stats
-
-# Get system analytics
-curl http://localhost:8000/api/analytics/summary \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-### Logs
-```bash
-# Local
-docker-compose logs -f
-
-# AWS EB
-eb logs
-
-# AWS ECS
-aws logs tail /ecs/miniquest-backend --follow
-```
----
-
-## Known Limitations & Future Work
-
-### Current Limitations
-1. **Google Maps API**: Limited to 60 requests/minute
-2. **Tavily Rate Limits**: 100 searches/minute on free tier
-3. **ChromaDB**: In-memory only (resets on container restart)
-4. **Single-language**: English only currently
-
-### Planned Improvements
-- [ ] Multi-language support
-- [ ] Real-time collaboration (shared itineraries)
-- [ ] Mobile app (React Native)
-- [ ] Persistent ChromaDB (EFS/S3 backed)
-- [ ] Weather integration
-- [ ] Budget tracking
-- [ ] Booking integration (OpenTable, etc.)
-
----
-
-## 🙏 Acknowledgments
-
-- **LangGraph** - Agent orchestration framework
-- **Tavily** - Real-time web research API
-- **OpenAI** - GPT-4 language models
-- **Anthropic** - Development assistance with Claude
-
----
-
-## 👤 Author
-
-**Shreyas Sreenivas**
-- GitHub: [@lambdabypi](https://github.com/lambdabypi)
-- Email: shreyas.atneu@gmail.com
-- LinkedIn: [LinkedIn](https://www.linkedin.com/in/shreyas-sreenivas-9452a9169/)
-
----
-
-## 📞 Support
-
-For questions or issues:
-1. Check `/docs` for API documentation
-2. Review logs: `docker-compose logs -f`
-3. Open an issue on GitHub
-
----
-
-**Built with ❤️ using LangGraph and Tavily API**
