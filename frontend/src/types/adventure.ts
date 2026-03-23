@@ -1,7 +1,4 @@
 // frontend/src/types/adventure.ts
-/**
- * Adventure-related TypeScript types
- */
 
 export interface TavilyResearchData {
 	current_info?: string;
@@ -12,6 +9,18 @@ export interface TavilyResearchData {
 	successful_queries?: number;
 	total_insights?: number;
 	top_source?: string;
+}
+
+export interface ResearchSummary {
+	visitor_summary: string;
+	key_highlights: string[];
+	practical_info: {
+		best_time_to_visit?: string;
+		typical_duration?: string;
+		admission?: string;
+		insider_tips?: string[];
+	};
+	confidence_notes: string;
 }
 
 export interface VenueWithResearch {
@@ -30,6 +39,12 @@ export interface VenueWithResearch {
 	total_insights?: number;
 	research_status?: string;
 	top_source?: string;
+	research_summary?: ResearchSummary;
+	// ✅ Venue website / source URLs
+	source_url?: string;
+	tavily_url?: string;
+	website?: string;
+	yelp_url?: string;
 }
 
 export interface TravelOption {
@@ -65,6 +80,8 @@ export interface AdventureStep {
 	details: string;
 	insider_tip?: string;
 	venue_research?: TavilyResearchData;
+	// ✅ Venue website link for this step
+	venue_url?: string;
 }
 
 export interface Adventure {

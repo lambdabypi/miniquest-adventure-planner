@@ -1,25 +1,58 @@
 # backend/app/models/api_models.py
 """API request/response models"""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
+
+
+class GenerationOptions(BaseModel):
+    """Controls diversity and stop count for adventure generation"""
+    stops_per_adventure: int = Field(
+        default=3, ge=1, le=6,
+        description="Number of venues per adventure (1–6)"
+    )
+    diversity_mode: str = Field(
+        default="standard",
+        description="standard | high | fresh"
+    )
+    exclude_venues: List[str] = Field(
+        default_factory=list,
+        description="Venue names to exclude (e.g. already-seen venues)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "stops_per_adventure": 2,
+                "diversity_mode": "high",
+                "exclude_venues": ["Thinking Cup", "The Tam"]
+            }
+        }
+
 
 class AdventureRequest(BaseModel):
     """Adventure generation request"""
     user_input: str
     user_address: Optional[str] = None
     preferences: Optional[Dict] = None
-    enable_progress: bool = False  # ✅ NEW: Enable progress tracking
-    
+    enable_progress: bool = False
+    generation_options: GenerationOptions = Field(default_factory=GenerationOptions)
+
     class Config:
         json_schema_extra = {
             "example": {
                 "user_input": "I want to visit coffee shops and museums in Boston",
                 "user_address": "123 Main St, Boston, MA",
                 "preferences": {"budget": 50, "time_available": 120},
-                "enable_progress": True
+                "enable_progress": True,
+                "generation_options": {
+                    "stops_per_adventure": 2,
+                    "diversity_mode": "high",
+                    "exclude_venues": []
+                }
             }
         }
+
 
 class AdventureResponse(BaseModel):
     """Adventure generation response"""
@@ -27,7 +60,7 @@ class AdventureResponse(BaseModel):
     adventures: List[Dict]
     metadata: Dict
     message: str
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -42,6 +75,7 @@ class AdventureResponse(BaseModel):
             }
         }
 
+
 class SystemStatus(BaseModel):
     """System status response"""
     status: str
@@ -49,6 +83,7 @@ class SystemStatus(BaseModel):
     api_keys: Dict[str, str]
     coordinator_ready: bool
     timestamp: str
+
 
 class TestResponse(BaseModel):
     """Generic test response"""

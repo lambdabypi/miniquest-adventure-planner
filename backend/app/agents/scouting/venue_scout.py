@@ -1,5 +1,5 @@
 # backend/app/agents/scouting/venue_scout.py
-"""PROXIMITY-AWARE Venue Scout — finds venues near user location using Google Places"""
+"""PROXIMITY-AWARE Venue Scout — Google Places (address) → Tavily (city) → GPT-4o (fallback)"""
 
 from typing import List, Dict, Optional
 from openai import AsyncOpenAI
@@ -11,6 +11,7 @@ import re
 from datetime import datetime
 from ..base import BaseAgent, ValidationError, ProcessingError
 from ...core.config import settings
+from .tavily_scout import TavilyVenueScout
 import logging
 
 logger = logging.getLogger(__name__)
@@ -95,9 +96,10 @@ CATEGORY_GUIDANCE: Dict[str, str] = {
 
 class VenueScoutAgent(BaseAgent):
     """
-    PROXIMITY-AWARE venue scouting with dual strategy:
-      Strategy 1: Google Places Nearby Search (specific address provided)
-      Strategy 2: OpenAI Knowledge (city name only)
+    Three-path venue scouting:
+      Path 1 — Google Places Nearby Search  (specific address provided)
+      Path 2 — Tavily live web discovery    (city-level query, Tavily key present)
+      Path 3 — GPT-4o knowledge-based       (fallback when Tavily unavailable or returns nothing)
     """
 
     def __init__(self):
@@ -105,6 +107,7 @@ class VenueScoutAgent(BaseAgent):
         self.client = AsyncOpenAI()
         self.current_year = datetime.now().year
 
+        # ── Path 1: Google Places (proximity) ────────────────────────────────
         if settings.GOOGLE_MAPS_KEY:
             self.gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_KEY)
             self.proximity_enabled = True
@@ -112,7 +115,20 @@ class VenueScoutAgent(BaseAgent):
         else:
             self.gmaps = None
             self.proximity_enabled = False
-            logger.warning("⚠️ Google Places disabled — using OpenAI knowledge only")
+            logger.warning("⚠️ Google Places disabled — proximity search unavailable")
+
+        # ── Path 2: Tavily live discovery (city-level) ────────────────────────
+        if settings.TAVILY_API_KEY:
+            self.tavily_scout = TavilyVenueScout(
+                tavily_api_key=settings.TAVILY_API_KEY,
+                openai_client=self.client,
+            )
+            self.tavily_discovery_enabled = True
+            logger.info("✅ Tavily-first venue discovery ENABLED")
+        else:
+            self.tavily_scout = None
+            self.tavily_discovery_enabled = False
+            logger.warning("⚠️ Tavily key missing — will fall back to GPT-4o knowledge search")
 
     # ─── Entry point ──────────────────────────────────────────────────────────
 
@@ -121,10 +137,11 @@ class VenueScoutAgent(BaseAgent):
         if not self.validate_input(input_data, required_fields):
             raise ValidationError(self.name, f"Missing required fields: {required_fields}")
 
-        preferences = input_data["preferences"]
-        location = input_data["location"]
-        user_query = input_data.get("user_query", "")
-        parsed_prefs = input_data.get("parsed_preferences", {})  # full preference object
+        preferences      = input_data["preferences"]
+        location         = input_data["location"]
+        user_query       = input_data.get("user_query", "")
+        parsed_prefs     = input_data.get("parsed_preferences", {})
+        generation_options = input_data.get("generation_options", {})  # ✅ NEW
 
         self.log_processing("Starting venue scouting", f"{preferences} in {location}")
 
@@ -133,17 +150,24 @@ class VenueScoutAgent(BaseAgent):
         if is_specific_location and self.proximity_enabled:
             self.log_processing("Using PROXIMITY search", f"Near {location}")
             return await self._proximity_search(preferences, location, user_query, parsed_prefs)
-        else:
-            self.log_processing("Using KNOWLEDGE-BASED search", f"Popular venues in {location}")
-            return await self._knowledge_based_search(preferences, location, user_query, parsed_prefs)
 
-    # ─── Proximity search ─────────────────────────────────────────────────────
+        elif self.tavily_discovery_enabled:
+            self.log_processing("Using TAVILY discovery", f"Live web search in {location}")
+            return await self._tavily_discovery_search(
+                preferences, location, user_query, parsed_prefs, generation_options
+            )
+
+        else:
+            self.log_processing("Using GPT-4o fallback", f"Knowledge-based search in {location}")
+            return await self._knowledge_based_sea
+
+    # ─── Path 1: Google Places proximity ──────────────────────────────────────
 
     async def _proximity_search(self, preferences, location, user_query, parsed_prefs):
         try:
             geocode_result = self.gmaps.geocode(location)
             if not geocode_result:
-                return await self._knowledge_based_search(preferences, location, user_query, parsed_prefs)
+                return await self._tavily_or_knowledge_fallback(preferences, location, user_query, parsed_prefs)
 
             lat = geocode_result[0]["geometry"]["location"]["lat"]
             lng = geocode_result[0]["geometry"]["location"]["lng"]
@@ -156,11 +180,11 @@ class VenueScoutAgent(BaseAgent):
                     functools.partial(self._search_nearby_by_preference, lat, lng, pref, location),
                 )
 
-            results = await asyncio.gather(*[search_one(p) for p in preferences[:6]])
+            results   = await asyncio.gather(*[search_one(p) for p in preferences[:6]])
             all_nearby = [v for sublist in results for v in sublist]
-            unique = self._deduplicate_venues(all_nearby)
-            diverse = self._select_diverse_venues(unique, target_count=10)
-            enhanced = [self._enhance_venue(v, location) for v in diverse]
+            unique    = self._deduplicate_venues(all_nearby)
+            diverse   = self._select_diverse_venues(unique, target_count=10)
+            enhanced  = [self._enhance_venue(v, location) for v in diverse]
 
             self.log_success(f"Proximity search: {len(enhanced)} venues")
             return self.create_response(True, {
@@ -174,7 +198,7 @@ class VenueScoutAgent(BaseAgent):
             })
         except Exception as e:
             self.log_error(f"Proximity search failed: {e}")
-            return await self._knowledge_based_search(preferences, location, user_query, parsed_prefs)
+            return await self._tavily_or_knowledge_fallback(preferences, location, user_query, parsed_prefs)
 
     def _search_nearby_by_preference(self, lat, lng, preference, location) -> List[Dict]:
         place_type = self._preference_to_place_type(preference)
@@ -203,10 +227,8 @@ class VenueScoutAgent(BaseAgent):
 
     def _preference_to_place_type(self, preference: str) -> str:
         pref_lower = preference.lower().strip()
-        # Direct lookup
         if pref_lower in PREF_TO_PLACE_TYPE:
             return PREF_TO_PLACE_TYPE[pref_lower]
-        # Partial match
         for key, gtype in PREF_TO_PLACE_TYPE.items():
             if key in pref_lower or pref_lower in key:
                 return gtype
@@ -223,7 +245,7 @@ class VenueScoutAgent(BaseAgent):
                 return None
 
             full_address = place.get("formatted_address", "") or place.get("vicinity", "")
-            venue_type = self._google_types_to_venue_type(place.get("types", []))
+            venue_type   = self._google_types_to_venue_type(place.get("types", []))
             neighborhood = self._extract_neighborhood(full_address)
 
             return {
@@ -257,7 +279,54 @@ class VenueScoutAgent(BaseAgent):
                 return type_mapping[gtype]
         return "attraction"
 
-    # ─── Knowledge-based search ───────────────────────────────────────────────
+    # ─── Path 2: Tavily live discovery ────────────────────────────────────────
+
+    async def _tavily_discovery_search(
+        self,
+        preferences: List[str],
+        location: str,
+        user_query: str,
+        parsed_prefs: Dict,
+        generation_options: Dict = None,  # ✅ NEW
+    ) -> Dict:
+        try:
+            raw_venues = await self.tavily_scout.discover_venues(
+                preferences=preferences,
+                location=location,
+                parsed_prefs=parsed_prefs,
+                user_query=user_query,
+                generation_options=generation_options or {},  # ✅ NEW
+            )
+
+            if not raw_venues:
+                logger.warning("Tavily discovery returned 0 venues — falling back to GPT-4o")
+                return await self._knowledge_based_search(preferences, location, user_query, parsed_prefs)
+
+            validated = []
+            for venue in raw_venues:
+                if self._validate_venue(venue):
+                    ev = self._enhance_venue(venue, location)
+                    validated.append(ev)
+
+            if not validated:
+                logger.warning("All Tavily venues failed validation — falling back to GPT-4o")
+                return await self._knowledge_based_search(preferences, location, user_query, parsed_prefs)
+
+            self.log_success(f"Tavily discovery: {len(validated)} venues")
+            return self.create_response(True, {
+                "venues": validated,
+                "total_found": len(validated),
+                "total_processed": len(raw_venues),
+                "location": location,
+                "preferences": preferences,
+                "search_strategy": "tavily_discovery",
+            })
+
+        except Exception as e:
+            self.log_error(f"Tavily discovery failed: {e} — falling back to GPT-4o")
+            return await self._knowledge_based_search(preferences, location, user_query, parsed_prefs)
+
+    # ─── Path 3: GPT-4o knowledge-based (fallback) ────────────────────────────
 
     async def _knowledge_based_search(
         self, preferences: List[str], location: str, user_query: str, parsed_prefs: Dict = None
@@ -270,7 +339,7 @@ class VenueScoutAgent(BaseAgent):
                 temperature=0.2,
                 max_tokens=3000,
             )
-            content = self._clean_json_response(response.choices[0].message.content)
+            content    = self._clean_json_response(response.choices[0].message.content)
             raw_venues = json.loads(content)
 
             validated = []
@@ -294,10 +363,21 @@ class VenueScoutAgent(BaseAgent):
             self.log_error(f"Knowledge-based search failed: {e}")
             raise ProcessingError(self.name, str(e))
 
+    # ─── Shared fallback helper ────────────────────────────────────────────────
+
+    async def _tavily_or_knowledge_fallback(
+        self, preferences, location, user_query, parsed_prefs
+    ) -> Dict:
+        """Used when proximity search fails — tries Tavily before GPT-4o."""
+        if self.tavily_discovery_enabled:
+            return await self._tavily_discovery_search(preferences, location, user_query, parsed_prefs)
+        return await self._knowledge_based_search(preferences, location, user_query, parsed_prefs)
+
+    # ─── Scout prompt (GPT-4o fallback only) ──────────────────────────────────
+
     def _build_scout_prompt(
         self, preferences: List[str], location: str, user_query: str, parsed_prefs: Dict
     ) -> str:
-        # Build category-specific guidance
         category_hints = []
         for pref in preferences:
             pref_lower = pref.lower().strip()
@@ -307,14 +387,13 @@ class VenueScoutAgent(BaseAgent):
 
         category_block = "\n".join(category_hints) if category_hints else "  • Mix of relevant local venues"
 
-        # Contextual modifiers
-        budget_label = parsed_prefs.get("budget_label", "moderate")
-        budget_max = parsed_prefs.get("budget_max", 100)
-        group_size = parsed_prefs.get("group_size", 1)
-        time_of_day = parsed_prefs.get("time_of_day", "any")
+        budget_label     = parsed_prefs.get("budget_label", "moderate")
+        budget_max       = parsed_prefs.get("budget_max", 100)
+        group_size       = parsed_prefs.get("group_size", 1)
+        time_of_day      = parsed_prefs.get("time_of_day", "any")
         special_occasion = parsed_prefs.get("special_occasion", "none")
-        meal_context = parsed_prefs.get("meal_context", "none")
-        mood = parsed_prefs.get("mood", "exploratory")
+        meal_context     = parsed_prefs.get("meal_context", "none")
+        mood             = parsed_prefs.get("mood", "exploratory")
 
         context_lines = [f"  Budget: {budget_label} (max ~${budget_max}/person)"]
         if group_size > 1:
@@ -326,7 +405,6 @@ class VenueScoutAgent(BaseAgent):
         if meal_context != "none":
             context_lines.append(f"  Meal context: {meal_context}")
         context_lines.append(f"  Overall mood: {mood}")
-
         context_block = "\n".join(context_lines)
 
         return f"""You are a local expert for {location} with CURRENT knowledge as of {self.current_year}.
@@ -389,7 +467,7 @@ NYC — use borough:
 
 CRITICAL: Return ONLY valid JSON array. No preamble."""
 
-    # ─── Validation & enhancement ─────────────────────────────────────────────
+    # ─── Validation & enhancement ──────────────────────────────────────────────
 
     def _validate_venue(self, venue: Dict) -> bool:
         required_fields = ["name", "address", "type", "category"]
@@ -398,12 +476,12 @@ CRITICAL: Return ONLY valid JSON array. No preamble."""
                 logger.warning(f"❌ Missing '{field}' for: {venue.get('name')}")
                 return False
 
-        address = venue.get("address", "")
+        address       = venue.get("address", "")
         address_lower = address.lower()
 
         state_pattern = r",\s*[A-Z]{2}(\s+\d{5})?"
-        has_state = bool(re.search(state_pattern, address))
-        has_comma = "," in address
+        has_state     = bool(re.search(state_pattern, address))
+        has_comma     = "," in address
         common_states = ["ma", "ny", "ca", "il", "tx", "fl", "wa", "pa", "nj", "ct"]
         has_state_abbrev = any(
             f" {s} " in address_lower or f", {s}" in address_lower for s in common_states
@@ -452,7 +530,7 @@ CRITICAL: Return ONLY valid JSON array. No preamble."""
         })
         return enhanced
 
-    # ─── Diversity selection ──────────────────────────────────────────────────
+    # ─── Diversity selection ───────────────────────────────────────────────────
 
     def _deduplicate_venues(self, venues: List[Dict]) -> List[Dict]:
         seen: set = set()
@@ -479,7 +557,7 @@ CRITICAL: Return ONLY valid JSON array. No preamble."""
                 break
         return diverse[:target_count]
 
-    # ─── Utility helpers ──────────────────────────────────────────────────────
+    # ─── Utility helpers ───────────────────────────────────────────────────────
 
     def _is_specific_address(self, location: str) -> bool:
         loc_lower = location.lower()
@@ -489,7 +567,7 @@ CRITICAL: Return ONLY valid JSON array. No preamble."""
             "near ", "at ",
         ]
         has_numbers = any(c.isdigit() for c in location)
-        has_term = any(ind in loc_lower for ind in address_indicators)
+        has_term    = any(ind in loc_lower for ind in address_indicators)
         return has_numbers or has_term
 
     def _extract_neighborhood(self, address: str) -> str:
@@ -519,5 +597,5 @@ CRITICAL: Return ONLY valid JSON array. No preamble."""
                 elif ch == "]":
                     depth -= 1
                     if depth == 0:
-                        return content[start : i + 1]
+                        return content[start: i + 1]
         return content

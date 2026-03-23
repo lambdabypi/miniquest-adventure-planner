@@ -65,7 +65,11 @@ async def create_adventures_stream(
                     user_input=request.user_input,
                     user_address=request.user_address,
                     user_id=user_id,
-                    progress_callback=progress_callback
+                    progress_callback=progress_callback,
+                    generation_options=(
+                        request.generation_options.model_dump()
+                        if request.generation_options else {}
+                    ),
                 )
             )
             
@@ -297,11 +301,14 @@ async def create_adventures(
         
         # ✅ Execute workflow with optional progress tracking
         if enable_progress:
-            adventures, metadata = await coordinator.generate_adventures_with_progress(
+            adventures, metadata = await coordinator.generate_adventures(
                 user_input=request.user_input,
                 user_address=request.user_address,
                 user_id=user_id,
-                progress_callback=progress_callback
+                generation_options=(
+                    request.generation_options.model_dump()
+                    if request.generation_options else {}
+                ),
             )
             # Add progress log to metadata
             metadata["progress_log"] = progress_log

@@ -6,7 +6,18 @@ import { ProgressUpdate, AdventureMetadata } from '../types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-console.log('🔧 useAdventures: API_BASE_URL =', API_BASE_URL);
+// ✅ NEW: options shape mirrors backend GenerationOptions
+export interface GenerationOptions {
+	stops_per_adventure: number;   // 1–6
+	diversity_mode: 'standard' | 'high' | 'fresh';
+	exclude_venues: string[];
+}
+
+export const DEFAULT_GENERATION_OPTIONS: GenerationOptions = {
+	stops_per_adventure: 3,
+	diversity_mode: 'standard',
+	exclude_venues: [],
+};
 
 export const useAdventures = () => {
 	const [adventures, setAdventures] = useState<Adventure[]>(() => {
@@ -26,10 +37,8 @@ export const useAdventures = () => {
 	const [recommendedServices, setRecommendedServices] = useState<any[]>([]);
 	const [unrelatedQuery, setUnrelatedQuery] = useState(false);
 	const [metadata, setMetadata] = useState<AdventureMetadata | undefined>();
-
 	const [progressUpdates, setProgressUpdates] = useState<ProgressUpdate[]>([]);
 	const [currentProgress, setCurrentProgress] = useState<ProgressUpdate | null>(null);
-
 	const [researchStats, setResearchStats] = useState<ResearchStats>(() => {
 		try {
 			const cached = localStorage.getItem('miniquest_last_research_stats');
@@ -37,17 +46,15 @@ export const useAdventures = () => {
 		} catch { return { totalInsights: 0, avgConfidence: 0 }; }
 	});
 
-	// ── Persist adventures + stats to localStorage ───────────────────────────
 	const persistAdventures = useCallback((newAdventures: Adventure[], stats: ResearchStats) => {
 		setAdventures(newAdventures);
 		setResearchStats(stats);
 		try {
 			localStorage.setItem('miniquest_last_adventures', JSON.stringify(newAdventures));
 			localStorage.setItem('miniquest_last_research_stats', JSON.stringify(stats));
-		} catch { /* quota exceeded — silently ignore */ }
+		} catch { /* quota exceeded */ }
 	}, []);
 
-	// ── Clear everything including cache ─────────────────────────────────────
 	const clearAdventures = useCallback(() => {
 		setAdventures([]);
 		setError('');
@@ -66,20 +73,22 @@ export const useAdventures = () => {
 		localStorage.removeItem('miniquest_last_research_stats');
 	}, []);
 
-	// ── SSE streaming generation ──────────────────────────────────────────────
-	const generateAdventuresWithStreaming = useCallback(async (query: string, location: string) => {
+	// ✅ UPDATED: accepts optional generation options
+	const generateAdventuresWithStreaming = useCallback(async (
+		query: string,
+		location: string,
+		options: GenerationOptions = DEFAULT_GENERATION_OPTIONS,   // ✅ NEW param
+	) => {
 		if (!query.trim()) {
 			setError('Please enter an adventure query');
 			return;
 		}
 
-		console.log('🌊 SSE STREAMING: Starting...');
 		setLoading(true);
 		clearAdventures();
 
 		try {
 			const sseUrl = `${API_BASE_URL}/api/adventures/generate-stream`;
-			console.log('📡 SSE URL:', sseUrl);
 
 			const response = await fetch(sseUrl, {
 				method: 'POST',
@@ -90,94 +99,83 @@ export const useAdventures = () => {
 				body: JSON.stringify({
 					user_input: query,
 					user_address: location,
+					generation_options: options,   // ✅ NEW field
 				}),
 			});
 
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
-			}
+			if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
 			const reader = response.body?.getReader();
 			const decoder = new TextDecoder();
-
 			if (!reader) throw new Error('No reader available');
 
 			let buffer = '';
 
 			while (true) {
 				const { done, value } = await reader.read();
+				if (done) break;
 
-				if (done) {
-					console.log('✅ Stream complete');
-					break;
-				}
-
-				const chunk = decoder.decode(value, { stream: true });
-				buffer += chunk;
-
+				buffer += decoder.decode(value, { stream: true });
 				const lines = buffer.split('\n');
 				buffer = lines.pop() || '';
 
 				for (const line of lines) {
 					if (!line.trim() || line.startsWith(':')) continue;
+					if (!line.startsWith('data: ')) continue;
 
-					if (line.startsWith('data: ')) {
-						const jsonStr = line.substring(6).trim();
-						if (!jsonStr) continue;
+					const jsonStr = line.substring(6).trim();
+					if (!jsonStr) continue;
 
-						try {
-							const data = JSON.parse(jsonStr);
-							console.log('📦 SSE Message:', data);
+					try {
+						const data = JSON.parse(jsonStr);
 
-							if (!data.done) {
-								const progress: ProgressUpdate = {
-									step: data.step || 'unknown',
-									agent: data.agent || 'Unknown',
-									status: data.status || 'in_progress',
-									message: data.message || '',
-									progress: data.progress || 0,
-									details: data.details,
-								};
-								setProgressUpdates(prev => [...prev, progress]);
-								setCurrentProgress(progress);
-							}
-
-							if (data.done) {
-								console.log('✅ Final SSE message:', data);
-
-								if (data.success && data.adventures?.length > 0) {
-									const stats = calculateResearchStats(data.adventures);
-									persistAdventures(data.adventures, stats);
-									setMetadata(data.metadata);
-								} else if (data.metadata?.clarification_needed) {
-									handleClarificationNeeded(data.metadata);
-								} else if (data.error) {
-									setError(data.error);
-								}
-
-								setLoading(false);
-							}
-						} catch (parseError: any) {
-							console.warn('⚠️ Failed to parse SSE chunk (incomplete):', parseError.message);
+						if (!data.done) {
+							const progress: ProgressUpdate = {
+								step: data.step || 'unknown',
+								agent: data.agent || 'Unknown',
+								status: data.status || 'in_progress',
+								message: data.message || '',
+								progress: data.progress || 0,
+								details: data.details,
+							};
+							setProgressUpdates(prev => [...prev, progress]);
+							setCurrentProgress(progress);
 						}
+
+						if (data.done) {
+							if (data.success && data.adventures?.length > 0) {
+								const stats = calculateResearchStats(data.adventures);
+								persistAdventures(data.adventures, stats);
+								setMetadata(data.metadata);
+							} else if (data.metadata?.clarification_needed) {
+								handleClarificationNeeded(data.metadata);
+							} else if (data.error) {
+								setError(data.error);
+							}
+							setLoading(false);
+						}
+					} catch (parseError: any) {
+						console.warn('⚠️ Failed to parse SSE chunk:', parseError.message);
 					}
 				}
 			}
 		} catch (err: any) {
-			console.error('❌ SSE Error:', err);
 			setError(err.message || 'An error occurred');
 			setLoading(false);
 		}
 	}, [clearAdventures, persistAdventures]);
 
-	// ── Non-streaming generation ──────────────────────────────────────────────
-	const generateAdventures = useCallback(async (query: string, location: string) => {
+	// ✅ UPDATED: non-streaming path also accepts options
+	const generateAdventures = useCallback(async (
+		query: string,
+		location: string,
+		options: GenerationOptions = DEFAULT_GENERATION_OPTIONS,   // ✅ NEW param
+	) => {
 		if (!query.trim()) {
 			setError('Please enter an adventure query');
 			return;
 		}
 
-		console.log('🚀 Adventure generation starting...');
 		setLoading(true);
 		clearAdventures();
 
@@ -185,6 +183,7 @@ export const useAdventures = () => {
 			const response = await adventuresApi.generateAdventures({
 				user_input: query,
 				user_address: location,
+				generation_options: options,   // ✅ NEW field
 			});
 
 			if (response.metadata?.unrelated_query) {
@@ -201,7 +200,7 @@ export const useAdventures = () => {
 				setClarificationNeeded(true);
 				setClarificationMessage(response.metadata.clarification_message || '');
 				setSuggestions(response.metadata.suggestions || []);
-			} else if (response.adventures && response.adventures.length > 0) {
+			} else if (response.adventures?.length > 0) {
 				const stats = calculateResearchStats(response.adventures);
 				persistAdventures(response.adventures, stats);
 				setMetadata(response.metadata);
@@ -209,7 +208,6 @@ export const useAdventures = () => {
 				setError('No adventures could be generated');
 			}
 		} catch (err: any) {
-			console.error('❌ Error:', err);
 			setError(err.response?.data?.detail || err.message || 'An error occurred');
 		} finally {
 			setLoading(false);
@@ -235,41 +233,24 @@ export const useAdventures = () => {
 	};
 
 	return {
-		adventures,
-		loading,
-		error,
-		clarificationNeeded,
-		clarificationMessage,
-		suggestions,
-		outOfScope,
-		scopeIssue,
-		recommendedServices,
-		unrelatedQuery,
-		metadata,
-		progressUpdates,
-		currentProgress,
-		researchStats,
-		generateAdventures,
-		generateAdventuresWithStreaming,
-		clearAdventures,
+		adventures, loading, error,
+		clarificationNeeded, clarificationMessage, suggestions,
+		outOfScope, scopeIssue, recommendedServices,
+		unrelatedQuery, metadata,
+		progressUpdates, currentProgress, researchStats,
+		generateAdventures, generateAdventuresWithStreaming, clearAdventures,
 	};
 };
 
 function calculateResearchStats(adventures: Adventure[]): ResearchStats {
-	let totalInsights = 0;
-	let totalConfidence = 0;
-	let venueCount = 0;
-
-	adventures.forEach(adventure => {
-		if (adventure.venues_research) {
-			adventure.venues_research.forEach(venue => {
-				totalInsights += venue.total_insights || 0;
-				totalConfidence += venue.research_confidence || 0;
-				venueCount++;
-			});
-		}
+	let totalInsights = 0, totalConfidence = 0, venueCount = 0;
+	adventures.forEach(adv => {
+		adv.venues_research?.forEach(v => {
+			totalInsights += v.total_insights || 0;
+			totalConfidence += v.research_confidence || 0;
+			venueCount++;
+		});
 	});
-
 	return {
 		totalInsights,
 		avgConfidence: venueCount > 0 ? totalConfidence / venueCount : 0,

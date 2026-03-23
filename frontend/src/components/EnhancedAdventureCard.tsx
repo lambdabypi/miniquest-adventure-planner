@@ -1,7 +1,7 @@
 // frontend/src/components/EnhancedAdventureCard.tsx
 import React, { useState } from 'react';
 import { savedAdventuresApi } from '../api/savedAdventures';
-import { Adventure } from '../types/adventure';
+import { Adventure, VenueWithResearch } from '../types/adventure';
 import { useTheme, t } from '../contexts/ThemeContext';
 import ShareCard from './ShareCard';
 
@@ -17,23 +17,15 @@ interface ResearchSummary {
 	confidence_notes: string;
 }
 
-interface VenueWithResearch {
-	name?: string;
-	venue_name?: string;
-	matched_to?: string;
-	research_confidence?: number;
-	total_insights?: number;
-	research_summary?: ResearchSummary;
-	current_info?: string;
-	hours_info?: string;
-	visitor_tips?: string[];
-}
-
 interface Props {
 	adventure: Adventure;
 	index: number;
 	onSave?: (adventureId: string) => void;
 }
+
+// ── Helper: pick the best available URL for a venue ──────────────────────────
+const getVenueUrl = (venue: VenueWithResearch): string | null =>
+	venue.website || venue.source_url || venue.tavily_url || venue.yelp_url || null;
 
 const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) => {
 	const { isDark } = useTheme();
@@ -194,7 +186,8 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 						<div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
 							{adventure.venues_research.map((venue, idx) => {
 								const venueName = venue?.name || venue?.venue_name || venue?.matched_to || 'Unknown Venue';
-								const summary = (venue as any)?.research_summary;
+								const summary = (venue as any)?.research_summary as ResearchSummary | undefined;
+								const venueUrl = getVenueUrl(venue);
 
 								if (!summary) return (
 									<div key={idx} style={{
@@ -215,14 +208,40 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 										borderRadius: 12, padding: 20,
 										boxShadow: isDark ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
 									}}>
+										{/* ── Venue header with optional website link ── */}
 										<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingBottom: 12, borderBottom: `1px solid ${borderColor}` }}>
-											<h5 style={{ color: tk.textPrimary, margin: 0, fontSize: 16, fontWeight: 700 }}>
-												📍 {venueName}
-											</h5>
+											<div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+												<h5 style={{ color: tk.textPrimary, margin: 0, fontSize: 16, fontWeight: 700 }}>
+													📍 {venueName}
+												</h5>
+												{venueUrl && (
+													<a
+														href={venueUrl}
+														target="_blank"
+														rel="noopener noreferrer"
+														title="Visit venue website"
+														style={{
+															display: 'inline-flex', alignItems: 'center', gap: 4,
+															fontSize: 11, fontWeight: 600,
+															color: isDark ? '#93c5fd' : '#2563eb',
+															backgroundColor: isDark ? 'rgba(59,130,246,0.12)' : '#dbeafe',
+															border: `1px solid ${isDark ? 'rgba(59,130,246,0.3)' : '#93c5fd'}`,
+															padding: '3px 8px', borderRadius: 6,
+															textDecoration: 'none', whiteSpace: 'nowrap',
+															transition: 'opacity 0.15s',
+														}}
+														onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+														onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+													>
+														🔗 Visit site
+													</a>
+												)}
+											</div>
 											<div style={{
 												backgroundColor: isDark ? 'rgba(16,185,129,0.15)' : '#dcfce7',
 												color: isDark ? '#6ee7b7' : '#15803d',
 												padding: '4px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+												flexShrink: 0,
 											}}>
 												{Math.round((venue.research_confidence || 0) * 100)}% Confidence
 											</div>
@@ -264,12 +283,12 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 											</div>
 										)}
 
-										{summary.practical_info?.insider_tips?.length > 0 && (
+										{(summary.practical_info?.insider_tips?.length ?? 0) > 0 && (
 											<div>
 												<div style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#6ee7b7' : '#15803d', marginBottom: 8 }}>
 													💡 Insider Tips:
 												</div>
-												{summary.practical_info.insider_tips.map((tip: string, tipIdx: number) => (
+												{(summary.practical_info.insider_tips ?? []).map((tip: string, tipIdx: number) => (
 													<div key={tipIdx} style={{
 														fontSize: 13, color: tk.textPrimary,
 														backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#fef3c7',
@@ -317,9 +336,28 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 								<div style={{ fontWeight: 600, marginBottom: 4, color: tk.textPrimary }}>
 									{step.activity}
 								</div>
-								<div style={{ fontSize: 14, color: tk.textMuted }}>
+								<div style={{ fontSize: 14, color: tk.textMuted, marginBottom: step.venue_url ? 6 : 0 }}>
 									{step.details}
 								</div>
+								{/* ── Venue link on step ── */}
+								{step.venue_url && (
+									<a
+										href={step.venue_url}
+										target="_blank"
+										rel="noopener noreferrer"
+										style={{
+											display: 'inline-flex', alignItems: 'center', gap: 4,
+											fontSize: 12, fontWeight: 500,
+											color: isDark ? '#93c5fd' : '#2563eb',
+											textDecoration: 'none', opacity: 0.85,
+											transition: 'opacity 0.15s',
+										}}
+										onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+										onMouseLeave={e => e.currentTarget.style.opacity = '0.85'}
+									>
+										🔗 View venue →
+									</a>
+								)}
 							</div>
 						</div>
 					))}
@@ -438,7 +476,7 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 	);
 };
 
-// ── Helper components ─────────────────────────────────────────
+// ── Helper components ─────────────────────────────────────────────────────────
 
 const InfoCard: React.FC<{ icon: string; label: string; value: string; isDark: boolean }> = ({ icon, label, value, isDark }) => {
 	const tk = t(isDark);

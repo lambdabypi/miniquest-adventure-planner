@@ -337,134 +337,160 @@ class LangGraphCoordinator:
     # ========================================
     
     async def _add_individual_routing_to_adventures(
-        self, 
-        adventures: list, 
+        self,
+        adventures: list,
         all_enhanced_locations: list,
         user_address: Optional[str],
-        target_location: str
+        target_location: str,
     ) -> list:
-        """✅ Generate GOOGLE-OPTIMIZED routes for each adventure"""
-        
-        logger.info(f"🗺️ Generating GOOGLE-OPTIMIZED routes for {len(adventures)} adventures")
-        
+        """Generate Google-optimized routes for each adventure."""
+
+        logger.info(f"🗺️ Generating routes for {len(adventures)} adventures")
+
+        # ── Build a name→location lookup once for O(1) matching ───────────────
+        loc_by_name: Dict[str, Dict] = {
+            loc["name"].lower().strip(): loc
+            for loc in all_enhanced_locations
+            if loc.get("name")
+        }
+
         for idx, adventure in enumerate(adventures):
             try:
                 self._emit_progress({
-                    "step": "create_adventures",
-                    "agent": "RoutingAgent",
+                    "step": "create_adventures", "agent": "RoutingAgent",
                     "status": "in_progress",
                     "message": f"Optimizing route for '{adventure.get('title')}' ({idx+1}/{len(adventures)})",
                     "progress": 0.92 + (0.08 * (idx / len(adventures))),
-                    "details": {"adventure": adventure.get("title"), "route_number": idx + 1}
                 })
-                
-                # Get venue names
-                venues_from_array = adventure.get("venues_used", [])
-                venues_from_steps = self._extract_venues_from_steps(adventure.get("steps", []))
-                
-                # Deduplicate
-                seen = set()
-                all_venue_names = []
-                for venue in venues_from_array + venues_from_steps:
-                    venue_lower = venue.lower().strip()
-                    if venue_lower not in seen:
-                        seen.add(venue_lower)
-                        all_venue_names.append(venue)
-                
-                logger.info(f"📍 '{adventure.get('title')}': {len(all_venue_names)} total stops")
-                
-                if not all_venue_names:
-                    logger.warning(f"   ⚠️ No venues found for routing")
+
+                # ── Use ONLY venues_used — the authoritative list for this adventure
+                venues_used = adventure.get("venues_used", [])
+                if not venues_used:
+                    logger.warning(f"   ⚠️ No venues_used for '{adventure.get('title')}'")
                     continue
-                
-                # ✅ Match venues to locations with TYPO TOLERANCE
+
+                # Deduplicate while preserving order
+                seen: set = set()
+                unique_venues: List[str] = []
+                for v in venues_used:
+                    key = v.lower().strip()
+                    if key not in seen:
+                        seen.add(key)
+                        unique_venues.append(v)
+
+                logger.info(f"📍 '{adventure.get('title')}': {unique_venues}")
+
+                # ── Match venue names → enhanced location dicts ────────────────
                 adventure_locations = self._match_venues_to_locations_with_typo_tolerance(
-                    all_venue_names, all_enhanced_locations
+                    unique_venues, all_enhanced_locations
                 )
-                
-                logger.info(f"   ✅ Matched {len(adventure_locations)}/{len(all_venue_names)} venues")
-                
-                if adventure_locations and len(adventure_locations) > 1:
-                    # ✅ USE GOOGLE MAPS OPTIMIZATION
-                    origin = user_address or target_location
-                    
-                    optimized_url, optimized_locations, route_details = await self._get_optimized_route_from_google(
-                        origin=origin,
-                        locations=adventure_locations,
-                        mode="walking"
+
+                logger.info(
+                    f"   ✅ Matched {len(adventure_locations)}/{len(unique_venues)} venues"
+                )
+
+                if not adventure_locations:
+                    logger.warning(f"   ⚠️ Could not match any venues to locations")
+                    continue
+
+                # ── Determine origin ───────────────────────────────────────────
+                # Prefer user's actual address; fall back to target city
+                origin = (
+                    user_address.strip()
+                    if user_address and user_address.strip()
+                    else target_location
+                )
+
+                if len(adventure_locations) > 1:
+                    optimized_url, optimized_locs, route_details = (
+                        await self._get_optimized_route_from_google(
+                            origin=origin,
+                            locations=adventure_locations,
+                            mode="walking",
+                        )
                     )
-                    
-                    if optimized_url and optimized_locations:
-                        # Use Google-optimized route
+
+                    if optimized_url and optimized_locs:
                         adventure["map_url"] = optimized_url
                         adventure["routing_info"] = {
                             "routing_available": True,
                             "optimized": True,
                             "optimization_method": "google_maps_directions_api",
                             "recommended_mode": "walking",
-                            "total_stops": len(optimized_locations),
-                            "matched_stops": len(optimized_locations),
-                            "requested_stops": len(all_venue_names),
-                            "route_details": route_details
+                            "total_stops": len(optimized_locs),
+                            "matched_stops": len(optimized_locs),
+                            "requested_stops": len(unique_venues),
+                            "route_details": route_details,
                         }
-                        
-                        # ✅ Reorder steps to match Google's optimized route
                         adventure["steps"] = self._reorder_steps_by_locations(
-                            adventure.get("steps", []),
-                            optimized_locations
+                            adventure.get("steps", []), optimized_locs
                         )
-                        
-                        logger.info(f"   🎯 Google-optimized: {route_details.get('optimization_savings')}")
-                        logger.info(f"   📏 Distance: {route_details.get('total_distance_km', 0):.1f} km")
-                        logger.info(f"   ⏱️ Duration: {route_details.get('total_duration_min', 0):.0f} min")
+                        logger.info(
+                            f"   🎯 Google-optimized: "
+                            f"{route_details.get('optimization_savings')} | "
+                            f"{route_details.get('total_distance_km', 0):.1f} km"
+                        )
                     else:
-                        # Fallback to regular routing
-                        logger.warning(f"   ⚠️ Google optimization failed, using fallback")
-                        city_name = self._extract_city_name(target_location)
-                        
-                        routing_result = await self.routing_agent.generate_intelligent_route(
-                            locations=adventure_locations,
-                            user_address=user_address,
-                            target_location=city_name,
-                            user_preferences={}
-                        )
-                        
-                        if routing_result.get("primary_route_url"):
-                            adventure["map_url"] = routing_result["primary_route_url"]
+                        # Fallback: basic routing without optimization
+                        logger.warning("   ⚠️ Google optimization failed — using fallback")
+                        url = self._build_basic_route_url(origin, adventure_locations)
+                        if url:
+                            adventure["map_url"] = url
                             adventure["routing_info"] = {
                                 "routing_available": True,
                                 "optimized": False,
                                 "optimization_method": "basic_fallback",
-                                "recommended_mode": routing_result.get("recommended_travel_mode", "walking"),
-                                "total_stops": len(adventure_locations)
+                                "recommended_mode": "walking",
+                                "total_stops": len(adventure_locations),
                             }
-                
-                elif adventure_locations:
-                    # Single location - no optimization needed
-                    city_name = self._extract_city_name(target_location)
-                    
-                    routing_result = await self.routing_agent.generate_intelligent_route(
-                        locations=adventure_locations,
-                        user_address=user_address,
-                        target_location=city_name,
-                        user_preferences={}
-                    )
-                    
-                    if routing_result.get("primary_route_url"):
-                        adventure["map_url"] = routing_result["primary_route_url"]
+
+                else:
+                    # Single location
+                    url = self._build_basic_route_url(origin, adventure_locations)
+                    if url:
+                        adventure["map_url"] = url
                         adventure["routing_info"] = {
                             "routing_available": True,
                             "optimized": False,
                             "optimization_method": "single_destination",
-                            "total_stops": 1
+                            "total_stops": 1,
                         }
-                else:
-                    logger.warning(f"   ⚠️ Could not match any venues to locations")
-                    
+
             except Exception as e:
                 logger.error(f"Routing error for '{adventure.get('title')}': {e}")
-        
+
         return adventures
+
+    def _build_basic_route_url(self, origin: str, locations: List[Dict]) -> Optional[str]:
+        """Build a basic Google Maps URL without Directions API optimization."""
+        if not locations:
+            return None
+
+        enc = urllib.parse.quote
+        stop_addresses = [loc["address"] for loc in locations if loc.get("address")]
+
+        if not stop_addresses:
+            return None
+
+        base = "https://www.google.com/maps/dir/?api=1"
+
+        if len(stop_addresses) == 1:
+            return (
+                f"{base}&origin={enc(origin)}"
+                f"&destination={enc(stop_addresses[0])}"
+                f"&travelmode=walking"
+            )
+
+        dest      = stop_addresses[-1]
+        waypoints = stop_addresses[:-1]
+        wp_param  = ("&waypoints=" + "|".join(enc(w) for w in waypoints[:9])) if waypoints else ""
+
+        return (
+            f"{base}&origin={enc(origin)}"
+            f"&destination={enc(dest)}"
+            f"{wp_param}"
+            f"&travelmode=walking"
+        )
     
     # ========================================
     # HELPER METHODS
@@ -492,90 +518,89 @@ class LangGraphCoordinator:
     
     def _convert_to_enhanced_locations(self, researched_venues: list, city_name: str) -> list:
         """
-        ✅ FIXED: Convert venues to locations PRESERVING original addresses
+        Convert researched venues to routable location dicts.
+
+        Address priority:
+          0. verified_address from TavilyResearch (extracted from live content)
+          1. Full street address already on the venue dict
+          2. address_hint + city
+          3. venue name + neighbourhood + city
+          4. venue name + city  (geocodable fallback — never raw city-only)
         """
         enhanced_locations = []
-        
+
+        # ── helpers defined ONCE, before the loop ────────────────────────────
+        def _clean(s: str) -> str:
+            """Collapse newlines / extra whitespace that regex extraction can leave."""
+            return re.sub(r"\s+", " ", s.strip())
+
+        def _has_street(s: str) -> bool:
+            """True when the string contains a real street-level component."""
+            if not s:
+                return False
+            s = _clean(s)
+            has_num = any(c.isdigit() for c in s)
+            has_kw  = any(kw in s.lower() for kw in (
+                "street", "st ", "ave", "avenue", "rd ", "road",
+                "blvd", "boulevard", "drive", "dr ", "lane", "ln ",
+                "place", "pl ", "way ", "court", "ct ",
+            ))
+            return has_num or has_kw
+
+        def _is_city_only(s: str) -> bool:
+            return bool(s) and not _has_street(s)
+
+        # ─────────────────────────────────────────────────────────────────────
         for venue in researched_venues:
             venue_name = venue.get("name", "Unknown")
-            
-            # ✅ PRIORITY 1: Use full address if available (VenueScout provides this)
-            if venue.get("address"):
-                address = venue["address"]
-                logger.debug(f"✅ Using full address: {venue_name} → {address}")
-            
-            # PRIORITY 2: Use address_hint if it looks complete
-            elif venue.get("address_hint"):
-                address_hint = venue["address_hint"]
-                
-                # Check if address_hint already has city/state (complete address)
-                has_state = any(state in address_hint.upper() for state in [' MA', ' NY', ' CA', ' IL'])
-                has_comma = ',' in address_hint
-                
-                if has_state or (has_comma and len(address_hint.split(',')) >= 2):
-                    # address_hint is already complete
-                    address = address_hint
-                    logger.debug(f"✅ address_hint is complete: {venue_name} → {address}")
-                else:
-                    # address_hint is incomplete, append city
-                    address = f"{address_hint}, {city_name}"
-                    logger.debug(f"⚠️ Appending city to hint: {venue_name} → {address}")
-            
-            # PRIORITY 3: Use neighborhood + city
-            elif venue.get("neighborhood"):
-                address = f"{venue_name}, {venue['neighborhood']}, {city_name}"
-                logger.warning(f"⚠️ Using neighborhood fallback: {venue_name} → {address}")
-            
-            # PRIORITY 4: Just venue name + city
+
+            # ── Priority 0: address extracted from live Tavily research ───────
+            raw_verified = venue.get("verified_address") or ""
+            if raw_verified:
+                cleaned = _clean(raw_verified)
+                if _has_street(cleaned):
+                    logger.debug(f"✅ [{venue_name}] research-verified: {cleaned}")
+                    enhanced_locations.append({
+                        "name":    venue_name,
+                        "address": cleaned,
+                        "type":    venue.get("type", "attraction"),
+                    })
+                    continue
+
+            address = venue.get("address", "").strip()
+            hint    = venue.get("address_hint", "").strip()
+            hood    = venue.get("neighborhood", "").strip()
+
+            # ── Priority 1: full street address on the venue dict ─────────────
+            if _has_street(address):
+                routable = address
+                logger.debug(f"✅ [{venue_name}] full street address: {routable}")
+
+            # ── Priority 2: address_hint has a street component ───────────────
+            elif _has_street(hint):
+                city_part = city_name.split(",")[0].strip()
+                routable  = hint if city_part.lower() in hint.lower() else f"{hint}, {city_name}"
+                logger.debug(f"✅ [{venue_name}] hint + city: {routable}")
+
+            # ── Priority 3: meaningful neighbourhood ──────────────────────────
+            elif hood and not _is_city_only(hood):
+                routable = f"{venue_name}, {hood}, {city_name}"
+                logger.info(f"⚠️ [{venue_name}] name + neighbourhood: {routable}")
+
+            # ── Priority 4: name + city (always geocodable) ───────────────────
             else:
-                address = f"{venue_name}, {city_name}"
-                logger.warning(f"⚠️ Using name + city fallback: {venue_name} → {address}")
-            
+                routable = f"{venue_name}, {city_name}"
+                logger.warning(f"⚠️ [{venue_name}] name + city fallback: {routable}")
+
             enhanced_locations.append({
-                "name": venue_name,
-                "address": address,
-                "type": venue.get("type", "attraction")
+                "name":    venue_name,
+                "address": routable,
+                "type":    venue.get("type", "attraction"),
             })
-        
+
         logger.info(f"✅ Converted {len(enhanced_locations)} venues to enhanced locations")
         return enhanced_locations
     
-    def _extract_venues_from_steps(self, steps: List[Dict]) -> List[str]:
-        """Extract ALL venue/location names from adventure steps"""
-        venues = []
-        
-        for step in steps:
-            activity = step.get("activity", "")
-            
-            if " at " in activity:
-                venue = activity.split(" at ", 1)[1].strip()
-                venue = venue.rstrip('.,!?')
-                venues.append(venue)
-                continue
-            
-            visit_explore_pattern = r'^(?:Visit|Explore)\s+(?:the\s+)?(.+?)$'
-            match = re.match(visit_explore_pattern, activity, re.IGNORECASE)
-            if match:
-                venue = match.group(1).strip().rstrip('.,!?')
-                venues.append(venue)
-                continue
-            
-            hike_pattern = r'^Hike\s+(?:the\s+)?(.+?)(?:\s+Trail|\s+Loop)?$'
-            match = re.match(hike_pattern, activity, re.IGNORECASE)
-            if match:
-                venue = match.group(1).strip()
-                if 'trail' in activity.lower() and 'trail' not in venue.lower():
-                    venue = f"{venue} Trail"
-                venues.append(venue)
-                continue
-            
-            tour_see_pattern = r'^(?:Tour|See)\s+(?:the\s+)?(.+?)$'
-            match = re.match(tour_see_pattern, activity, re.IGNORECASE)
-            if match:
-                venue = match.group(1).strip().rstrip('.,!?')
-                venues.append(venue)
-        
-        return venues
     
     def _calculate_string_similarity(self, str1: str, str2: str) -> float:
         """
@@ -681,19 +706,18 @@ class LangGraphCoordinator:
     # ========================================
     
     async def generate_adventures(
-    self,
-    user_input: str,
-    user_address: Optional[str] = None,
-    user_id: Optional[str] = None
-) -> Tuple[List[Dict], Dict]:
-        """Main entry point - OPTIMIZED with OTel tracing"""
-
+        self,
+        user_input: str,
+        user_address: Optional[str] = None,
+        user_id: Optional[str] = None,
+        generation_options: Optional[Dict] = None,   # ✅ NEW
+    ) -> Tuple[List[Dict], Dict]:
         self.logger.info(f"🔄 Starting OPTIMIZED workflow: '{user_input[:50]}...'")
-
         start_time = time.time()
         self.timing_data = {}
-
-        initial_state = self._create_initial_state(user_input, user_address, user_id)
+        initial_state = self._create_initial_state(
+            user_input, user_address, user_id, generation_options
+        )
 
         tracer = get_tracer()
 
@@ -744,10 +768,9 @@ class LangGraphCoordinator:
         user_input: str,
         user_address: Optional[str] = None,
         user_id: Optional[str] = None,
-        progress_callback: Optional[Callable] = None
+        progress_callback: Optional[Callable] = None,
+        generation_options: Optional[Dict] = None,   # ✅ NEW
     ) -> Tuple[List[Dict], Dict]:
-        """Generate adventures with real-time progress streaming"""
-
         self.progress_callback = progress_callback
 
         self._emit_progress({
@@ -762,7 +785,9 @@ class LangGraphCoordinator:
         start_time = time.time()
         self.timing_data = {}
 
-        initial_state = self._create_initial_state(user_input, user_address, user_id)
+        initial_state = self._create_initial_state(
+            user_input, user_address, user_id, generation_options
+        )
 
         # ✅ Wrap the entire streaming workflow in an OTel parent span
         tracer = get_tracer()
@@ -842,16 +867,17 @@ class LangGraphCoordinator:
                 self.progress_callback = None
     
     def _create_initial_state(
-        self, 
-        user_input: str, 
+        self,
+        user_input: str,
         user_address: Optional[str],
-        user_id: Optional[str]
+        user_id: Optional[str],
+        generation_options: Optional[Dict] = None,  # ✅ NEW
     ) -> AdventureState:
-        """Create initial state"""
         return AdventureState(
             user_input=user_input,
             user_address=user_address,
             user_id=user_id,
+            generation_options=generation_options or {},  # ✅ NEW
             target_location=None,
             location_parsing_info=None,
             parsed_preferences=None,
@@ -866,7 +892,7 @@ class LangGraphCoordinator:
             progress_updates=[],
             current_step=None,
             current_agent=None,
-            step_progress=None
+            step_progress=None,
         )
     
     def _build_completion_metadata(self, final_state: dict, total_time: float) -> dict:
@@ -1129,9 +1155,10 @@ class LangGraphCoordinator:
             try:
                 preferences = state.get("parsed_preferences", {})
                 result = await self.venue_scout.process({
-                    "preferences": preferences.get("preferences", []),
-                    "location": state.get("target_location", "Boston, MA"),
-                    "user_query": state.get("user_input", "")
+                    "preferences":      preferences.get("preferences", []),
+                    "location":         state.get("target_location", "Boston, MA"),
+                    "user_query":       state.get("user_input", ""),
+                    "generation_options": state.get("generation_options", {}),  # ✅ NEW
                 })
 
                 if result["success"]:
@@ -1316,11 +1343,12 @@ class LangGraphCoordinator:
 
             try:
                 result = await self.adventure_creator.process({
-                    "researched_venues": state.get("researched_venues", []),
+                    "researched_venues":  state.get("researched_venues", []),
                     "enhanced_locations": state.get("enhanced_locations", []),
                     "parsed_preferences": state.get("parsed_preferences", {}),
-                    "target_location": state.get("target_location", "Boston, MA"),
-                    "user_personalization": state.get("user_personalization")
+                    "target_location":    state.get("target_location", "Boston, MA"),
+                    "user_personalization": state.get("user_personalization"),
+                    "generation_options": state.get("generation_options", {}),  # ✅ NEW
                 })
 
                 if result["success"]:

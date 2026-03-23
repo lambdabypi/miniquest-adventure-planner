@@ -1,18 +1,16 @@
 // frontend/src/types/api.ts
-/**
- * API request/response types with full scope handling + progress tracking
- */
 
 import { Adventure } from './adventure';
+import { GenerationOptions } from '../hooks/useAdventures';
 
-// ✅ Recommended services interface
+// ── Supporting interfaces ─────────────────────────────────────────────────────
+
 export interface RecommendedService {
 	name: string;
 	url: string;
 	description: string;
 }
 
-// ✅ Scope issue types
 export type ScopeIssue =
 	| 'multi_day_trip'
 	| 'international_travel'
@@ -20,7 +18,6 @@ export type ScopeIssue =
 	| 'trip_budget_detected'
 	| 'unsupported_city';
 
-// ✅ Query type for unrelated queries
 export type QueryType =
 	| 'general_knowledge'
 	| 'person_info'
@@ -28,7 +25,6 @@ export type QueryType =
 	| 'weather'
 	| 'other';
 
-// ✅ Progress tracking types
 export interface ProgressUpdate {
 	step: string;
 	agent: string;
@@ -38,36 +34,33 @@ export interface ProgressUpdate {
 	details?: Record<string, any>;
 }
 
+// ── Request / Response ────────────────────────────────────────────────────────
+
 export interface AdventureRequest {
 	user_input: string;
 	user_address?: string;
 	preferences?: Record<string, any>;
-	enable_progress?: boolean;  // ✅ NEW: Enable progress tracking
+	enable_progress?: boolean;
+	generation_options?: GenerationOptions;   // ✅ added
 }
 
-// ✅ Extended metadata interface with all states + progress tracking
 export interface AdventureMetadata {
-	// Location and success
 	target_location?: string;
 	total_adventures?: number;
 	workflow_success?: boolean;
 
-	// ✅ Unrelated query
 	unrelated_query?: boolean;
 	query_type?: QueryType;
 
-	// ✅ Out-of-scope handling
 	out_of_scope?: boolean;
 	scope_issue?: ScopeIssue;
 	recommended_services?: RecommendedService[];
 	detected_city?: string;
 
-	// Clarification (too vague queries)
 	clarification_needed?: boolean;
 	clarification_message?: string;
 	suggestions?: string[];
 
-	// Personalization
 	personalization_applied?: boolean;
 	user_history?: {
 		has_history?: boolean;
@@ -76,7 +69,6 @@ export interface AdventureMetadata {
 		favorite_locations?: string[];
 	};
 
-	// Performance metrics
 	performance?: {
 		total_time_seconds?: number;
 		cache_hit_rate?: string;
@@ -87,7 +79,6 @@ export interface AdventureMetadata {
 		optimizations_enabled?: Record<string, boolean>;
 	};
 
-	// Research stats
 	research_stats?: {
 		total_venues?: number;
 		successful_research?: number;
@@ -98,14 +89,12 @@ export interface AdventureMetadata {
 		cache_hit_rate?: string;
 	};
 
-	// ✅ NEW: Progress tracking
 	progress_tracking_enabled?: boolean;
 	progress_log?: ProgressUpdate[];
 
 	timestamp?: string;
 }
 
-// ✅ AdventureResponse with proper metadata type
 export interface AdventureResponse {
 	success: boolean;
 	adventures: Adventure[];
