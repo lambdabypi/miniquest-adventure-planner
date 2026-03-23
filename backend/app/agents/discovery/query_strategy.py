@@ -1,4 +1,4 @@
-# backend/app/agents/research/query_strategy.py
+# backend/app/agents/discovery/query_strategy.py
 """Query strategy agent for generating intelligent Tavily search queries"""
 
 import openai

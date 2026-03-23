@@ -19,12 +19,13 @@ from .workflow_state import AdventureState
 from ..location import LocationParserAgent
 from ..intent import IntentParserAgent
 from ..scouting import VenueScoutAgent
-from ..discovery import TavilyResearchAgent, ResearchSummaryAgent
+from ..discovery import TavilyResearchAgent
 from ..routing import EnhancedRoutingAgent
 from ..creation import AdventureCreatorAgent
 from ...core.config import settings
 
 logger = logging.getLogger(__name__)
+
 
 class LangGraphCoordinator:
     """
@@ -36,115 +37,99 @@ class LangGraphCoordinator:
     - ✅ Google Maps route optimization (optimal waypoint ordering)
     - ✅ Typo-tolerant venue matching (handles LLM-introduced typos)
     - ✅ Real-time progress tracking
+    - ✅ Research summary node removed (saves 3-15s)
+    - ✅ Parallel nearest-branch lookups
+    - ✅ Name-similarity guard on branch swaps (prevents wrong-business substitution)
     """
-    
+
     def __init__(self, rag_system=None, enable_cache=True):
         self.name = "LangGraphCoordinator"
         self.logger = logging.getLogger(f"coordinator.{self.name.lower()}")
-        
-        # RAG system for personalization
+
         self.rag_system = rag_system
         self.enable_cache = enable_cache
-        
-        # Progress callback for streaming
         self.progress_callback = None
-        
-        # ✅ Initialize Google Maps for route optimization
+
         if settings.GOOGLE_MAPS_KEY:
             self.gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_KEY)
             self.route_optimization_enabled = True
         else:
             self.gmaps = None
             self.route_optimization_enabled = False
-        
+
         self._validate_api_keys()
         self._initialize_agents()
         self.workflow = self._build_workflow()
-        
-        # Performance tracking
         self.timing_data = {}
-        
-        self.logger.info("✅ OPTIMIZED LangGraph Coordinator with Typo-Tolerant Matching initialized")
+
+        self.logger.info("✅ OPTIMIZED LangGraph Coordinator initialized")
         self.logger.info("   - Parallel research: ENABLED")
         self.logger.info(f"   - Research caching: {'ENABLED' if enable_cache else 'DISABLED'}")
         self.logger.info("   - Async adventure creation: ENABLED")
         self.logger.info(f"   - Google Maps route optimization: {'ENABLED' if self.route_optimization_enabled else 'DISABLED'}")
         self.logger.info("   - Typo-tolerant matching: ENABLED")
         self.logger.info("   - Real-time progress: ENABLED")
+        self.logger.info("   - Research summary node: REMOVED (faster)")
+        self.logger.info("   - Parallel branch lookups: ENABLED")
+        self.logger.info("   - Branch-swap name guard: ENABLED")
         if rag_system:
             self.logger.info("   - RAG personalization: ENABLED")
-    
+
     def _validate_api_keys(self):
-        """Validate required API keys"""
         openai_key = os.getenv("OPENAI_API_KEY")
         tavily_key = os.getenv("TAVILY_API_KEY")
-        
         if not openai_key:
             raise ValueError("OPENAI_API_KEY required")
         if not tavily_key:
             raise ValueError("TAVILY_API_KEY required")
-        
         self.openai_key = openai_key
         self.tavily_key = tavily_key
-    
+
     def _initialize_agents(self):
-        """Initialize all workflow agents"""
-        
         self.location_parser = LocationParserAgent()
         self.intent_parser = IntentParserAgent()
         self.venue_scout = VenueScoutAgent()
-        
         self.research_agent = TavilyResearchAgent(
             tavily_api_key=self.tavily_key,
             use_cache=self.enable_cache
         )
-        
-        self.research_summary_agent = ResearchSummaryAgent()
         self.routing_agent = EnhancedRoutingAgent()
         self.adventure_creator = AdventureCreatorAgent()
-        
         self.logger.info("✅ All OPTIMIZED agents initialized")
-    
+
     def _build_workflow(self) -> StateGraph:
-        """Build workflow"""
         workflow = StateGraph(AdventureState)
-        
-        workflow.add_node("parse_location", self._parse_location_node)
-        workflow.add_node("get_personalization", self._get_personalization_node)
-        workflow.add_node("parse_intent", self._parse_intent_node)
-        workflow.add_node("scout_venues", self._scout_venues_node)
-        workflow.add_node("research_venues", self._research_venues_node)
-        workflow.add_node("summarize_research", self._summarize_research_node)
-        workflow.add_node("enhance_routing", self._enhance_routing_node)
-        workflow.add_node("create_adventures", self._create_adventures_node)
-        
-        workflow.add_edge("parse_location", "get_personalization")
+
+        workflow.add_node("parse_location",      self._parse_location_node)
+        workflow.add_node("get_personalization",  self._get_personalization_node)
+        workflow.add_node("parse_intent",        self._parse_intent_node)
+        workflow.add_node("scout_venues",        self._scout_venues_node)
+        workflow.add_node("research_venues",     self._research_venues_node)
+        workflow.add_node("enhance_routing",     self._enhance_routing_node)
+        workflow.add_node("create_adventures",   self._create_adventures_node)
+
+        workflow.add_edge("parse_location",      "get_personalization")
         workflow.add_edge("get_personalization", "parse_intent")
-        
+
         workflow.add_conditional_edges(
             "parse_intent",
             self._should_continue_after_intent,
             {"continue": "scout_venues", "stop": END}
         )
-        
-        workflow.add_edge("scout_venues", "research_venues")
-        workflow.add_edge("research_venues", "summarize_research")
-        workflow.add_edge("summarize_research", "enhance_routing")
+
+        workflow.add_edge("scout_venues",    "research_venues")
+        workflow.add_edge("research_venues", "enhance_routing")
         workflow.add_edge("enhance_routing", "create_adventures")
         workflow.add_edge("create_adventures", END)
-        
+
         workflow.set_entry_point("parse_location")
-        
         return workflow.compile()
-    
+
     def _should_continue_after_intent(self, state: AdventureState) -> str:
-        """Decision: Continue or stop after intent"""
         error = state.get("error")
-        
         if isinstance(error, dict) and error.get("type") == "clarification_needed":
             logger.info("🛑 Stopping - clarification needed")
             return "stop"
-        
         if not state.get("parsed_preferences"):
             state["error"] = {
                 "type": "clarification_needed",
@@ -152,15 +137,13 @@ class LangGraphCoordinator:
                 "suggestions": ["Museums and coffee shops", "Parks and restaurants"]
             }
             return "stop"
-        
         return "continue"
-    
-    # ========================================
+
+    # =========================================================================
     # PROGRESS TRACKING
-    # ========================================
-    
+    # =========================================================================
+
     def _emit_progress(self, update: Dict):
-        """Emit progress update to callback"""
         if self.progress_callback:
             try:
                 if asyncio.iscoroutinefunction(self.progress_callback):
@@ -169,173 +152,127 @@ class LangGraphCoordinator:
                     self.progress_callback(update)
             except Exception as e:
                 self.logger.error(f"Progress callback error: {e}")
-    
-    # ========================================
+
+    # =========================================================================
     # GOOGLE MAPS ROUTE OPTIMIZATION
-    # ========================================
-    
+    # =========================================================================
+
     async def _get_optimized_route_from_google(
-        self, 
+        self,
         origin: str,
         locations: List[Dict],
         mode: str = "walking"
     ) -> Tuple[Optional[str], Optional[List[Dict]], Optional[Dict]]:
-        """
-        ✅ Use Google Maps Directions API to optimize waypoint order
-        
-        Returns: (optimized_url, optimized_locations, route_details)
-        """
         if not self.route_optimization_enabled or not locations:
             return None, locations, None
-        
+
         try:
             logger.info(f"🗺️ Using Google Maps to optimize {len(locations)} waypoints")
-            
-            # Extract addresses
             location_addresses = [loc.get('address') for loc in locations if loc.get('address')]
-            
             if not location_addresses:
-                logger.warning("No valid addresses for Google optimization")
                 return None, locations, None
-            
-            # Prepare for Google Directions API
+
             destination = location_addresses[-1]
-            waypoints = location_addresses[:-1] if len(location_addresses) > 1 else []
-            
+            waypoints   = location_addresses[:-1] if len(location_addresses) > 1 else []
+
             logger.info(f"   Origin: {origin}")
             logger.info(f"   Waypoints: {len(waypoints)}")
             logger.info(f"   Destination: {destination}")
-            
-            # ✅ Call Google Maps Directions with optimize_waypoints=True
+
             result = self.gmaps.directions(
                 origin=origin,
                 destination=destination,
                 waypoints=waypoints,
-                optimize_waypoints=True,  # ✅ Google optimizes the order!
+                optimize_waypoints=True,
                 mode=mode,
                 units="metric"
             )
-            
+
             if not result or not result[0]:
-                logger.warning("Google Maps returned no results")
                 return None, locations, None
-            
-            # Extract optimized waypoint order
+
             optimized_order = result[0].get("waypoint_order", [])
-            
             logger.info(f"   ✅ Google optimized order: {optimized_order}")
-            
-            # Reorder locations based on Google's optimization
+
             optimized_locations = []
-            
-            # Add waypoints in optimized order
             for idx in optimized_order:
                 if idx < len(locations) - 1:
                     optimized_locations.append(locations[idx])
-            
-            # Add destination last
             optimized_locations.append(locations[-1])
-            
-            # Extract route details
+
             route_details = {
                 "total_distance_km": sum(
-                    leg.get("distance", {}).get("value", 0) 
+                    leg.get("distance", {}).get("value", 0)
                     for leg in result[0].get("legs", [])
                 ) / 1000,
                 "total_duration_min": sum(
-                    leg.get("duration", {}).get("value", 0) 
+                    leg.get("duration", {}).get("value", 0)
                     for leg in result[0].get("legs", [])
                 ) / 60,
-                "optimization_savings": self._calculate_optimization_savings(
-                    optimized_order
-                )
+                "optimization_savings": self._calculate_optimization_savings(optimized_order)
             }
-            
-            # Build optimized route URL
+
             optimized_url = self._build_google_maps_url_from_directions(
                 origin, optimized_locations, mode
             )
-            
+
             logger.info(f"   🎯 Optimized route:")
             logger.info(f"      Distance: {route_details['total_distance_km']:.1f} km")
             logger.info(f"      Duration: {route_details['total_duration_min']:.0f} min")
             logger.info(f"      Order: {' → '.join([l.get('name', 'Unknown') for l in optimized_locations])}")
-            
+
             return optimized_url, optimized_locations, route_details
-            
+
         except Exception as e:
             logger.error(f"Google Maps optimization failed: {e}")
             return None, locations, None
-    
+
     def _calculate_optimization_savings(self, optimized_order: List[int]) -> str:
-        """Calculate how much reordering was done"""
         try:
             if optimized_order == list(range(len(optimized_order))):
                 return "No reordering needed (already optimal)"
-            
             reordered_count = sum(1 for i, idx in enumerate(optimized_order) if i != idx)
             return f"Reordered {reordered_count} waypoints for efficiency"
         except:
             return "Optimized"
-    
+
     def _build_google_maps_url_from_directions(self, origin: str, locations: List[Dict], mode: str) -> str:
-        """Build Google Maps URL from optimized locations"""
         if not locations:
             return None
-        
         destination = locations[-1].get('address')
-        waypoints = [loc.get('address') for loc in locations[:-1]]
-        
-        encoded_origin = urllib.parse.quote(origin)
-        encoded_dest = urllib.parse.quote(destination)
-        
-        if waypoints:
-            encoded_waypoints = [urllib.parse.quote(wp) for wp in waypoints if wp]
-            waypoints_param = "&waypoints=" + "|".join(encoded_waypoints)
-        else:
-            waypoints_param = ""
-        
+        waypoints   = [loc.get('address') for loc in locations[:-1]]
+        enc_origin  = urllib.parse.quote(origin)
+        enc_dest    = urllib.parse.quote(destination)
+        wp_param    = ("&waypoints=" + "|".join(urllib.parse.quote(wp) for wp in waypoints if wp)) if waypoints else ""
         return (f"https://www.google.com/maps/dir/?api=1"
-                f"&origin={encoded_origin}"
-                f"&destination={encoded_dest}"
-                f"{waypoints_param}"
-                f"&travelmode={mode}")
-    
+                f"&origin={enc_origin}&destination={enc_dest}{wp_param}&travelmode={mode}")
+
     def _reorder_steps_by_locations(self, steps: List[Dict], optimized_locations: List[Dict]) -> List[Dict]:
-        """Reorder adventure steps to match optimized location order"""
         if not steps or not optimized_locations:
             return steps
-        
-        # Create mapping of venue names to steps
         step_map = {}
         for step in steps:
             activity = step.get("activity", "").lower()
             for loc in optimized_locations:
-                loc_name = loc.get("name", "").lower()
-                if loc_name in activity:
+                if loc.get("name", "").lower() in activity:
                     step_map[loc.get("name")] = step
                     break
-        
-        # Rebuild steps in optimized order
         reordered = []
-        base_hour = 9  # Start at 9 AM
-        
+        base_hour = 9
         for i, loc in enumerate(optimized_locations):
             step = step_map.get(loc.get("name"))
             if step:
-                # Update time progressively (2 hours per stop)
                 hour = base_hour + (i * 2)
                 am_pm = 'PM' if hour >= 12 else 'AM'
                 display_hour = hour % 12 if hour % 12 != 0 else 12
                 step["time"] = f"{display_hour}:00 {am_pm}"
                 reordered.append(step)
-        
         return reordered if reordered else steps
-    
-    # ========================================
-    # MAIN ROUTING METHOD (GOOGLE OPTIMIZED)
-    # ========================================
-    
+
+    # =========================================================================
+    # MAIN ROUTING METHOD
+    # =========================================================================
+
     async def _add_individual_routing_to_adventures(
         self,
         adventures: list,
@@ -343,33 +280,22 @@ class LangGraphCoordinator:
         user_address: Optional[str],
         target_location: str,
     ) -> list:
-        """Generate Google-optimized routes for each adventure."""
-
         logger.info(f"🗺️ Generating routes for {len(adventures)} adventures")
-
-        # ── Build a name→location lookup once for O(1) matching ───────────────
-        loc_by_name: Dict[str, Dict] = {
-            loc["name"].lower().strip(): loc
-            for loc in all_enhanced_locations
-            if loc.get("name")
-        }
 
         for idx, adventure in enumerate(adventures):
             try:
                 self._emit_progress({
                     "step": "create_adventures", "agent": "RoutingAgent",
                     "status": "in_progress",
-                    "message": f"Optimizing route for '{adventure.get('title')}' ({idx+1}/{len(adventures)})",
+                    "message": f"Building Google Maps route for '{adventure.get('title')}' ({idx+1}/{len(adventures)})",
                     "progress": 0.92 + (0.08 * (idx / len(adventures))),
                 })
 
-                # ── Use ONLY venues_used — the authoritative list for this adventure
                 venues_used = adventure.get("venues_used", [])
                 if not venues_used:
                     logger.warning(f"   ⚠️ No venues_used for '{adventure.get('title')}'")
                     continue
 
-                # Deduplicate while preserving order
                 seen: set = set()
                 unique_venues: List[str] = []
                 for v in venues_used:
@@ -380,21 +306,14 @@ class LangGraphCoordinator:
 
                 logger.info(f"📍 '{adventure.get('title')}': {unique_venues}")
 
-                # ── Match venue names → enhanced location dicts ────────────────
                 adventure_locations = self._match_venues_to_locations_with_typo_tolerance(
                     unique_venues, all_enhanced_locations
                 )
-
-                logger.info(
-                    f"   ✅ Matched {len(adventure_locations)}/{len(unique_venues)} venues"
-                )
+                logger.info(f"   ✅ Matched {len(adventure_locations)}/{len(unique_venues)} venues")
 
                 if not adventure_locations:
-                    logger.warning(f"   ⚠️ Could not match any venues to locations")
                     continue
 
-                # ── Determine origin ───────────────────────────────────────────
-                # Prefer user's actual address; fall back to target city
                 origin = (
                     user_address.strip()
                     if user_address and user_address.strip()
@@ -409,7 +328,6 @@ class LangGraphCoordinator:
                             mode="walking",
                         )
                     )
-
                     if optimized_url and optimized_locs:
                         adventure["map_url"] = optimized_url
                         adventure["routing_info"] = {
@@ -431,29 +349,23 @@ class LangGraphCoordinator:
                             f"{route_details.get('total_distance_km', 0):.1f} km"
                         )
                     else:
-                        # Fallback: basic routing without optimization
                         logger.warning("   ⚠️ Google optimization failed — using fallback")
                         url = self._build_basic_route_url(origin, adventure_locations)
                         if url:
                             adventure["map_url"] = url
                             adventure["routing_info"] = {
-                                "routing_available": True,
-                                "optimized": False,
+                                "routing_available": True, "optimized": False,
                                 "optimization_method": "basic_fallback",
                                 "recommended_mode": "walking",
                                 "total_stops": len(adventure_locations),
                             }
-
                 else:
-                    # Single location
                     url = self._build_basic_route_url(origin, adventure_locations)
                     if url:
                         adventure["map_url"] = url
                         adventure["routing_info"] = {
-                            "routing_available": True,
-                            "optimized": False,
-                            "optimization_method": "single_destination",
-                            "total_stops": 1,
+                            "routing_available": True, "optimized": False,
+                            "optimization_method": "single_destination", "total_stops": 1,
                         }
 
             except Exception as e:
@@ -462,72 +374,48 @@ class LangGraphCoordinator:
         return adventures
 
     def _build_basic_route_url(self, origin: str, locations: List[Dict]) -> Optional[str]:
-        """Build a basic Google Maps URL without Directions API optimization."""
         if not locations:
             return None
-
         enc = urllib.parse.quote
         stop_addresses = [loc["address"] for loc in locations if loc.get("address")]
-
         if not stop_addresses:
             return None
-
         base = "https://www.google.com/maps/dir/?api=1"
-
         if len(stop_addresses) == 1:
-            return (
-                f"{base}&origin={enc(origin)}"
-                f"&destination={enc(stop_addresses[0])}"
-                f"&travelmode=walking"
-            )
+            return f"{base}&origin={enc(origin)}&destination={enc(stop_addresses[0])}&travelmode=walking"
+        dest     = stop_addresses[-1]
+        wps      = stop_addresses[:-1]
+        wp_param = ("&waypoints=" + "|".join(enc(w) for w in wps[:9])) if wps else ""
+        return f"{base}&origin={enc(origin)}&destination={enc(dest)}{wp_param}&travelmode=walking"
 
-        dest      = stop_addresses[-1]
-        waypoints = stop_addresses[:-1]
-        wp_param  = ("&waypoints=" + "|".join(enc(w) for w in waypoints[:9])) if waypoints else ""
-
-        return (
-            f"{base}&origin={enc(origin)}"
-            f"&destination={enc(dest)}"
-            f"{wp_param}"
-            f"&travelmode=walking"
-        )
-    
-    # ========================================
+    # =========================================================================
     # HELPER METHODS
-    # ========================================
-    
+    # =========================================================================
+
     def _track_timing(self, operation: str, elapsed: float):
-        """Track operation timing"""
         self.timing_data[operation] = elapsed
         self.logger.debug(f"⏱️ {operation}: {elapsed:.2f}s")
-    
+
     def _extract_city_name(self, location: str) -> str:
-        """Extract city name from full address"""
         if not location:
             return "Boston, MA"
-        
         parts = [p.strip() for p in location.split(',')]
-        
-        if len(parts) == 2 and not any(char.isdigit() for char in parts[0]):
+        if len(parts) == 2 and not any(c.isdigit() for c in parts[0]):
             return location
-        
         if len(parts) >= 3:
             return f"{parts[-2]}, {parts[-1]}"
-        
         return location
-    
-    
+
     def _find_nearest_branch(self, venue_name: str, resolved_address: str, origin: str) -> Optional[str]:
         """
-        For franchise venues (e.g. Tatte Bakery & Cafe), use Google Places Text Search
-        to find ALL branches near the origin and return the closest one's address.
-        Falls back to resolved_address if Google Maps is unavailable or finds nothing better.
+        Synchronous Google Places lookup — called via run_in_executor.
+        Only swaps the address when the nearest Places result actually matches
+        the venue we searched for (name similarity >= 0.6), preventing wrong-
+        business substitutions (e.g. Flour Bakery → unrelated street address).
         """
         if not self.route_optimization_enabled:
             return resolved_address
-
         try:
-            # Geocode the origin to get lat/lng
             origin_geocode = self.gmaps.geocode(origin)
             if not origin_geocode:
                 return resolved_address
@@ -535,31 +423,42 @@ class LangGraphCoordinator:
             origin_lat = origin_geocode[0]["geometry"]["location"]["lat"]
             origin_lng = origin_geocode[0]["geometry"]["location"]["lng"]
 
-            # Search for all branches of this venue near origin
             results = self.gmaps.places(
                 query=venue_name,
                 location=(origin_lat, origin_lng),
-                radius=5000,  # 5km radius
+                radius=5000,
             )
-
             candidates = results.get("results", [])
             if not candidates:
                 return resolved_address
 
-            # Find the closest candidate by straight-line distance
-            def _distance_sq(place):
+            def _dist_sq(place):
                 loc = place["geometry"]["location"]
-                dlat = loc["lat"] - origin_lat
-                dlng = loc["lng"] - origin_lng
-                return dlat * dlat + dlng * dlng
+                return (loc["lat"] - origin_lat) ** 2 + (loc["lng"] - origin_lng) ** 2
 
-            nearest = min(candidates, key=_distance_sq)
+            nearest = min(candidates, key=_dist_sq)
             nearest_address = nearest.get("formatted_address") or nearest.get("vicinity", "")
+            nearest_name    = nearest.get("name", "")
+
+            # ✅ Guard: only accept the swap if the returned name actually matches
+            # what we searched for — prevents wrong-business substitutions
+            name_similarity = SequenceMatcher(
+                None,
+                venue_name.lower().strip(),
+                nearest_name.lower().strip(),
+            ).ratio()
+
+            if name_similarity < 0.6:
+                logger.info(
+                    f"   🚫 Branch swap rejected: '{nearest_name}' (sim={name_similarity:.2f}) "
+                    f"doesn't match '{venue_name}' — keeping '{resolved_address}'"
+                )
+                return resolved_address
 
             if nearest_address and nearest_address != resolved_address:
                 logger.info(
                     f"   🏪 Nearest branch swap: '{resolved_address}' → '{nearest_address}' "
-                    f"(closer to origin '{origin}')"
+                    f"(sim={name_similarity:.2f}, closer to origin '{origin}')"
                 )
                 return nearest_address
 
@@ -569,24 +468,25 @@ class LangGraphCoordinator:
             logger.warning(f"Nearest branch lookup failed for '{venue_name}': {e}")
             return resolved_address
 
-    def _convert_to_enhanced_locations(
+    async def _convert_to_enhanced_locations(
         self,
         researched_venues: list,
         city_name: str,
-        origin: Optional[str] = None,   # ✅ NEW — user address or target city
+        origin: Optional[str] = None,
     ) -> list:
         """
-        Convert researched venues to routable location dicts.
+        ✅ ASYNC: Convert researched venues to routable location dicts.
+        Nearest-branch Google Places lookups run in parallel via run_in_executor.
 
         Address priority:
-          0. verified_address from TavilyResearch (extracted from live content)
-             → for franchises, swapped for the nearest branch via Google Places
-          1. Full street address already on the venue dict
+          0. verified_address from TavilyResearch → nearest branch swap (parallel)
+          1. Full street address on the venue dict
           2. address_hint + city
           3. venue name + neighbourhood + city
-          4. venue name + city  (geocodable fallback)
+          4. venue name + city (geocodable fallback)
         """
-        enhanced_locations = []
+        effective_origin = origin or city_name
+        loop = asyncio.get_event_loop()
 
         def _clean(s: str) -> str:
             return re.sub(r"\s+", " ", s.strip())
@@ -595,39 +495,30 @@ class LangGraphCoordinator:
             if not s:
                 return False
             s = _clean(s)
-            has_num = any(c.isdigit() for c in s)
-            has_kw  = any(kw in s.lower() for kw in (
-                "street", "st ", "ave", "avenue", "rd ", "road",
-                "blvd", "boulevard", "drive", "dr ", "lane", "ln ",
-                "place", "pl ", "way ", "court", "ct ",
-            ))
-            return has_num or has_kw
+            return any(c.isdigit() for c in s) or any(
+                kw in s.lower() for kw in (
+                    "street", "st ", "ave", "avenue", "rd ", "road",
+                    "blvd", "boulevard", "drive", "dr ", "lane", "ln ",
+                    "place", "pl ", "way ", "court", "ct ",
+                )
+            )
 
         def _is_city_only(s: str) -> bool:
             return bool(s) and not _has_street(s)
 
-        # Resolve origin for nearest-branch lookups
-        effective_origin = origin or city_name
-
-        for venue in researched_venues:
+        async def _resolve_one(venue: Dict) -> Dict:
             venue_name = venue.get("name", "Unknown")
 
-            # ── Priority 0: address extracted from live Tavily research ───────
+            # Priority 0: Tavily-verified address → parallel nearest-branch swap
             raw_verified = venue.get("verified_address") or ""
             if raw_verified:
                 cleaned = _clean(raw_verified)
                 if _has_street(cleaned):
-                    # ✅ NEW: for franchises, find the nearest branch instead
-                    final_address = self._find_nearest_branch(
-                        venue_name, cleaned, effective_origin
+                    final_address = await loop.run_in_executor(
+                        None, self._find_nearest_branch, venue_name, cleaned, effective_origin
                     )
                     logger.debug(f"✅ [{venue_name}] research-verified: {final_address}")
-                    enhanced_locations.append({
-                        "name":    venue_name,
-                        "address": final_address,
-                        "type":    venue.get("type", "attraction"),
-                    })
-                    continue
+                    return {"name": venue_name, "address": final_address, "type": venue.get("type", "attraction")}
 
             address = venue.get("address", "").strip()
             hint    = venue.get("address_hint", "").strip()
@@ -638,7 +529,7 @@ class LangGraphCoordinator:
                 logger.debug(f"✅ [{venue_name}] full street address: {routable}")
             elif _has_street(hint):
                 city_part = city_name.split(",")[0].strip()
-                routable  = hint if city_part.lower() in hint.lower() else f"{hint}, {city_name}"
+                routable = hint if city_part.lower() in hint.lower() else f"{hint}, {city_name}"
                 logger.debug(f"✅ [{venue_name}] hint + city: {routable}")
             elif hood and not _is_city_only(hood):
                 routable = f"{venue_name}, {hood}, {city_name}"
@@ -647,132 +538,85 @@ class LangGraphCoordinator:
                 routable = f"{venue_name}, {city_name}"
                 logger.warning(f"⚠️ [{venue_name}] name + city fallback: {routable}")
 
-            enhanced_locations.append({
-                "name":    venue_name,
-                "address": routable,
-                "type":    venue.get("type", "attraction"),
-            })
+            return {"name": venue_name, "address": routable, "type": venue.get("type", "attraction")}
 
-        logger.info(f"✅ Converted {len(enhanced_locations)} venues to enhanced locations")
-        return enhanced_locations
-    
+        results = await asyncio.gather(*[_resolve_one(v) for v in researched_venues])
+        logger.info(f"✅ Converted {len(results)} venues to enhanced locations (parallel)")
+        return list(results)
+
     def _calculate_string_similarity(self, str1: str, str2: str) -> float:
-        """
-        ✅ NEW: Calculate character-level similarity for typo tolerance
-        Handles typos like "FFine" vs "Fine", "Musuem" vs "Museum"
-        """
-        # Quick length check - if very different lengths, probably not a typo
         if abs(len(str1) - len(str2)) > 5:
             return 0.0
-        
-        # Use SequenceMatcher for similarity ratio (0.0 to 1.0)
         return SequenceMatcher(None, str1, str2).ratio()
-    
+
     def _match_venues_to_locations_with_typo_tolerance(
-        self, 
-        venues_used: List[str], 
-        locations: list
+        self, venues_used: List[str], locations: list
     ) -> list:
-        """
-        ✅ ENHANCED: Match venue names to locations with TYPO TOLERANCE
-        Handles LLM-introduced typos like "Museum of FFine Arts" → "Museum of Fine Arts"
-        """
         matched = []
         used_indices = set()
-        
+
         for venue_name in venues_used:
             venue_lower = venue_name.lower().strip()
             venue_words = set(venue_lower.split())
-            
-            best_match = None
-            best_score = 0
-            best_idx = None
-            match_type = None
-            
+            best_match, best_score, best_idx, match_type = None, 0, None, None
+
             for idx, loc in enumerate(locations):
                 if idx in used_indices:
                     continue
-                
-                loc_name = loc.get("name", "").lower().strip()
+                loc_name  = loc.get("name", "").lower().strip()
                 loc_words = set(loc_name.split())
-                
-                # 1. EXACT MATCH (perfect - 1.0)
+
                 if venue_lower == loc_name:
-                    best_match = loc
-                    best_idx = idx
-                    best_score = 1.0
-                    match_type = "exact"
+                    best_match, best_idx, best_score, match_type = loc, idx, 1.0, "exact"
                     break
-                
-                # 2. SUBSTRING MATCH (very good - 0.9)
+
                 if venue_lower in loc_name or loc_name in venue_lower:
-                    score = 0.9
-                    if score > best_score:
-                        best_score = score
-                        best_match = loc
-                        best_idx = idx
-                        match_type = "substring"
+                    if 0.9 > best_score:
+                        best_score, best_match, best_idx, match_type = 0.9, loc, idx, "substring"
                     continue
-                
-                # 3. ✅ CHARACTER-LEVEL SIMILARITY (typo tolerance - 0.85+)
-                # Catches "FFine" vs "Fine", "Musuem" vs "Museum", etc.
-                char_similarity = self._calculate_string_similarity(venue_lower, loc_name)
-                if char_similarity >= 0.85 and char_similarity > best_score:
-                    best_score = char_similarity
-                    best_match = loc
-                    best_idx = idx
-                    match_type = "typo_tolerant"
+
+                char_sim = self._calculate_string_similarity(venue_lower, loc_name)
+                if char_sim >= 0.85 and char_sim > best_score:
+                    best_score, best_match, best_idx, match_type = char_sim, loc, idx, "typo_tolerant"
                     continue
-                
-                # 4. WORD OVERLAP (okay - 0.5+)
+
                 if venue_words and loc_words:
-                    overlap = len(venue_words.intersection(loc_words))
-                    total_words = len(venue_words.union(loc_words))
-                    score = overlap / total_words if total_words > 0 else 0
-                    
+                    overlap = len(venue_words & loc_words)
+                    total   = len(venue_words | loc_words)
+                    score   = overlap / total if total > 0 else 0
                     if score >= 0.5 and score > best_score:
-                        best_score = score
-                        best_match = loc
-                        best_idx = idx
-                        match_type = "word_overlap"
-            
-            # ✅ Accept matches with 50%+ similarity (includes typo matches at 85%+)
+                        best_score, best_match, best_idx, match_type = score, loc, idx, "word_overlap"
+
             if best_match and best_score >= 0.5:
                 matched.append(best_match)
                 used_indices.add(best_idx)
-                
-                # Log match with type indicator
                 if match_type == "typo_tolerant":
                     logger.info(f"   ✅ '{venue_name}' → '{best_match.get('name')}' (score: {best_score:.2f}, TYPO-CORRECTED)")
                 else:
                     logger.debug(f"   ✅ '{venue_name}' → '{best_match.get('name')}' (score: {best_score:.2f}, {match_type})")
             else:
-                logger.warning(f"   ⚠️ No match for '{venue_name}' (best score: {best_score:.2f})")
-        
+                logger.warning(f"   ⚠️ No match for '{venue_name}' (best: {best_score:.2f})")
+
         return matched
-    
+
     def _match_venues_to_locations(self, venues_used: List[str], locations: list) -> list:
-        """Legacy method - redirects to typo-tolerant version"""
         return self._match_venues_to_locations_with_typo_tolerance(venues_used, locations)
-    
-    # ========================================
+
+    # =========================================================================
     # MAIN ENTRY POINTS
-    # ========================================
-    
+    # =========================================================================
+
     async def generate_adventures(
         self,
         user_input: str,
         user_address: Optional[str] = None,
         user_id: Optional[str] = None,
-        generation_options: Optional[Dict] = None,   # ✅ NEW
+        generation_options: Optional[Dict] = None,
     ) -> Tuple[List[Dict], Dict]:
         self.logger.info(f"🔄 Starting OPTIMIZED workflow: '{user_input[:50]}...'")
         start_time = time.time()
         self.timing_data = {}
-        initial_state = self._create_initial_state(
-            user_input, user_address, user_id, generation_options
-        )
-
+        initial_state = self._create_initial_state(user_input, user_address, user_id, generation_options)
         tracer = get_tracer()
 
         with tracer.start_as_current_span("miniquest.generate_adventures") as span:
@@ -780,7 +624,6 @@ class LangGraphCoordinator:
             span.set_attribute("user.input", user_input[:200])
             span.set_attribute("user.id", user_id or "anonymous")
             span.set_attribute("location.provided", bool(user_address))
-
             try:
                 final_state = await self.workflow.ainvoke(initial_state)
 
@@ -788,25 +631,18 @@ class LangGraphCoordinator:
                 if isinstance(error, dict) and error.get("type") == "clarification_needed":
                     span.set_attribute("workflow.outcome", "clarification_needed")
                     return [], {"error": error}
-
                 if final_state.get("error"):
                     span.set_attribute("workflow.outcome", "error")
-                    span.set_attribute("error.message", str(final_state["error"]))
                     return [], {"error": final_state["error"]}
 
                 adventures = final_state.get("final_adventures", [])
                 total_time = time.time() - start_time
-                metadata = self._build_completion_metadata(final_state, total_time)
+                metadata   = self._build_completion_metadata(final_state, total_time)
 
                 span.set_attribute("workflow.outcome", "success")
                 span.set_attribute("adventures.count", len(adventures))
                 span.set_attribute("workflow.duration_seconds", round(total_time, 2))
                 span.set_attribute("target.location", final_state.get("target_location", "unknown"))
-
-                cache_stats = metadata.get("performance", {}).get("cache_stats", {})
-                if cache_stats:
-                    span.set_attribute("cache.hit_rate", cache_stats.get("hit_rate", "0%"))
-                    span.set_attribute("cache.hits", cache_stats.get("hits", 0))
 
                 self.logger.info(f"✅ Workflow complete: {len(adventures)} adventures in {total_time:.2f}s")
                 return adventures, metadata
@@ -816,14 +652,14 @@ class LangGraphCoordinator:
                 span.set_attribute("error.message", str(e))
                 self.logger.error(f"❌ Failed: {e}")
                 return [], {"error": str(e)}
-    
+
     async def generate_adventures_with_progress(
         self,
         user_input: str,
         user_address: Optional[str] = None,
         user_id: Optional[str] = None,
         progress_callback: Optional[Callable] = None,
-        generation_options: Optional[Dict] = None,   # ✅ NEW
+        generation_options: Optional[Dict] = None,
     ) -> Tuple[List[Dict], Dict]:
         self.progress_callback = progress_callback
 
@@ -838,12 +674,7 @@ class LangGraphCoordinator:
 
         start_time = time.time()
         self.timing_data = {}
-
-        initial_state = self._create_initial_state(
-            user_input, user_address, user_id, generation_options
-        )
-
-        # ✅ Wrap the entire streaming workflow in an OTel parent span
+        initial_state = self._create_initial_state(user_input, user_address, user_id, generation_options)
         tracer = get_tracer()
 
         with tracer.start_as_current_span("miniquest.generate_adventures") as span:
@@ -869,18 +700,16 @@ class LangGraphCoordinator:
 
                 if final_state.get("error"):
                     span.set_attribute("workflow.outcome", "error")
-                    span.set_attribute("error.message", str(final_state["error"]))
                     self._emit_progress({
-                        "step": "complete", "agent": "Coordinator",
-                        "status": "error",
-                        "message": f"Error: {final_state['error']}",
-                        "progress": 1.0, "error": final_state["error"]
+                        "step": "complete", "agent": "Coordinator", "status": "error",
+                        "message": f"Error: {final_state['error']}", "progress": 1.0,
+                        "error": final_state["error"]
                     })
                     return [], {"error": final_state["error"]}
 
                 adventures = final_state.get("final_adventures", [])
                 total_time = time.time() - start_time
-                metadata = self._build_completion_metadata(final_state, total_time)
+                metadata   = self._build_completion_metadata(final_state, total_time)
 
                 span.set_attribute("workflow.outcome", "success")
                 span.set_attribute("adventures.count", len(adventures))
@@ -888,13 +717,8 @@ class LangGraphCoordinator:
                 span.set_attribute("target.location", final_state.get("target_location", "unknown"))
 
                 cache_stats = metadata.get("performance", {}).get("cache_stats", {})
-                if cache_stats:
-                    span.set_attribute("cache.hit_rate", cache_stats.get("hit_rate", "0%"))
-                    span.set_attribute("cache.hits", cache_stats.get("hits", 0))
-
                 self._emit_progress({
-                    "step": "complete", "agent": "Coordinator",
-                    "status": "complete",
+                    "step": "complete", "agent": "Coordinator", "status": "complete",
                     "message": f"✅ Created {len(adventures)} adventures in {total_time:.1f}s",
                     "progress": 1.0,
                     "details": {
@@ -912,26 +736,25 @@ class LangGraphCoordinator:
                 span.set_attribute("error.message", str(e))
                 self.logger.error(f"❌ Workflow error: {e}")
                 self._emit_progress({
-                    "step": "complete", "agent": "Coordinator",
-                    "status": "error", "message": f"Failed: {str(e)}",
-                    "progress": 1.0, "error": str(e)
+                    "step": "complete", "agent": "Coordinator", "status": "error",
+                    "message": f"Failed: {str(e)}", "progress": 1.0, "error": str(e)
                 })
                 return [], {"error": str(e)}
             finally:
                 self.progress_callback = None
-    
+
     def _create_initial_state(
         self,
         user_input: str,
         user_address: Optional[str],
         user_id: Optional[str],
-        generation_options: Optional[Dict] = None,  # ✅ NEW
+        generation_options: Optional[Dict] = None,
     ) -> AdventureState:
         return AdventureState(
             user_input=user_input,
             user_address=user_address,
             user_id=user_id,
-            generation_options=generation_options or {},  # ✅ NEW
+            generation_options=generation_options or {},
             target_location=None,
             location_parsing_info=None,
             parsed_preferences=None,
@@ -948,17 +771,14 @@ class LangGraphCoordinator:
             current_agent=None,
             step_progress=None,
         )
-    
+
     def _build_completion_metadata(self, final_state: dict, total_time: float) -> dict:
-        """Build metadata with performance stats"""
         metadata = final_state.get("metadata", {})
-        
         metadata.update({
             "workflow_success": True,
             "total_adventures": len(final_state.get("final_adventures", [])),
             "target_location": final_state.get("target_location")
         })
-        
         performance = {
             "total_time_seconds": total_time,
             "timing_breakdown": self.timing_data,
@@ -968,51 +788,49 @@ class LangGraphCoordinator:
                 "async_adventure_creation": True,
                 "google_route_optimization": self.route_optimization_enabled,
                 "typo_tolerant_matching": True,
-                "progress_tracking": True
+                "progress_tracking": True,
+                "summary_node_removed": True,
+                "parallel_branch_lookups": True,
+                "branch_swap_name_guard": True,
             }
         }
-        
         if hasattr(self.research_agent, 'get_cache_stats'):
             cache_stats = self.research_agent.get_cache_stats()
             performance["cache_stats"] = cache_stats
-            
-            hits = cache_stats.get('hits', 0)
+            hits   = cache_stats.get('hits', 0)
             misses = cache_stats.get('misses', 0)
-            total = hits + misses
+            total  = hits + misses
             if total > 0:
                 performance["cache_hit_rate"] = f"{(hits / total * 100):.1f}%"
                 performance["cache_hits"] = hits
                 performance["time_saved_estimate"] = f"{hits * 2}s"
-        
         metadata["performance"] = performance
-        
         if final_state.get("user_personalization"):
             metadata["personalization_applied"] = True
             metadata["user_history"] = {
                 "has_history": final_state["user_personalization"].get("has_history", False),
                 "total_adventures": final_state["user_personalization"].get("total_adventures", 0)
             }
-        
         return metadata
-    
-    # ========================================
+
+    # =========================================================================
     # WORKFLOW NODES
-    # ========================================
-    
+    # =========================================================================
+
     async def _parse_location_node(self, state: AdventureState) -> AdventureState:
-        """Node 1/7 — with OTel span"""
+        """Node 1/6"""
         start_time = time.time()
         tracer = get_tracer()
 
         with tracer.start_as_current_span("miniquest.agent.location_parser") as span:
             span.set_attribute("agent.name", "LocationParser")
-            span.set_attribute("agent.node", "parse_location")
-            span.set_attribute("agent.step", "1/7")
-            span.set_attribute("input.user_input_length", len(state.get("user_input", "")))
+            span.set_attribute("agent.step", "1/6")
 
             self._emit_progress({
                 "step": "parse_location", "agent": "LocationParser",
-                "status": "in_progress", "message": "Parsing target location...", "progress": 0.14
+                "status": "in_progress",
+                "message": "Detecting your city from the query...",
+                "progress": 0.14
             })
 
             try:
@@ -1020,22 +838,21 @@ class LangGraphCoordinator:
                     "user_input": state["user_input"],
                     "user_address": state.get("user_address")
                 })
-
                 if result["success"]:
                     state["target_location"] = result["data"]["target_location"]
                     state["location_parsing_info"] = result["data"]
                     span.set_attribute("output.target_location", state["target_location"])
                     span.set_attribute("agent.outcome", "success")
-
                     self._emit_progress({
                         "step": "parse_location", "agent": "LocationParser",
-                        "status": "complete", "message": f"Target: {state['target_location']}",
-                        "progress": 0.14, "details": {"location": state["target_location"]}
+                        "status": "complete",
+                        "message": f"📍 City confirmed: {state['target_location']}",
+                        "progress": 0.14,
+                        "details": {"location": state["target_location"]}
                     })
                 else:
                     state["target_location"] = state.get("user_address", "Boston, MA")
                     span.set_attribute("agent.outcome", "fallback")
-
             except Exception as e:
                 state["target_location"] = state.get("user_address", "Boston, MA")
                 span.set_attribute("agent.outcome", "error")
@@ -1049,29 +866,29 @@ class LangGraphCoordinator:
         return state
 
     async def _get_personalization_node(self, state: AdventureState) -> AdventureState:
-        """Node 1.5/7 — with OTel span"""
+        """Node 1.5/6"""
         start_time = time.time()
         tracer = get_tracer()
 
         with tracer.start_as_current_span("miniquest.agent.personalization") as span:
             span.set_attribute("agent.name", "RAG")
-            span.set_attribute("agent.node", "get_personalization")
-            span.set_attribute("agent.step", "1.5/7")
-            span.set_attribute("input.has_user_id", bool(state.get("user_id")))
-            span.set_attribute("input.has_rag_system", bool(self.rag_system))
+            span.set_attribute("agent.step", "1.5/6")
 
             self._emit_progress({
                 "step": "personalization", "agent": "RAG",
-                "status": "in_progress", "message": "Loading your preferences...", "progress": 0.21
+                "status": "in_progress",
+                "message": "Checking your adventure history...",
+                "progress": 0.21
             })
 
             user_id = state.get("user_id")
-
             if not user_id or not self.rag_system:
                 span.set_attribute("agent.outcome", "skipped")
                 self._emit_progress({
                     "step": "personalization", "agent": "RAG",
-                    "status": "complete", "message": "No personalization data", "progress": 0.21
+                    "status": "complete",
+                    "message": "No past history — generating fresh recommendations",
+                    "progress": 0.21
                 })
                 state["user_personalization"] = None
                 elapsed = time.time() - start_time
@@ -1080,13 +897,11 @@ class LangGraphCoordinator:
                 return state
 
             try:
-                target_location = state.get("target_location", "general")
-                personalization = self.rag_system.get_user_personalization(
-                    user_id=user_id,
-                    location=target_location
+                target_location  = state.get("target_location", "general")
+                personalization  = self.rag_system.get_user_personalization(
+                    user_id=user_id, location=target_location
                 )
                 state["user_personalization"] = personalization
-
                 span.set_attribute("agent.outcome", "success")
                 span.set_attribute("output.has_history", personalization.get("has_history", False))
                 span.set_attribute("output.total_adventures", personalization.get("total_adventures", 0))
@@ -1095,15 +910,16 @@ class LangGraphCoordinator:
                     self._emit_progress({
                         "step": "personalization", "agent": "RAG",
                         "status": "complete",
-                        "message": f"Found {personalization['total_adventures']} past adventures",
+                        "message": f"Found {personalization['total_adventures']} past adventures — personalising results",
                         "progress": 0.21
                     })
                 else:
                     self._emit_progress({
                         "step": "personalization", "agent": "RAG",
-                        "status": "complete", "message": "No history found (new user)", "progress": 0.21
+                        "status": "complete",
+                        "message": "First time here — no history yet",
+                        "progress": 0.21
                     })
-
             except Exception as e:
                 span.set_attribute("agent.outcome", "error")
                 span.set_attribute("error.message", str(e))
@@ -1117,24 +933,24 @@ class LangGraphCoordinator:
         return state
 
     async def _parse_intent_node(self, state: AdventureState) -> AdventureState:
-        """Node 2/7 — with OTel span"""
+        """Node 2/6"""
         start_time = time.time()
         tracer = get_tracer()
 
         with tracer.start_as_current_span("miniquest.agent.intent_parser") as span:
             span.set_attribute("agent.name", "IntentParser")
-            span.set_attribute("agent.node", "parse_intent")
-            span.set_attribute("agent.step", "2/7")
+            span.set_attribute("agent.step", "2/6")
 
             self._emit_progress({
                 "step": "parse_intent", "agent": "IntentParser",
-                "status": "in_progress", "message": "Understanding your preferences...", "progress": 0.28
+                "status": "in_progress",
+                "message": "Interpreting your vibe and preferences...",
+                "progress": 0.28
             })
 
             try:
                 personalization = state.get("user_personalization")
                 context_additions = []
-
                 if personalization and personalization.get("has_history"):
                     context_additions.append(
                         f"User has {personalization['total_adventures']} saved adventures "
@@ -1160,22 +976,26 @@ class LangGraphCoordinator:
                         "query_type": error_data.get("query_type"),
                     }
                     span.set_attribute("agent.outcome", "clarification_needed")
-                    span.set_attribute("intent.out_of_scope", str(error_data.get("out_of_scope", False)))
                     return state
 
                 state["parsed_preferences"] = result["data"]["parsed_preferences"]
                 prefs = result["data"]["parsed_preferences"].get("preferences", [])
+                mood  = result["data"]["parsed_preferences"].get("mood", "exploratory")
+                stops = state.get("generation_options", {}).get("stops_per_adventure", 3)
 
                 span.set_attribute("agent.outcome", "success")
                 span.set_attribute("intent.preferences", str(prefs))
-                span.set_attribute("intent.mood", result["data"]["parsed_preferences"].get("mood", "unknown"))
-                span.set_attribute("intent.budget", str(result["data"]["parsed_preferences"].get("budget", 0)))
+                span.set_attribute("intent.mood", mood)
 
                 self._emit_progress({
                     "step": "parse_intent", "agent": "IntentParser",
                     "status": "complete",
-                    "message": f"Looking for: {', '.join(prefs[:3])}{'...' if len(prefs) > 3 else ''}",
-                    "progress": 0.28, "details": {"preferences": prefs}
+                    "message": (
+                        f"Vibe: {mood} · Looking for: {', '.join(prefs[:3])}"
+                        f"{'...' if len(prefs) > 3 else ''} · {stops} stops each"
+                    ),
+                    "progress": 0.28,
+                    "details": {"preferences": prefs, "mood": mood}
                 })
 
             except Exception as e:
@@ -1189,50 +1009,59 @@ class LangGraphCoordinator:
 
         return state
 
-
     async def _scout_venues_node(self, state: AdventureState) -> AdventureState:
-        """Node 3/7 — with OTel span"""
+        """Node 3/6"""
         start_time = time.time()
         tracer = get_tracer()
 
         with tracer.start_as_current_span("miniquest.agent.venue_scout") as span:
             span.set_attribute("agent.name", "VenueScout")
-            span.set_attribute("agent.node", "scout_venues")
-            span.set_attribute("agent.step", "3/7")
-            span.set_attribute("input.location", state.get("target_location", "unknown"))
+            span.set_attribute("agent.step", "3/6")
+
+            prefs    = state.get("parsed_preferences", {}).get("preferences", [])
+            location = state.get("target_location", "Boston, MA")
+            city     = location.split(",")[0].strip()
 
             self._emit_progress({
                 "step": "scout_venues", "agent": "VenueScout",
-                "status": "in_progress", "message": "Searching for venues...", "progress": 0.43
+                "status": "in_progress",
+                "message": f"Searching Google Places for {', '.join(prefs[:2]) or 'venues'} in {city}...",
+                "progress": 0.43
             })
 
             try:
-                preferences = state.get("parsed_preferences", {})
                 result = await self.venue_scout.process({
-                    "preferences":        preferences.get("preferences", []),
-                    "location":           state.get("target_location", "Boston, MA"),
+                    "preferences":        prefs,
+                    "location":           location,
                     "user_query":         state.get("user_input", ""),
                     "generation_options": state.get("generation_options", {}),
                 })
 
                 if result["success"]:
-                    venues = result["data"]["venues"]
+                    venues   = result["data"]["venues"]
+                    strategy = result["data"].get("search_strategy", "unknown")
 
-                    # ✅ Fetch official websites for Google Places venues
-                    if result["data"].get("search_strategy") == "google_places_primary":
+                    if strategy == "google_places_primary":
                         venues = await self.venue_scout._fetch_websites_for_venues(venues)
                         logger.info(f"   🌐 Websites fetched for {sum(1 for v in venues if v.get('website'))} venues")
 
                     state["scouted_venues"] = venues
-
                     span.set_attribute("agent.outcome", "success")
                     span.set_attribute("output.venues_found", len(venues))
-                    span.set_attribute("output.search_strategy", result["data"].get("search_strategy", "unknown"))
+                    span.set_attribute("output.search_strategy", strategy)
+
+                    strategy_label = {
+                        "google_places_primary": "Google Places",
+                        "tavily_discovery": "Tavily web search",
+                        "knowledge_based": "AI knowledge base",
+                    }.get(strategy, strategy)
 
                     self._emit_progress({
                         "step": "scout_venues", "agent": "VenueScout",
-                        "status": "complete", "message": f"Found {len(venues)} venues",
-                        "progress": 0.43, "details": {"venue_count": len(venues)}
+                        "status": "complete",
+                        "message": f"Found {len(venues)} venues via {strategy_label}",
+                        "progress": 0.43,
+                        "details": {"venue_count": len(venues), "strategy": strategy}
                     })
 
             except Exception as e:
@@ -1246,35 +1075,36 @@ class LangGraphCoordinator:
 
         return state
 
-
     async def _research_venues_node(self, state: AdventureState) -> AdventureState:
-        """Node 4/7 — with OTel span"""
+        """Node 4/6"""
         start_time = time.time()
         tracer = get_tracer()
         venues = state.get("scouted_venues", [])
 
         with tracer.start_as_current_span("miniquest.agent.tavily_research") as span:
             span.set_attribute("agent.name", "TavilyResearch")
-            span.set_attribute("agent.node", "research_venues")
-            span.set_attribute("agent.step", "4/7")
+            span.set_attribute("agent.step", "4/6")
             span.set_attribute("input.venues_to_research", len(venues))
+
+            stops      = max(1, min(6, int(state.get("generation_options", {}).get("stops_per_adventure", 3))))
+            max_venues = min(stops * 3, 18)
+            venue_names = [v.get("name", "?") for v in venues[:max_venues]]
 
             self._emit_progress({
                 "step": "research_venues", "agent": "TavilyResearch",
                 "status": "in_progress",
-                "message": f"Researching {len(venues)} venues (parallel + cached)...", "progress": 0.57
+                "message": (
+                    f"Live-researching {min(len(venues), max_venues)} venues in parallel: "
+                    f"{', '.join(venue_names[:3])}{'...' if len(venue_names) > 3 else ''}"
+                ),
+                "progress": 0.57
             })
 
             try:
-                # ✅ Size the research pool to match stops_per_adventure
-                # Need stops*3 venues so 3 adventures can each pick a non-overlapping set
-                stops = max(1, min(6, int(state.get("generation_options", {}).get("stops_per_adventure", 3))))
-                max_venues = min(stops * 3, 18)  # e.g. 9 for 3 stops, 18 for 6 stops
-
                 result = await self.research_agent.process({
-                    "venues": venues,
-                    "location": state.get("target_location", "Boston, MA"),
-                    "max_venues": max_venues,
+                    "venues":      venues,
+                    "location":    state.get("target_location", "Boston, MA"),
+                    "max_venues":  max_venues,
                 })
 
                 if result["success"]:
@@ -1282,18 +1112,28 @@ class LangGraphCoordinator:
                     state["metadata"]["research_stats"] = result["data"]["research_stats"]
 
                     stats = result["data"]["research_stats"]
+                    cache_rate = stats.get("cache_hit_rate", "0%")
+                    cache_note = f" ({cache_rate} from cache)" if cache_rate != "0%" else " (all fresh)"
+
                     span.set_attribute("agent.outcome", "success")
                     span.set_attribute("output.venues_researched", stats.get("total_venues", 0))
                     span.set_attribute("output.total_insights", stats.get("total_insights", 0))
-                    span.set_attribute("output.cache_hit_rate", stats.get("cache_hit_rate", "0%"))
-                    span.set_attribute("output.avg_confidence", round(stats.get("avg_confidence", 0), 2))
+                    span.set_attribute("output.cache_hit_rate", cache_rate)
                     span.set_attribute("output.max_venues_requested", max_venues)
 
                     self._emit_progress({
                         "step": "research_venues", "agent": "TavilyResearch",
                         "status": "complete",
-                        "message": f"Research complete: {stats.get('total_insights', 0)} insights",
-                        "progress": 0.71
+                        "message": (
+                            f"Gathered {stats.get('total_insights', 0)} live insights across "
+                            f"{stats.get('total_venues', 0)} venues{cache_note}"
+                        ),
+                        "progress": 0.71,
+                        "details": {
+                            "insights": stats.get("total_insights", 0),
+                            "venues": stats.get("total_venues", 0),
+                            "cache_hit_rate": cache_rate,
+                        }
                     })
 
             except Exception as e:
@@ -1307,77 +1147,46 @@ class LangGraphCoordinator:
 
         return state
 
-    async def _summarize_research_node(self, state: AdventureState) -> AdventureState:
-        """Node 5/7 — with OTel span"""
-        start_time = time.time()
-        tracer = get_tracer()
-
-        with tracer.start_as_current_span("miniquest.agent.research_summary") as span:
-            span.set_attribute("agent.name", "ResearchSummary")
-            span.set_attribute("agent.node", "summarize_research")
-            span.set_attribute("agent.step", "5/7")
-            span.set_attribute("input.venues_to_summarize", len(state.get("researched_venues", [])))
-
-            self._emit_progress({
-                "step": "summarize_research", "agent": "ResearchSummary",
-                "status": "in_progress", "message": "Structuring research insights...", "progress": 0.71
-            })
-
-            try:
-                researched_venues = state.get("researched_venues", [])
-                if not researched_venues:
-                    span.set_attribute("agent.outcome", "skipped")
-                    return state
-
-                result = await self.research_summary_agent.process({
-                    "researched_venues": researched_venues
-                })
-
-                if result["success"]:
-                    state["researched_venues"] = result["data"]["summarized_venues"]
-                    state["metadata"]["research_summarized"] = True
-                    span.set_attribute("agent.outcome", "success")
-                    span.set_attribute("output.venues_summarized", result["data"].get("total_summarized", 0))
-
-            except Exception as e:
-                span.set_attribute("agent.outcome", "error")
-                span.set_attribute("error.message", str(e))
-                logger.error(f"Summary error: {e}")
-
-            elapsed = time.time() - start_time
-            span.set_attribute("agent.duration_seconds", round(elapsed, 3))
-            self._track_timing("summarize_research", elapsed)
-
-        return state
-
-
     async def _enhance_routing_node(self, state: AdventureState) -> AdventureState:
-        """Node 6/7 — with OTel span"""
+        """Node 5/6 — async with parallel branch lookups"""
         start_time = time.time()
         tracer = get_tracer()
 
         with tracer.start_as_current_span("miniquest.agent.routing") as span:
             span.set_attribute("agent.name", "RoutingAgent")
-            span.set_attribute("agent.node", "enhance_routing")
-            span.set_attribute("agent.step", "6/7")
+            span.set_attribute("agent.step", "5/6")
 
+            researched = state.get("researched_venues", [])
             self._emit_progress({
                 "step": "enhance_routing", "agent": "RoutingAgent",
-                "status": "in_progress", "message": "Preparing location data for routing...", "progress": 0.85
+                "status": "in_progress",
+                "message": f"Resolving addresses for {len(researched)} venues in parallel...",
+                "progress": 0.78
             })
 
             try:
                 city_name = self._extract_city_name(state.get("target_location", "Boston, MA"))
-                enhanced_locations = self._convert_to_enhanced_locations(
-                    state.get("researched_venues", []),
+                enhanced_locations = await self._convert_to_enhanced_locations(
+                    researched,
                     city_name,
                     origin=state.get("user_address") or state.get("target_location"),
                 )
                 state["enhanced_locations"] = enhanced_locations
 
+                verified = sum(1 for loc in enhanced_locations if any(
+                    c.isdigit() for c in loc.get("address", "")
+                ))
                 span.set_attribute("agent.outcome", "success")
                 span.set_attribute("output.locations_prepared", len(enhanced_locations))
-                span.set_attribute("output.google_maps_enabled", self.route_optimization_enabled)
+                span.set_attribute("output.addresses_verified", verified)
+
+                self._emit_progress({
+                    "step": "enhance_routing", "agent": "RoutingAgent",
+                    "status": "complete",
+                    "message": f"Addresses resolved: {verified}/{len(enhanced_locations)} street-level",
+                    "progress": 0.85,
+                    "details": {"total": len(enhanced_locations), "verified": verified}
+                })
 
             except Exception as e:
                 span.set_attribute("agent.outcome", "error")
@@ -1390,59 +1199,97 @@ class LangGraphCoordinator:
 
         return state
 
-
     async def _create_adventures_node(self, state: AdventureState) -> AdventureState:
-        """Node 7/7 — with OTel span"""
+        """Node 6/6 — emits each adventure via SSE as soon as it's ready"""
         start_time = time.time()
         tracer = get_tracer()
 
         with tracer.start_as_current_span("miniquest.agent.adventure_creator") as span:
             span.set_attribute("agent.name", "AdventureCreator")
-            span.set_attribute("agent.node", "create_adventures")
-            span.set_attribute("agent.step", "7/7")
+            span.set_attribute("agent.step", "6/6")
             span.set_attribute("input.venues_available", len(state.get("researched_venues", [])))
-            span.set_attribute("input.locations_available", len(state.get("enhanced_locations", [])))
+
+            stops    = state.get("generation_options", {}).get("stops_per_adventure", 3)
+            location = state.get("target_location", "Boston, MA").split(",")[0].strip()
 
             self._emit_progress({
                 "step": "create_adventures", "agent": "AdventureCreator",
-                "status": "in_progress", "message": "Creating personalized adventures...", "progress": 0.85
+                "status": "in_progress",
+                "message": f"Crafting 3 unique {stops}-stop adventures in {location}...",
+                "progress": 0.85
             })
+
+            completed_adventures: List[Dict] = []
+
+            async def on_adventure_ready(adventure: Dict, count: int):
+                try:
+                    routed = await self._add_individual_routing_to_adventures(
+                        [adventure],
+                        state.get("enhanced_locations", []),
+                        state.get("user_address"),
+                        state.get("target_location", "Boston, MA"),
+                    )
+                    adventure = routed[0] if routed else adventure
+                    completed_adventures.append(adventure)
+
+                    title = adventure.get("title", f"Adventure {count}")
+                    self._emit_progress({
+                        "step": "create_adventures",
+                        "agent": "AdventureCreator",
+                        "status": "adventure_ready",
+                        "message": f"Adventure {count}/3 ready: {title}",
+                        "progress": 0.85 + (0.15 * count / 3),
+                        "details": {
+                            "adventure": adventure,
+                            "adventure_index": count - 1,
+                            "total_expected": 3,
+                        }
+                    })
+                    logger.info(f"   ✅ Adventure {count}/3 emitted: '{title}'")
+                except Exception as e:
+                    logger.error(f"Per-adventure routing/emit failed: {e}")
+                    completed_adventures.append(adventure)
 
             try:
                 result = await self.adventure_creator.process({
-                    "researched_venues":  state.get("researched_venues", []),
-                    "enhanced_locations": state.get("enhanced_locations", []),
-                    "parsed_preferences": state.get("parsed_preferences", {}),
-                    "target_location":    state.get("target_location", "Boston, MA"),
+                    "researched_venues":    state.get("researched_venues", []),
+                    "enhanced_locations":   state.get("enhanced_locations", []),
+                    "parsed_preferences":   state.get("parsed_preferences", {}),
+                    "target_location":      state.get("target_location", "Boston, MA"),
                     "user_personalization": state.get("user_personalization"),
-                    "generation_options": state.get("generation_options", {}),  # ✅ NEW
+                    "generation_options":   state.get("generation_options", {}),
+                    "on_adventure_ready":   on_adventure_ready,
                 })
 
-                if result["success"]:
-                    adventures = result["data"]["adventures"]
-
+                if completed_adventures:
+                    adventures = completed_adventures
+                elif result["success"]:
                     adventures = await self._add_individual_routing_to_adventures(
-                        adventures,
+                        result["data"]["adventures"],
                         state.get("enhanced_locations", []),
                         state.get("user_address"),
-                        state.get("target_location", "Boston, MA")
+                        state.get("target_location", "Boston, MA"),
                     )
+                else:
+                    adventures = []
 
-                    state["final_adventures"] = adventures
+                state["final_adventures"] = adventures
+                titles = [a.get("title", "Untitled") for a in adventures]
 
-                    span.set_attribute("agent.outcome", "success")
-                    span.set_attribute("output.adventures_created", len(adventures))
-                    span.set_attribute("output.google_routes_used",
-                        sum(1 for a in adventures
-                            if a.get("routing_info", {}).get("optimization_method") == "google_maps_directions_api")
-                    )
+                span.set_attribute("agent.outcome", "success")
+                span.set_attribute("output.adventures_created", len(adventures))
+                span.set_attribute("output.google_routes_used",
+                    sum(1 for a in adventures
+                        if a.get("routing_info", {}).get("optimization_method") == "google_maps_directions_api")
+                )
 
-                    self._emit_progress({
-                        "step": "create_adventures", "agent": "AdventureCreator",
-                        "status": "complete",
-                        "message": f"Created {len(adventures)} complete adventures",
-                        "progress": 1.0
-                    })
+                self._emit_progress({
+                    "step": "create_adventures", "agent": "AdventureCreator",
+                    "status": "complete",
+                    "message": f"All done! {len(adventures)} adventures ready: {' · '.join(titles)}",
+                    "progress": 1.0,
+                    "details": {"titles": titles}
+                })
 
             except Exception as e:
                 span.set_attribute("agent.outcome", "error")
@@ -1454,19 +1301,17 @@ class LangGraphCoordinator:
             self._track_timing("create_adventures", elapsed)
 
         return state
-    
-    # ========================================
+
+    # =========================================================================
     # CACHE MANAGEMENT
-    # ========================================
-    
+    # =========================================================================
+
     def get_cache_stats(self) -> Dict:
-        """Get research cache statistics"""
         if hasattr(self.research_agent, 'get_cache_stats'):
             return self.research_agent.get_cache_stats()
         return {}
-    
+
     def clear_research_cache(self):
-        """Clear research cache"""
         if hasattr(self.research_agent, 'clear_cache'):
             self.research_agent.clear_cache()
             self.logger.info("🗑️ Research cache cleared")

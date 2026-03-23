@@ -1,5 +1,13 @@
 // frontend/src/types/adventure.ts
 
+/**
+ * Adventure-related TypeScript types
+ */
+
+/**
+ * Adventure-related TypeScript types
+ */
+
 export interface TavilyResearchData {
 	current_info?: string;
 	hours_info?: string;
@@ -40,11 +48,20 @@ export interface VenueWithResearch {
 	research_status?: string;
 	top_source?: string;
 	research_summary?: ResearchSummary;
-	// ✅ Venue website / source URLs
-	source_url?: string;
-	tavily_url?: string;
-	website?: string;
-	yelp_url?: string;
+	// ✅ structured display fields from discovery_agent
+	hours_clean?: string | null;
+	price_tier?: string | null;
+	description_clean?: string | null;
+	verified_address?: string | null;
+	// ✅ LLM-extracted enrichment fields
+	insider_tip_clean?: string | null;
+	best_time?: string | null;
+	crowd_level?: string | null;
+	// ✅ venue website / source URLs
+	source_url?: string | null;
+	tavily_url?: string | null;
+	website?: string | null;
+	yelp_url?: string | null;
 }
 
 export interface TravelOption {
@@ -79,9 +96,8 @@ export interface AdventureStep {
 	activity: string;
 	details: string;
 	insider_tip?: string;
+	venue_url?: string | null;
 	venue_research?: TavilyResearchData;
-	// ✅ Venue website link for this step
-	venue_url?: string;
 }
 
 export interface Adventure {
@@ -90,10 +106,13 @@ export interface Adventure {
 	description: string;
 	duration: number;
 	cost: number;
+	theme?: string;
+	location?: string;
 	steps: AdventureStep[];
 	map_url?: string;
 	routing_info?: RoutingInfo;
 	data_sources?: string[];
+	venues_used?: string[];
 	venues_research?: VenueWithResearch[];
 }
 

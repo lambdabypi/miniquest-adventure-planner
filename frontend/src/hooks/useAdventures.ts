@@ -77,7 +77,7 @@ export const useAdventures = () => {
 	const generateAdventuresWithStreaming = useCallback(async (
 		query: string,
 		location: string,
-		options: GenerationOptions = DEFAULT_GENERATION_OPTIONS,   // ✅ NEW param
+		options: GenerationOptions = DEFAULT_GENERATION_OPTIONS,
 	) => {
 		if (!query.trim()) {
 			setError('Please enter an adventure query');
@@ -86,6 +86,9 @@ export const useAdventures = () => {
 
 		setLoading(true);
 		clearAdventures();
+
+		// ✅ Track streamed adventures locally so we can accumulate them
+		const streamedAdventures: Adventure[] = [];
 
 		try {
 			const sseUrl = `${API_BASE_URL}/api/adventures/generate-stream`;
@@ -99,7 +102,7 @@ export const useAdventures = () => {
 				body: JSON.stringify({
 					user_input: query,
 					user_address: location,
-					generation_options: options,   // ✅ NEW field
+					generation_options: options,
 				}),
 			});
 
@@ -129,6 +132,22 @@ export const useAdventures = () => {
 					try {
 						const data = JSON.parse(jsonStr);
 
+						// ✅ Individual adventure ready — show it immediately
+						if (data.type === 'adventure_ready' && data.adventure) {
+							streamedAdventures.push(data.adventure as Adventure);
+							// Update state incrementally so the card renders right away
+							setAdventures([...streamedAdventures]);
+							const stats = calculateResearchStats(streamedAdventures);
+							setResearchStats(stats);
+							// Persist progressively so a refresh doesn't lose partial results
+							try {
+								localStorage.setItem('miniquest_last_adventures', JSON.stringify(streamedAdventures));
+								localStorage.setItem('miniquest_last_research_stats', JSON.stringify(stats));
+							} catch { /* quota */ }
+							continue;
+						}
+
+						// Progress update (not done)
 						if (!data.done) {
 							const progress: ProgressUpdate = {
 								step: data.step || 'unknown',
@@ -142,11 +161,21 @@ export const useAdventures = () => {
 							setCurrentProgress(progress);
 						}
 
+						// Final done event
 						if (data.done) {
-							if (data.success && data.adventures?.length > 0) {
-								const stats = calculateResearchStats(data.adventures);
-								persistAdventures(data.adventures, stats);
-								setMetadata(data.metadata);
+							if (data.success) {
+								// If adventures streamed progressively, streamedAdventures
+								// already has them — just update stats from final payload
+								const finalAdventures = data.adventures?.length > 0
+									? data.adventures as Adventure[]
+									: streamedAdventures;
+								if (finalAdventures.length > 0) {
+									const stats = calculateResearchStats(finalAdventures);
+									persistAdventures(finalAdventures, stats);
+									setMetadata(data.metadata);
+								} else {
+									setError('No adventures could be generated');
+								}
 							} else if (data.metadata?.clarification_needed) {
 								handleClarificationNeeded(data.metadata);
 							} else if (data.error) {

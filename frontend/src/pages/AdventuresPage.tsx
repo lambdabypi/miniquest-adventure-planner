@@ -902,23 +902,23 @@ const AdventuresPage: React.FC = () => {
 	} = useChatHistory();
 
 	useEffect(() => {
-		if (isMobile && adventures.length > 0 && !loading) setMobileTab('adventures');
-	}, [adventures.length, loading, isMobile]);
+		if (isMobile && adventures.length > 0) setMobileTab('adventures');
+	}, [adventures.length, isMobile]);
 
-	const detectCityFromQuery = (query: string): 'boston' | 'new-york' => {
+	const detectCityFromQuery = useCallback((query: string): 'boston' | 'new-york' => {
 		const q = query.toLowerCase();
 		const nyP = ['new york', 'ny', 'nyc', 'manhattan', 'brooklyn', 'queens', 'bronx', 'staten island'];
 		const boP = ['boston', 'cambridge', 'back bay', 'beacon hill', 'north end', 'south end', 'fenway', 'seaport'];
 		if (nyP.some(p => q.includes(p)) && !boP.some(p => q.includes(p))) return 'new-york';
 		if (boP.some(p => q.includes(p)) && !nyP.some(p => q.includes(p))) return 'boston';
 		return detectedCity;
-	};
+	}, [detectedCity]);
 
-	const updateLocationForCity = (city: 'boston' | 'new-york') => {
+	const updateLocationForCity = useCallback((city: 'boston' | 'new-york') => {
 		if (isManualAddress) return;
 		setDetectedCity(city);
 		setLocation(city === 'boston' ? 'Boston, MA' : 'New York, NY');
-	};
+	}, [isManualAddress]);
 
 	const validateAddress = (address: string) => {
 		const a = address.toLowerCase().trim();
@@ -1012,7 +1012,7 @@ const AdventuresPage: React.FC = () => {
 
 	useEffect(() => {
 		if (adventures.length > 0 && !loading && isGenerating) {
-			const id = `success_${adventures.length}_${Date.now()}`;
+			const id = `success_alldone_${Date.now()}`;
 			if (lastGenerationId !== id) {
 				setLastGenerationId(id);
 				setChatMessages(prev => [...prev, {
@@ -1023,7 +1023,7 @@ const AdventuresPage: React.FC = () => {
 				setIsGenerating(false);
 			}
 		}
-	}, [adventures, loading, researchStats, isGenerating]);
+	}, [loading, isGenerating]);
 
 	const handleLoadConversation = async (id: string) => {
 		setIsGenerating(false); setActiveSuggestions([]); setLastGenerationId(null); clearAdventures();
@@ -1062,12 +1062,18 @@ const AdventuresPage: React.FC = () => {
 			return city === 'boston' ? 'Boston, MA' : 'New York, NY';
 		})();
 		if (fillInput) setInput(query);
-		setChatMessages(prev => [...prev, { id: Date.now().toString(), type: 'user', content: query, timestamp: new Date() }]);
-		setActiveSuggestions([]); setIsGenerating(true);
-		generateAdventuresWithStreaming(query, loc, generationOptions);  // ✅ options passed
+		setChatMessages(prev => [...prev, {
+			id: Date.now().toString(), type: 'user', content: query, timestamp: new Date(),
+		}]);
+		setActiveSuggestions([]);
+		setIsGenerating(true);
+		generateAdventuresWithStreaming(query, loc, generationOptions);
 		setInput('');
-	}, [loading, isManualAddress, location, detectCityFromQuery, updateLocationForCity,
-		generateAdventuresWithStreaming, generationOptions]);
+	}, [
+		loading, isManualAddress, location,
+		detectCityFromQuery, updateLocationForCity,
+		generateAdventuresWithStreaming, generationOptions,
+	]);
 
 	const handleSend = useCallback(() => { if (!input.trim() || loading) return; _sendQuery(input.trim()); }, [input, loading, _sendQuery]);
 	const handleSuggestionClick = useCallback((s: string) => _sendQuery(s), [_sendQuery]);

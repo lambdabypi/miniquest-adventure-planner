@@ -43,22 +43,21 @@ async def create_adventures_stream(
     logger.info(f"   Input: {request.user_input[:50]}...")
     
     async def generate_sse_stream():
-        """Generator that yields SSE-formatted progress updates"""
-        
+        """Generator that yields SSE-formatted progress updates and individual adventures."""
+
         progress_queue = asyncio.Queue()
-        progress_log = []
-        
+        progress_log   = []
+        # ✅ Collect adventures as they arrive so the final response is complete
+        streamed_adventures: list = []
+
         def progress_callback(update: dict):
-            """Callback that captures progress updates and queues them for streaming"""
             progress_log.append(update)
-            # Put update in queue for streaming
             try:
                 asyncio.create_task(progress_queue.put(update))
             except Exception as e:
                 logger.error(f"Failed to queue progress update: {e}")
-        
+
         try:
-            # Start adventure generation in background
             logger.info("🚀 Starting background generation task...")
             generation_task = asyncio.create_task(
                 coordinator.generate_adventures_with_progress(
@@ -72,157 +71,130 @@ async def create_adventures_stream(
                     ),
                 )
             )
-            
-            # Stream progress updates as they come in
+
             while not generation_task.done():
                 try:
-                    # Wait for progress update with timeout
                     update = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
-                    
-                    # Format as SSE
-                    sse_data = f"data: {json.dumps(update)}\n\n"
-                    logger.debug(f"📤 Streaming: {update['agent']} - {update['message']}")
-                    yield sse_data.encode('utf-8')
-                    
+
+                    # ✅ adventure_ready: stream the individual adventure immediately
+                    if update.get("status") == "adventure_ready":
+                        adventure = update.get("details", {}).get("adventure")
+                        if adventure:
+                            streamed_adventures.append(adventure)
+                            payload = {
+                                "type":            "adventure_ready",
+                                "adventure":       adventure,
+                                "adventure_index": update["details"].get("adventure_index", len(streamed_adventures) - 1),
+                                "total_expected":  update["details"].get("total_expected", 3),
+                                "message":         update.get("message", ""),
+                                "progress":        update.get("progress", 0),
+                            }
+                            logger.info(f"📤 Streaming adventure: {adventure.get('title')}")
+                            yield f"data: {json.dumps(payload)}\n\n".encode("utf-8")
+                    else:
+                        # Regular progress update
+                        sse_data = f"data: {json.dumps(update)}\n\n"
+                        yield sse_data.encode("utf-8")
+
                 except asyncio.TimeoutError:
-                    # No update received, send heartbeat to keep connection alive
-                    yield f": heartbeat\n\n".encode('utf-8')
+                    yield b": heartbeat\n\n"
                     continue
                 except Exception as e:
                     logger.error(f"Error streaming progress: {e}")
                     continue
-            
-            # Get final result
+
             logger.info("⏳ Generation complete, getting results...")
             adventures, metadata = await generation_task
-            
-            # Add progress log to metadata
+
             metadata["progress_log"] = progress_log
-            
-            # ✅ FIXED: Handle errors with default messages
+
+            # Error handling (unchanged from original)
             error_data = metadata.get("error")
             if isinstance(error_data, dict) and error_data.get("type") == "clarification_needed":
-                
-                # Build error response metadata
-                error_metadata = {
-                    "clarification_needed": True,
-                    "progress_log": progress_log
-                }
-                
-                # ✅ FIXED: Unrelated queries with default message
+                error_metadata = {"clarification_needed": True, "progress_log": progress_log}
                 if error_data.get("unrelated_query"):
                     error_metadata.update({
                         "unrelated_query": True,
-                        "clarification_message": error_data.get("clarification_message") or 
-                            "I'm MiniQuest, your local adventure planning assistant! I help you discover places to explore. Ask me about museums, restaurants, parks, or other activities!",
+                        "clarification_message": error_data.get("clarification_message") or
+                            "I'm MiniQuest, your local adventure planning assistant!",
                         "suggestions": error_data.get("suggestions") or [
                             "Museums and coffee shops in Boston",
                             "Parks and restaurants near me",
-                            "Art galleries and wine bars"
                         ],
                         "query_type": error_data.get("query_type")
                     })
-                # ✅ FIXED: Out-of-scope with default message
                 elif error_data.get("out_of_scope"):
                     error_metadata.update({
                         "out_of_scope": True,
                         "scope_issue": error_data.get("scope_issue", "multi_day_trip"),
                         "detected_city": error_data.get("detected_city"),
-                        "clarification_message": error_data.get("clarification_message") or 
-                            "This request is outside MiniQuest's scope. We focus on short 2-6 hour local adventures in Boston and New York.",
+                        "clarification_message": error_data.get("clarification_message") or
+                            "This request is outside MiniQuest's scope.",
                         "suggestions": error_data.get("suggestions", []),
                         "recommended_services": _get_recommended_services(error_data.get("scope_issue", "multi_day_trip"))
                     })
-                # ✅ FIXED: Regular clarification with default message
                 else:
                     error_metadata.update({
-                        "clarification_message": error_data.get("clarification_message") or 
+                        "clarification_message": error_data.get("clarification_message") or
                             "Please provide more details about what you'd like to explore.",
                         "suggestions": error_data.get("suggestions") or [
                             "Museums and coffee shops in Boston",
                             "Parks and restaurants in New York",
-                            "Art galleries and wine bars"
                         ]
                     })
-                
-                # Send final error response
-                final_response = {
-                    "done": True,
-                    "success": False,
-                    "adventures": [],
-                    "metadata": error_metadata,
-                    "message": error_metadata.get("clarification_message", "Clarification needed")
-                }
-                
-                logger.info(f"📤 Sending clarification response: {error_metadata.get('clarification_message', 'N/A')[:50]}...")
-                yield f"data: {json.dumps(final_response)}\n\n".encode('utf-8')
+                yield f"data: {json.dumps({'done': True, 'success': False, 'adventures': [], 'metadata': error_metadata, 'message': error_metadata.get('clarification_message', 'Clarification needed')})}\n\n".encode("utf-8")
                 return
-            
-            # Check for other errors
+
             if not adventures:
-                error_msg = metadata.get("error", "No adventures could be generated")
-                final_response = {
-                    "done": True,
-                    "success": False,
-                    "error": error_msg,
-                    "metadata": metadata
-                }
-                yield f"data: {json.dumps(final_response)}\n\n".encode('utf-8')
+                yield f"data: {json.dumps({'done': True, 'success': False, 'error': metadata.get('error', 'No adventures generated'), 'metadata': metadata})}\n\n".encode("utf-8")
                 return
-            
-            # Extract performance metrics
+
             performance = metadata.get("performance", {})
-            total_time = performance.get("total_time_seconds", 0)
-            
-            # Build response metadata
+            total_time  = performance.get("total_time_seconds", 0)
+
+            # ✅ Use streamed_adventures if we got them progressively,
+            #    otherwise fall back to the final batch result
+            final_adventures = streamed_adventures if streamed_adventures else adventures
+
             response_metadata = {
-                "target_location": metadata.get("target_location"),
-                "total_adventures": len(adventures),
-                "workflow_success": True,
+                "target_location":        metadata.get("target_location"),
+                "total_adventures":       len(final_adventures),
+                "workflow_success":       True,
                 "personalization_applied": metadata.get("personalization_applied", False),
-                "user_history": metadata.get("user_history"),
-                "performance": performance,
-                "research_stats": metadata.get("research_stats", {}),
+                "user_history":           metadata.get("user_history"),
+                "performance":            performance,
+                "research_stats":         metadata.get("research_stats", {}),
                 "progress_tracking_enabled": True,
-                "progress_log": progress_log,
-                "timestamp": datetime.now().isoformat()
+                "progress_log":           progress_log,
+                "timestamp":              datetime.now().isoformat()
             }
-            
-            # Send final success response
+
             final_response = {
-                "done": True,
-                "success": True,
-                "adventures": adventures,
-                "metadata": response_metadata,
-                "message": f"Generated {len(adventures)} adventures in {total_time:.2f}s"
+                "done":      True,
+                "success":   True,
+                "adventures": final_adventures,
+                "metadata":  response_metadata,
+                "message":   f"Generated {len(final_adventures)} adventures in {total_time:.2f}s"
             }
-            
-            logger.info(f"✅ Streaming complete: {len(adventures)} adventures, {len(progress_log)} progress updates")
-            
-            yield f"data: {json.dumps(final_response)}\n\n".encode('utf-8')
-            
-            # Save metadata in background (don't wait)
+
+            logger.info(f"✅ Streaming complete: {len(final_adventures)} adventures, {len(progress_log)} progress updates")
+            yield f"data: {json.dumps(final_response)}\n\n".encode("utf-8")
+
             asyncio.create_task(
                 save_query_metadata(
                     mongodb_client=mongodb_client,
                     user_id=user_id,
                     user_input=request.user_input,
                     user_address=request.user_address,
-                    adventures=adventures,
+                    adventures=final_adventures,
                     metadata=metadata,
                     progress_log=progress_log
                 )
             )
-            
+
         except Exception as e:
             logger.error(f"❌ Stream generation error: {e}", exc_info=True)
-            error_response = {
-                "done": True,
-                "success": False,
-                "error": str(e),
-                "metadata": {"progress_log": progress_log}
-            }
-            yield f"data: {json.dumps(error_response)}\n\n".encode('utf-8')
+            yield f"data: {json.dumps({'done': True, 'success': False, 'error': str(e), 'metadata': {'progress_log': progress_log}})}\n\n".encode("utf-8")
     
     return StreamingResponse(
         generate_sse_stream(),

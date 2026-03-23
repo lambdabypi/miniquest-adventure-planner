@@ -1,12 +1,14 @@
-# backend/app/agents/research/discovery_agent.py
-"""OPTIMIZED Tavily Research Agent - Parallel + Cached + Single Search + Address Extraction"""
+# backend/app/agents/discovery/discovery_agent.py
+"""OPTIMIZED Tavily Research Agent - Parallel + Cached + Single Search + Address & LLM Enrichment"""
 
 from typing import List, Dict, Optional
 from tavily import TavilyClient
+from openai import AsyncOpenAI
 from datetime import datetime
 import logging
 import asyncio
 import re
+import json
 from ..base import BaseAgent, ValidationError, ProcessingError
 from .query_strategy import QueryStrategyAgent, VenueTypeDetector
 from .research_cache import ResearchCache
@@ -15,21 +17,19 @@ logger = logging.getLogger(__name__)
 
 
 # ─── Street address regex ─────────────────────────────────────────────────────
-# Matches patterns like "123 Main St, Boston, MA 02116" or "45 Newbury Street"
 _ADDRESS_RE = re.compile(
-    r"\b(\d{1,5})\s+"                          # street number
-    r"([A-Za-z0-9\s\.\-']{3,40}?)\s+"         # street name
+    r"\b(\d{1,5})\s+"
+    r"([A-Za-z0-9\s\.\-']{3,40}?)\s+"
     r"(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|"
     r"Boulevard|Blvd|Place|Pl|Lane|Ln|Way|"
     r"Court|Ct|Square|Sq|Parkway|Pkwy|Highway|Hwy)"
     r"[\s,]+"
-    r"([A-Za-z\s]{2,30}),\s*"                  # city
-    r"([A-Z]{2})"                               # state
-    r"(?:\s+(\d{5}(?:-\d{4})?))?",             # optional ZIP
+    r"([A-Za-z\s]{2,30}),\s*"
+    r"([A-Z]{2})"
+    r"(?:\s+(\d{5}(?:-\d{4})?))?",
     re.IGNORECASE,
 )
 
-# US state abbreviation set for quick validation
 _US_STATES = {
     "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
     "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
@@ -37,43 +37,128 @@ _US_STATES = {
     "VA","WA","WV","WI","WY","DC",
 }
 
+# ─── Hours patterns (ordered most → least specific) ───────────────────────────
+_HOURS_PATTERNS = [
+    re.compile(
+        r"(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*"
+        r"(?:\s*[-–]\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*)?"
+        r"(?:\s*[-–:]\s*)"
+        r"\d{1,2}(?::\d{2})?\s*(?:am|pm)"
+        r"(?:\s*[-–]\s*\d{1,2}(?::\d{2})?\s*(?:am|pm))?",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"[Oo]pen\s+(?:daily|every\s+day|Mon\w*[-–](?:Sun|Fri|Sat)\w*|\w+days?)"
+        r"[\s:]*\d{1,2}(?::\d{2})?\s*(?:am|pm)"
+        r"(?:\s*[-–]\s*\d{1,2}(?::\d{2})?\s*(?:am|pm))?",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"[Hh]ours?\s*:?\s*\d{1,2}(?::\d{2})?\s*(?:am|pm)"
+        r"(?:\s*[-–]\s*\d{1,2}(?::\d{2})?\s*(?:am|pm))?",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\d{1,2}:\d{2}\s*(?:AM|PM)\s*[-–]\s*\d{1,2}:\d{2}\s*(?:AM|PM)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:closes?|opens?)\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)",
+        re.IGNORECASE,
+    ),
+]
+
+# ─── Price patterns ───────────────────────────────────────────────────────────
+_PRICE_PATTERNS = [
+    re.compile(r"\$\d+(?:\.\d{2})?(?:\s*[-–]\s*\$\d+(?:\.\d{2})?)?(?!\d)", re.IGNORECASE),
+    re.compile(r"(?:adults?|seniors?|children?|kids?|tickets?|admission|entry)\s+\$\d+", re.IGNORECASE),
+    re.compile(r"\${2,4}(?!\d)"),
+    re.compile(r"(?:free\s+(?:admission|entry|access)|no\s+admission\s+(?:fee|charge))", re.IGNORECASE),
+    re.compile(r"\bfree\b", re.IGNORECASE),
+]
+
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+
+def _clean_markdown(text: str) -> str:
+    text = re.sub(r"!\[.*?\]\(.*?\)", "", text)
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    text = re.sub(r"#{1,6}\s*", "", text)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    text = re.sub(r"\*([^*]+)\*", r"\1", text)
+    text = re.sub(r"\n+", " ", text)
+    return re.sub(r"\s{2,}", " ", text).strip()
+
+
+def _normalise(text: str) -> str:
+    return re.sub(r"\s*\n\s*", " ", text)
+
+
+def _extract_hours_clean(raw: str) -> Optional[str]:
+    if not raw:
+        return None
+    text = _normalise(raw)
+    for pattern in _HOURS_PATTERNS:
+        m = pattern.search(text)
+        if m:
+            result = re.sub(r"\s+", " ", m.group(0)).strip().rstrip(",;")
+            if len(result) >= 5:
+                return result
+    return None
+
+
+def _extract_price_tier(raw: str) -> Optional[str]:
+    if not raw:
+        return None
+    text = _normalise(raw)
+    for pattern in _PRICE_PATTERNS:
+        m = pattern.search(text)
+        if m:
+            hit = m.group(0).strip()
+            return "Free" if hit.lower() == "free" else hit
+    return None
+
+
+def _clean_verified_address(raw: str) -> Optional[str]:
+    if not raw:
+        return None
+    cleaned = re.sub(r"\s*\n\s*", " ", raw).strip()
+    street_kw = (
+        r"(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|"
+        r"Place|Pl|Lane|Ln|Way|Court|Ct|Square|Sq|Parkway|Pkwy|Highway|Hwy)"
+    )
+    candidates = list(re.finditer(
+        r"\b(\d{1,5})\s+[A-Za-z][A-Za-z0-9\s\.\-']{2,40}\s+" + street_kw,
+        cleaned, re.IGNORECASE,
+    ))
+    if candidates:
+        return cleaned[candidates[-1].start():].strip()
+    return cleaned
+
 
 def _extract_address_from_text(text: str, venue_name: str) -> Optional[str]:
-    """
-    Pull the first plausible US street address from a block of text.
-    Returns a clean "123 Main St, City, ST XXXXX" string or None.
-    """
     if not text:
         return None
-
     for m in _ADDRESS_RE.finditer(text):
         state = m.group(4).upper()
         if state not in _US_STATES:
             continue
-
         number      = m.group(1)
         street_name = m.group(2).strip()
         street_type = m.group(0).split(street_name)[-1].split(",")[0].strip()
         city        = m.group(3).strip().title()
         zipcode     = m.group(5) or ""
-
-        address = f"{number} {street_name} {street_type}, {city}, {state}"
+        address     = f"{number} {street_name} {street_type}, {city}, {state}"
         if zipcode:
             address += f" {zipcode}"
-
-        # Sanity-check: the address should be near the venue name in the text
-        match_pos   = m.start()
-        context_start = max(0, match_pos - 300)
-        context_end   = min(len(text), match_pos + 300)
-        context       = text[context_start:context_end].lower()
-
+        match_pos  = m.start()
+        context    = text[max(0, match_pos - 300):min(len(text), match_pos + 300)].lower()
         name_words = [w for w in venue_name.lower().split() if len(w) > 3]
         if name_words and not any(w in context for w in name_words):
-            continue  # address is not near a mention of the venue
-
+            continue
         logger.debug(f"  📍 Extracted address: {address}")
         return address
-
     return None
 
 
@@ -81,29 +166,30 @@ class TavilyResearchAgent(BaseAgent):
     """
     ULTRA-OPTIMIZED Tavily research agent.
 
-    Optimizations:
     1. PARALLEL: Research all venues simultaneously (60-75% faster)
-    2. CACHING: Skip research for recently-searched venues (90%+ faster on hits)
+    2. CACHING:  Skip research for recently-searched venues (90%+ faster on hits)
     3. SINGLE SEARCH: One comprehensive search instead of two (30-40% faster)
     4. SMART EXTRACT: Top 3 URLs only (reduces latency)
-    5. ✅ ADDRESS EXTRACTION: Pull real street address from research content (zero extra cost)
-
-    Performance:
-    - Before: 8 venues × 2.5s = 20s
-    - After (no cache): 8 venues @ 1.5s max = 1.5s (87% faster)
-    - After (cache hits): 8 venues @ 0.1s = 0.1s (99% faster)
+    5. ADDRESS EXTRACTION: Pull real street address from research content
+    6. LLM BATCH ENRICHMENT: Single GPT-4o-mini call for all descriptions,
+       price, insider tips, best time, crowd level (~1-2s, ~$0.001/run)
+    7. HOURS: Still regex-based (faster and more reliable for structured time data)
     """
 
     def __init__(self, tavily_api_key: str, use_cache: bool = True):
         super().__init__("TavilyResearch")
-        self.tavily_client = TavilyClient(api_key=tavily_api_key)
+        self.tavily_client  = TavilyClient(api_key=tavily_api_key)
+        self.openai_client  = AsyncOpenAI()
         self.query_strategy = QueryStrategyAgent()
         self.venue_detector = VenueTypeDetector()
         self.cache = ResearchCache(ttl_minutes=60, max_size=200) if use_cache else None
-        logger.info(f"✅ OPTIMIZED Tavily Agent (Parallel + {'Cached' if use_cache else 'No Cache'} + Address Extraction)")
+        logger.info(
+            f"✅ OPTIMIZED Tavily Agent "
+            f"(Parallel + {'Cached' if use_cache else 'No Cache'} + "
+            f"Address Extraction + LLM Batch Enrichment)"
+        )
 
     async def process(self, input_data: Dict) -> Dict:
-        """Research venues using PARALLEL + CACHED approach"""
         required_fields = ["venues", "location"]
         if not self.validate_input(input_data, required_fields):
             raise ValidationError(self.name, f"Missing required fields: {required_fields}")
@@ -126,42 +212,44 @@ class TavilyResearchAgent(BaseAgent):
 
         try:
             selected_venues = self._select_balanced_venues(venues, max_venues)
-
-            research_tasks = [
+            research_tasks  = [
                 self._research_venue_safe(venue, location, i)
                 for i, venue in enumerate(selected_venues)
             ]
 
             self.log_processing("Launching parallel research",
                                 f"{len(research_tasks)} concurrent tasks")
-            start_time = datetime.now()
-            researched_venues = await asyncio.gather(*research_tasks)
-            elapsed = (datetime.now() - start_time).total_seconds()
+            start_time        = datetime.now()
+            researched_venues = list(await asyncio.gather(*research_tasks))
+            elapsed           = (datetime.now() - start_time).total_seconds()
             self.log_processing("Parallel research complete", f"{elapsed:.2f}s")
+
+            # ✅ Single batched LLM call for all enrichment fields
+            researched_venues = await self._enrich_batch(researched_venues, location)
 
             successful_research = sum(
                 1 for v in researched_venues
                 if v.get("research_status") not in ["failed", "unknown"]
             )
-            total_insights  = sum(v.get("total_insights", 0) for v in researched_venues)
+            total_insights  = sum(v.get("total_insights", 0)      for v in researched_venues)
             avg_confidence  = (
-                sum(v.get("research_confidence", 0) for v in researched_venues) / len(researched_venues)
+                sum(v.get("research_confidence", 0) for v in researched_venues) /
+                len(researched_venues)
             ) if researched_venues else 0.0
             addresses_found = sum(1 for v in researched_venues if v.get("verified_address"))
-
-            cache_stats = self.cache.get_stats() if self.cache else {}
+            cache_stats     = self.cache.get_stats() if self.cache else {}
 
             result = {
                 "researched_venues": researched_venues,
                 "research_stats": {
-                    "total_venues":       len(researched_venues),
+                    "total_venues":        len(researched_venues),
                     "successful_research": successful_research,
-                    "total_insights":     total_insights,
-                    "avg_confidence":     avg_confidence,
-                    "elapsed_seconds":    elapsed,
-                    "addresses_found":    addresses_found,
-                    "cache_hits":         cache_stats.get("hits", 0),
-                    "cache_hit_rate":     cache_stats.get("hit_rate", "0%"),
+                    "total_insights":      total_insights,
+                    "avg_confidence":      avg_confidence,
+                    "elapsed_seconds":     elapsed,
+                    "addresses_found":     addresses_found,
+                    "cache_hits":          cache_stats.get("hits", 0),
+                    "cache_hit_rate":      cache_stats.get("hit_rate", "0%"),
                 },
             }
 
@@ -175,6 +263,110 @@ class TavilyResearchAgent(BaseAgent):
         except Exception as e:
             self.log_error(f"Venue research failed: {e}")
             raise ProcessingError(self.name, str(e))
+
+    # ─── LLM batch enrichment ─────────────────────────────────────────────────
+
+    async def _enrich_batch(self, venues: List[Dict], location: str) -> List[Dict]:
+        """
+        Single GPT-4o-mini call extracting structured info for all venues.
+        Extracts: description, price_tier (fallback), insider_tip, best_time, crowd_level.
+        Hours stay as regex — more reliable for structured time patterns.
+        Non-fatal: if the call fails, existing fields are unchanged.
+        """
+        if not venues:
+            return venues
+
+        venue_entries = []
+        for i, v in enumerate(venues):
+            raw = (
+                v.get("current_info") or
+                v.get("venue_summary") or
+                v.get("comprehensive_research_text") or
+                ""
+            )[:500]
+            venue_entries.append(
+                f'{i}. {v.get("name", "Unknown")} [type: {v.get("type", "venue")}]'
+                + (f'\n   Research: "{raw}"' if raw else "\n   Research: (none)")
+            )
+
+        prompt = f"""You are extracting structured venue info for a local adventure app in {location}.
+
+For each venue, extract what you can from the research text. Return null for fields not clearly supported by the text.
+
+Return ONLY valid JSON. Keys are venue index numbers as strings. Each value has:
+  "description"  : One clear sentence (15-25 words) describing what it is and why to visit. Always provide this — use venue type/name if research is sparse. Never include city name, addresses, or "located at".
+  "price_tier"   : "Free", "$", "$$", "$$$", "$$$$", or specific like "$15 admission". null if unknown.
+  "insider_tip"  : One short practical tip from the research text. null if nothing useful found.
+  "best_time"    : Best time to visit if inferable, e.g. "Weekday mornings", "Evenings". null if unknown.
+  "crowd_level"  : One of: "Usually quiet", "Moderately busy", "Can get crowded", "Very popular". null if unknown.
+
+Rules:
+- description must NOT mention city name, street address, or phrases like "located at" / "find us at".
+- price_tier and insider_tip must come from research text — do NOT invent them.
+- Return null rather than guessing.
+
+Venues:
+{chr(10).join(venue_entries)}"""
+
+        try:
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+                max_tokens=700,
+            )
+            content = response.choices[0].message.content.strip()
+            if content.startswith("```"):
+                parts = content.split("```")
+                content = parts[1] if len(parts) > 1 else content
+                if content.startswith("json"):
+                    content = content[4:]
+            content = content.strip()
+
+            enriched: Dict[str, Dict] = json.loads(content)
+            count = 0
+
+            for idx_str, data in enriched.items():
+                try:
+                    idx = int(idx_str)
+                    if not (0 <= idx < len(venues)):
+                        continue
+                    v = venues[idx]
+
+                    desc = data.get("description")
+                    if desc and len(desc.strip()) > 10:
+                        v["description_clean"] = desc.strip()
+
+                    # Only fill price if regex didn't already find one
+                    price = data.get("price_tier")
+                    if price and not v.get("price_tier"):
+                        v["price_tier"] = price
+
+                    tip = data.get("insider_tip")
+                    if tip:
+                        v["insider_tip_clean"] = tip.strip()
+
+                    best_time = data.get("best_time")
+                    if best_time:
+                        v["best_time"] = best_time.strip()
+
+                    crowd = data.get("crowd_level")
+                    if crowd:
+                        v["crowd_level"] = crowd.strip()
+
+                    count += 1
+
+                except (ValueError, IndexError, AttributeError):
+                    continue
+
+            logger.info(f"  ✨ LLM enriched {count}/{len(venues)} venues")
+
+        except json.JSONDecodeError as e:
+            logger.warning(f"LLM enrichment JSON parse failed (non-fatal): {e}")
+        except Exception as e:
+            logger.warning(f"LLM enrichment failed (non-fatal): {e}")
+
+        return venues
 
     # ─── Per-venue research ────────────────────────────────────────────────────
 
@@ -208,18 +400,15 @@ class TavilyResearchAgent(BaseAgent):
             return self._create_fallback_profile(venue, location)
 
     async def _research_venue(self, venue: Dict, location: str) -> Dict:
-        venue_name = venue.get("name", "")
+        venue_name   = venue.get("name", "")
+        all_research = []
+        urls_to_extract: List[str] = []
 
-        all_research   = []
-        urls_to_extract = []
-
-        # ── Single comprehensive search ───────────────────────────────────────
         try:
             comprehensive_query = (
                 f'"{venue_name}" {location} '
                 f'official hours address admission information menu'
             )
-
             search_results = await asyncio.get_event_loop().run_in_executor(
                 None,
                 lambda: self.tavily_client.search(
@@ -229,8 +418,8 @@ class TavilyResearchAgent(BaseAgent):
                 ),
             )
 
-            official_urls = []
-            general_urls  = []
+            official_urls: List[str] = []
+            general_urls:  List[str] = []
 
             for result in search_results.get("results", []):
                 url = result.get("url", "")
@@ -252,7 +441,6 @@ class TavilyResearchAgent(BaseAgent):
         except Exception as e:
             self.log_warning(f"Comprehensive search failed: {e}")
 
-        # ── Extract top 3 URLs ────────────────────────────────────────────────
         extracted_content_count = 0
         if urls_to_extract:
             try:
@@ -260,7 +448,6 @@ class TavilyResearchAgent(BaseAgent):
                     None,
                     lambda: self.tavily_client.extract(urls=urls_to_extract[:3]),
                 )
-
                 for extracted in extract_result.get("results", []):
                     content_data = self._process_extracted_content(extracted, venue_name, venue)
                     if content_data:
@@ -280,67 +467,43 @@ class TavilyResearchAgent(BaseAgent):
     def _process_search_result(self, result: Dict, venue_name: str, venue: Dict) -> Optional[Dict]:
         content = result.get("content", "")
         url     = result.get("url", "")
-
         if not content or len(content) < 30:
             return None
-
-        content_lower     = content.lower()
-        venue_name_lower  = venue_name.lower()
-
+        content_lower    = content.lower()
+        venue_name_lower = venue_name.lower()
         if venue_name_lower not in content_lower:
             venue_words = [w for w in venue_name_lower.split() if len(w) > 2]
             if not venue_words:
                 return None
             if sum(1 for w in venue_words if w in content_lower) / len(venue_words) < 0.3:
                 return None
-
-        venue_type    = self.venue_detector.detect_venue_type(venue)
+        venue_type     = self.venue_detector.detect_venue_type(venue)
         info_extracted = self._extract_type_specific_info(content, content_lower, venue_type)
-
-        return {
-            "content":    content[:400],
-            "source_url": url,
-            "method":     "search_snippet",
-            **info_extracted,
-        }
+        return {"content": content[:400], "source_url": url, "method": "search_snippet", **info_extracted}
 
     def _process_extracted_content(self, extracted: Dict, venue_name: str, venue: Dict) -> Optional[Dict]:
         content = extracted.get("raw_content", "")
         url     = extracted.get("url", "")
-
         if not content or len(content) < 100:
             return None
-
         content_lower    = content.lower()
         venue_name_lower = venue_name.lower()
-
         if venue_name_lower not in content_lower:
             venue_words = [w for w in venue_name_lower.split() if len(w) > 2]
             if not venue_words:
                 return None
             if sum(1 for w in venue_words if w in content_lower) / len(venue_words) < 0.3:
                 return None
-
-        venue_type    = self.venue_detector.detect_venue_type(venue)
+        venue_type     = self.venue_detector.detect_venue_type(venue)
         info_extracted = self._extract_type_specific_info(content, content_lower, venue_type)
-
-        return {
-            "content":    content[:1000],
-            "source_url": url,
-            "method":     "tavily_extract",
-            **info_extracted,
-        }
+        return {"content": content[:1000], "source_url": url, "method": "tavily_extract", **info_extracted}
 
     def _extract_type_specific_info(self, content: str, content_lower: str, venue_type: str) -> Dict:
         extracted = {
-            "has_hours_info":    False,
-            "has_menu_info":     False,
-            "has_activity_info": False,
-            "has_admission_info":False,
-            "has_current_info":  False,
-            "info_type":         "general",
+            "has_hours_info": False, "has_menu_info": False,
+            "has_activity_info": False, "has_admission_info": False,
+            "has_current_info": False, "info_type": "general",
         }
-
         current_indicators = ["current", "now", "today", "recently", "updated", "latest", "this year"]
         extracted["has_current_info"] = any(i in content_lower for i in current_indicators)
 
@@ -372,29 +535,28 @@ class TavilyResearchAgent(BaseAgent):
         if not research:
             return self._create_fallback_profile(venue, location)
 
-        # ── ✅ Address extraction — scan all research content ─────────────────
-        verified_address: Optional[str] = None
         venue_name = venue.get("name", "")
 
-        # Prefer extracted (full-page) content over snippets for address quality
+        # ── Address extraction ────────────────────────────────────────────────
+        verified_address: Optional[str] = None
         ordered = sorted(research, key=lambda r: r.get("method") == "tavily_extract", reverse=True)
         for item in ordered:
-            addr = _extract_address_from_text(item.get("content", ""), venue_name)
-            if addr:
-                verified_address = addr
-                logger.info(f"  📍 Address resolved via research: {addr}")
-                break
+            raw_addr = _extract_address_from_text(item.get("content", ""), venue_name)
+            if raw_addr:
+                verified_address = _clean_verified_address(raw_addr)
+                if verified_address:
+                    logger.info(f"  📍 Address resolved via research: {verified_address}")
+                    break
 
-        # ── Existing text combination logic ───────────────────────────────────
-        hours_texts    = [r["content"] for r in research if r.get("info_type") == "hours" or r.get("has_hours_info")]
-        menu_texts     = [r["content"] for r in research if r.get("info_type") in ("menu_info", "exhibition_info") or r.get("has_menu_info") or r.get("has_activity_info")]
-        admission_texts= [r["content"] for r in research if r.get("has_admission_info")]
-        current_texts  = [r["content"] for r in research if r.get("has_current_info")]
-        general_texts  = [r["content"] for r in research[:3]]
+        # ── Text buckets ──────────────────────────────────────────────────────
+        hours_texts     = [r["content"] for r in research if r.get("info_type") == "hours"     or r.get("has_hours_info")]
+        menu_texts      = [r["content"] for r in research if r.get("info_type") in ("menu_info","exhibition_info") or r.get("has_menu_info") or r.get("has_activity_info")]
+        admission_texts = [r["content"] for r in research if r.get("has_admission_info")]
+        current_texts   = [r["content"] for r in research if r.get("has_current_info")]
+        general_texts   = [r["content"] for r in research[:3]]
 
-        all_unique_texts = []
+        all_unique_texts: List[str] = []
         seen_content: set = set()
-
         for text_list in [admission_texts, hours_texts, menu_texts, current_texts, general_texts]:
             for text in text_list:
                 key = text[:100].lower()
@@ -407,52 +569,62 @@ class TavilyResearchAgent(BaseAgent):
                 break
 
         comprehensive_text = "\n\n".join(all_unique_texts[:6])[:2400]
-        hours_info    = "\n\n".join(hours_texts[:2])[:600]   if hours_texts    else ""
-        menu_info     = "\n\n".join(menu_texts[:2])[:600]    if menu_texts     else ""
-        current_info  = "\n\n".join(current_texts[:2])[:400] if current_texts  else ""
+        hours_info   = "\n\n".join(hours_texts[:2])[:600]   if hours_texts   else ""
+        menu_info    = "\n\n".join(menu_texts[:2])[:600]    if menu_texts    else ""
+        current_info = "\n\n".join(current_texts[:2])[:400] if current_texts else ""
 
+        # ── Hours and price via regex (reliable for structured data) ──────────
+        search_corpus = "\n\n".join(filter(None, [hours_info, menu_info, current_info, comprehensive_text]))
+        hours_clean   = _extract_hours_clean(search_corpus)
+        price_tier    = _extract_price_tier(search_corpus)
+
+        # ── Confidence ────────────────────────────────────────────────────────
         has_extract  = extracted_count > 0
         has_snippets = any(r.get("method") == "search_snippet" for r in research)
         confidence   = 1.0 if has_extract else 0.9 if has_snippets else 0.5
-
-        if confidence > 0.85:   status = "excellent"
-        elif confidence > 0.6:  status = "good"
-        else:                   status = "partial"
+        status       = "excellent" if confidence > 0.85 else "good" if confidence > 0.6 else "partial"
 
         return {
             **venue,
-            "research_status":          status,
-            "research_confidence":      confidence,
+            "research_status":             status,
+            "research_confidence":         confidence,
             "comprehensive_research_text": comprehensive_text,
-            "current_info":             current_info or comprehensive_text[:500],
-            "hours_info":               hours_info   or comprehensive_text[:600],
-            "venue_summary":            menu_info    or comprehensive_text[:600],
-            "visitor_tips":             self._extract_visitor_tips(research),
-            "total_insights":           len(research),
-            "unique_insights":          len(all_unique_texts),
-            "extracted_pages":          extracted_count,
-            "snippet_count":            len([r for r in research if r.get("method") == "search_snippet"]),
-            "top_source":               research[0]["source_url"] if research else None,
-            # ✅ verified_address — used by _convert_to_enhanced_locations in coordinator
-            "verified_address":         verified_address,
-            "validation_timestamp":     datetime.now().isoformat(),
+            "current_info":                current_info or comprehensive_text[:500],
+            "hours_info":                  hours_info   or comprehensive_text[:600],
+            "venue_summary":               menu_info    or comprehensive_text[:600],
+            # ── Regex-extracted (reliable structured data) ───────────────────
+            "hours_clean":                 hours_clean,
+            "price_tier":                  price_tier,
+            # ── LLM-extracted fields (set to None here; filled by _enrich_batch)
+            "description_clean":           None,
+            "insider_tip_clean":           None,
+            "best_time":                   None,
+            "crowd_level":                 None,
+            # ── Tips & counts ─────────────────────────────────────────────────
+            "visitor_tips":                self._extract_visitor_tips(research),
+            "total_insights":              len(research),
+            "unique_insights":             len(all_unique_texts),
+            "extracted_pages":             extracted_count,
+            "snippet_count":               len([r for r in research if r.get("method") == "search_snippet"]),
+            "top_source":                  research[0]["source_url"] if research else None,
+            "verified_address":            verified_address,
+            "validation_timestamp":        datetime.now().isoformat(),
         }
 
     # ─── Helpers ──────────────────────────────────────────────────────────────
 
     def _extract_visitor_tips(self, research: List[Dict]) -> List[str]:
         tips = []
-        if any(r.get("has_hours_info") for r in research):
+        if any(r.get("has_hours_info")                             for r in research):
             tips.append("Current hours information found — check before visiting")
         if any(r.get("has_menu_info") or r.get("has_activity_info") for r in research):
             tips.append("Menu/activity details available — check current offerings")
-        if any(r.get("has_current_info") for r in research):
+        if any(r.get("has_current_info")                           for r in research):
             tips.append("Recently updated information available")
         return tips[:3]
 
     def _is_official_site(self, url: str) -> bool:
-        url_lower = url.lower()
-        return any(ind in url_lower for ind in (".org", ".edu", ".gov", ".museum", "official"))
+        return any(ind in url.lower() for ind in (".org", ".edu", ".gov", ".museum", "official"))
 
     def _is_valid_url(self, url: str) -> bool:
         return not any(url.lower().endswith(ext) for ext in (".pdf", ".jpg", ".png", ".gif", ".mp4", ".zip"))
@@ -463,14 +635,20 @@ class TavilyResearchAgent(BaseAgent):
     def _create_fallback_profile(self, venue: Dict, location: str) -> Dict:
         return {
             **venue,
-            "research_status":     "failed",
-            "research_confidence": 0.2,
-            "current_info":        f"Could not research {venue.get('name', 'this venue')} effectively",
+            "research_status":             "failed",
+            "research_confidence":         0.2,
+            "current_info":                f"Could not research {venue.get('name', 'this venue')} effectively",
             "comprehensive_research_text": "",
-            "visitor_tips":        [],
-            "total_insights":      0,
-            "verified_address":    None,
-            "validation_timestamp": datetime.now().isoformat(),
+            "hours_clean":                 None,
+            "price_tier":                  None,
+            "description_clean":           None,
+            "insider_tip_clean":           None,
+            "best_time":                   None,
+            "crowd_level":                 None,
+            "visitor_tips":                [],
+            "total_insights":              0,
+            "verified_address":            None,
+            "validation_timestamp":        datetime.now().isoformat(),
         }
 
     def get_cache_stats(self) -> Dict:

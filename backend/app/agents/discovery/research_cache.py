@@ -1,4 +1,4 @@
-# backend/app/agents/research/research_cache.py
+# backend/app/agents/discovery/research_cache.py
 """Simple in-memory cache for Tavily research results"""
 
 from typing import Dict, Optional

@@ -5,25 +5,12 @@ import { Adventure, VenueWithResearch } from '../types/adventure';
 import { useTheme, t } from '../contexts/ThemeContext';
 import ShareCard from './ShareCard';
 
-interface ResearchSummary {
-	visitor_summary: string;
-	key_highlights: string[];
-	practical_info: {
-		best_time_to_visit?: string;
-		typical_duration?: string;
-		admission?: string;
-		insider_tips?: string[];
-	};
-	confidence_notes: string;
-}
-
 interface Props {
 	adventure: Adventure;
 	index: number;
 	onSave?: (adventureId: string) => void;
 }
 
-// ── Helper: pick the best available URL for a venue ──────────────────────────
 const getVenueUrl = (venue: VenueWithResearch): string | null =>
 	venue.website || venue.source_url || venue.tavily_url || venue.yelp_url || null;
 
@@ -46,14 +33,13 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 
 	const researchStats = {
 		quality: adventure.venues_research
-			? adventure.venues_research.reduce((acc, v) => acc + (v.research_confidence || 0), 0) / adventure.venues_research.length
+			? adventure.venues_research.reduce((a, v) => a + (v.research_confidence || 0), 0) /
+			adventure.venues_research.length
 			: 0,
 		insights: adventure.venues_research
-			? adventure.venues_research.reduce((acc, v) => acc + (v.total_insights || 0), 0)
+			? adventure.venues_research.reduce((a, v) => a + (v.total_insights || 0), 0)
 			: 0,
 	};
-
-	const handleSaveClick = () => setShowRatingModal(true);
 
 	const handleConfirmSave = async () => {
 		try {
@@ -86,12 +72,11 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 		<div style={{
 			backgroundColor: cardBg,
 			border: `2px solid ${borderColor}`,
-			borderRadius: 16,
-			padding: 25,
+			borderRadius: 16, padding: 25,
 			boxShadow: isDark ? '0 4px 24px rgba(0,0,0,0.3)' : '0 4px 6px rgba(0,0,0,0.07)',
-			position: 'relative',
-			backdropFilter: 'blur(12px)',
+			position: 'relative', backdropFilter: 'blur(12px)',
 		}}>
+
 			{/* ── Header ── */}
 			<div style={{ borderBottom: `1px solid ${borderColor}`, paddingBottom: 15, marginBottom: 20 }}>
 				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -104,7 +89,7 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 						</p>
 					</div>
 					<button
-						onClick={handleSaveClick}
+						onClick={() => setShowRatingModal(true)}
 						disabled={isSaved}
 						style={{
 							background: isSaved
@@ -114,8 +99,7 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 							padding: '10px 20px', borderRadius: 8,
 							fontSize: '0.9rem', fontWeight: 600,
 							cursor: isSaved ? 'default' : 'pointer',
-							marginLeft: 15, whiteSpace: 'nowrap',
-							transition: 'transform 0.2s',
+							marginLeft: 15, whiteSpace: 'nowrap', transition: 'transform 0.2s',
 						}}
 						onMouseEnter={e => { if (!isSaved) e.currentTarget.style.transform = 'scale(1.04)'; }}
 						onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
@@ -124,7 +108,6 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 					</button>
 				</div>
 
-				{/* Research quality badge */}
 				{researchStats.insights > 0 && (
 					<div style={{
 						backgroundColor: researchStats.quality > 0.6
@@ -138,7 +121,11 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 					}}>
 						<span style={{ fontSize: 14 }}>📊</span>
 						<div style={{ fontSize: 12, fontWeight: 600 }}>
-							<div style={{ color: researchStats.quality > 0.6 ? (isDark ? '#6ee7b7' : '#15803d') : (isDark ? '#fcd34d' : '#d97706') }}>
+							<div style={{
+								color: researchStats.quality > 0.6
+									? (isDark ? '#6ee7b7' : '#15803d')
+									: (isDark ? '#fcd34d' : '#d97706'),
+							}}>
 								{Math.round(researchStats.quality * 100)}% Research Quality
 							</div>
 							<div style={{ color: tk.textMuted, fontSize: 10 }}>
@@ -155,19 +142,26 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 				<StatCard value={adventure.steps?.length || 0} label="Stops" color="#2563eb" isDark={isDark} />
 			</div>
 
-			{/* ── AI Research section ── */}
+			{/* ── Live Venue Info ── */}
 			{adventure.venues_research && adventure.venues_research.length > 0 && (
 				<div style={{
 					backgroundColor: researchBg,
 					border: `2px solid ${researchBorder}`,
 					borderRadius: 12, padding: 20, marginBottom: 20,
 				}}>
-					<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-						<h4 style={{ color: isDark ? '#6ee7b7' : '#15803d', margin: 0, display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.95rem' }}>
-							✨ AI-Summarized Venue Insights
-							<span style={{ backgroundColor: isDark ? '#059669' : '#16a34a', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10 }}>
-								LIVE DATA
-							</span>
+					<div style={{
+						display: 'flex', justifyContent: 'space-between',
+						alignItems: 'center', marginBottom: showResearchDetails ? 16 : 0,
+					}}>
+						<h4 style={{
+							color: isDark ? '#6ee7b7' : '#15803d',
+							margin: 0, display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.95rem',
+						}}>
+							✨ Live Venue Info
+							<span style={{
+								backgroundColor: isDark ? '#059669' : '#16a34a',
+								color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10,
+							}}>LIVE DATA</span>
 						</h4>
 						<button
 							onClick={() => setShowResearchDetails(!showResearchDetails)}
@@ -183,127 +177,154 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 					</div>
 
 					{showResearchDetails && (
-						<div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+						<div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 							{adventure.venues_research.map((venue, idx) => {
+								const raw = venue as any;
 								const venueName = venue?.name || venue?.venue_name || venue?.matched_to || 'Unknown Venue';
-								const summary = (venue as any)?.research_summary as ResearchSummary | undefined;
 								const venueUrl = getVenueUrl(venue);
-
-								if (!summary) return (
-									<div key={idx} style={{
-										backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : '#fef2f2',
-										border: `1px solid ${isDark ? 'rgba(239,68,68,0.3)' : '#fecaca'}`,
-										borderRadius: 12, padding: 15,
-									}}>
-										<h5 style={{ color: isDark ? '#fca5a5' : '#dc2626', margin: '0 0 10px 0' }}>
-											⚠️ {venueName} (No Summary)
-										</h5>
-									</div>
-								);
+								const topSource = raw.top_source as string | null;
+								const hoursClean = raw.hours_clean as string | null;
+								const priceTier = raw.price_tier as string | null;
+								const descClean = raw.description_clean as string | null;
+								const insiderTip = raw.insider_tip_clean as string | null;
+								const bestTime = raw.best_time as string | null;
+								const crowdLevel = raw.crowd_level as string | null;
 
 								return (
 									<div key={idx} style={{
 										backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'white',
 										border: `1px solid ${borderColor}`,
-										borderRadius: 12, padding: 20,
-										boxShadow: isDark ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
+										borderRadius: 12, padding: 16,
+										boxShadow: isDark ? 'none' : '0 1px 4px rgba(0,0,0,0.05)',
 									}}>
-										{/* ── Venue header with optional website link ── */}
-										<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingBottom: 12, borderBottom: `1px solid ${borderColor}` }}>
-											<div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-												<h5 style={{ color: tk.textPrimary, margin: 0, fontSize: 16, fontWeight: 700 }}>
+										{/* ── Venue name + price + links ── */}
+										<div style={{
+											display: 'flex', justifyContent: 'space-between',
+											alignItems: 'flex-start', flexWrap: 'wrap', gap: 8,
+											marginBottom: 10, paddingBottom: 10,
+											borderBottom: `1px solid ${borderColor}`,
+										}}>
+											<div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+												<span style={{ fontWeight: 700, fontSize: 14, color: tk.textPrimary }}>
 													📍 {venueName}
-												</h5>
+												</span>
+												{priceTier && (
+													<span style={{
+														fontSize: 11, fontWeight: 700,
+														color: isDark ? '#fcd34d' : '#92400e',
+														background: isDark ? 'rgba(245,158,11,0.15)' : '#fef3c7',
+														border: `1px solid ${isDark ? 'rgba(245,158,11,0.3)' : '#fbbf24'}`,
+														padding: '2px 7px', borderRadius: 5,
+													}}>
+														{priceTier}
+													</span>
+												)}
+											</div>
+											<div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
 												{venueUrl && (
-													<a
-														href={venueUrl}
-														target="_blank"
-														rel="noopener noreferrer"
-														title="Visit venue website"
+													<a href={venueUrl} target="_blank" rel="noopener noreferrer"
 														style={{
-															display: 'inline-flex', alignItems: 'center', gap: 4,
 															fontSize: 11, fontWeight: 600,
 															color: isDark ? '#93c5fd' : '#2563eb',
-															backgroundColor: isDark ? 'rgba(59,130,246,0.12)' : '#dbeafe',
+															background: isDark ? 'rgba(59,130,246,0.12)' : '#dbeafe',
 															border: `1px solid ${isDark ? 'rgba(59,130,246,0.3)' : '#93c5fd'}`,
-															padding: '3px 8px', borderRadius: 6,
+															padding: '3px 8px', borderRadius: 5,
 															textDecoration: 'none', whiteSpace: 'nowrap',
-															transition: 'opacity 0.15s',
+														}}
+														onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+														onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+													>🌐 Website</a>
+												)}
+												{topSource && topSource !== venueUrl && (
+													<a href={topSource} target="_blank" rel="noopener noreferrer"
+														style={{
+															fontSize: 11, fontWeight: 600,
+															color: isDark ? '#6ee7b7' : '#15803d',
+															background: isDark ? 'rgba(16,185,129,0.12)' : '#dcfce7',
+															border: `1px solid ${isDark ? 'rgba(16,185,129,0.3)' : '#86efac'}`,
+															padding: '3px 8px', borderRadius: 5,
+															textDecoration: 'none', whiteSpace: 'nowrap',
 														}}
 														onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
 														onMouseLeave={e => e.currentTarget.style.opacity = '1'}
 													>
-														🔗 Visit site
+														{topSource.includes('yelp') ? '⭐ Yelp'
+															: topSource.includes('tripadvisor') ? '🦉 TripAdvisor'
+																: '🔗 Reviews'}
 													</a>
 												)}
 											</div>
-											<div style={{
-												backgroundColor: isDark ? 'rgba(16,185,129,0.15)' : '#dcfce7',
-												color: isDark ? '#6ee7b7' : '#15803d',
-												padding: '4px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-												flexShrink: 0,
+										</div>
+
+										{/* ── Description ── */}
+										{descClean && (
+											<p style={{
+												fontSize: 13, color: tk.textSecondary,
+												lineHeight: 1.6, margin: '0 0 12px 0',
 											}}>
-												{Math.round((venue.research_confidence || 0) * 100)}% Confidence
+												{descClean}
+											</p>
+										)}
+
+										{/* ── Info chips ── */}
+										<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+											{hoursClean && (
+												<div style={{
+													display: 'flex', alignItems: 'center', gap: 5, fontSize: 12,
+													color: isDark ? '#93c5fd' : '#1e40af',
+													background: isDark ? 'rgba(59,130,246,0.1)' : '#eff6ff',
+													border: `1px solid ${isDark ? 'rgba(59,130,246,0.25)' : '#bfdbfe'}`,
+													padding: '5px 10px', borderRadius: 6,
+												}}>
+													🕐 {hoursClean}
+												</div>
+											)}
+											{bestTime && (
+												<div style={{
+													display: 'flex', alignItems: 'center', gap: 5, fontSize: 12,
+													color: isDark ? '#fcd34d' : '#92400e',
+													background: isDark ? 'rgba(245,158,11,0.1)' : '#fef3c7',
+													border: `1px solid ${isDark ? 'rgba(245,158,11,0.25)' : '#fde68a'}`,
+													padding: '5px 10px', borderRadius: 6,
+												}}>
+													📅 {bestTime}
+												</div>
+											)}
+											{crowdLevel && (
+												<div style={{
+													display: 'flex', alignItems: 'center', gap: 5, fontSize: 12,
+													color: isDark ? '#c4b5fd' : '#5b21b6',
+													background: isDark ? 'rgba(139,92,246,0.1)' : '#ede9fe',
+													border: `1px solid ${isDark ? 'rgba(139,92,246,0.25)' : '#ddd6fe'}`,
+													padding: '5px 10px', borderRadius: 6,
+												}}>
+													👥 {crowdLevel}
+												</div>
+											)}
+											<div style={{
+												display: 'flex', alignItems: 'center', gap: 5, fontSize: 12,
+												color: isDark ? '#6ee7b7' : '#15803d',
+												background: isDark ? 'rgba(16,185,129,0.1)' : '#f0fdf4',
+												border: `1px solid ${isDark ? 'rgba(16,185,129,0.25)' : '#bbf7d0'}`,
+												padding: '5px 10px', borderRadius: 6,
+											}}>
+												📊 {venue.total_insights || 0} insights · {Math.round((venue.research_confidence || 0) * 100)}% confidence
 											</div>
 										</div>
 
-										<p style={{ color: tk.textSecondary, fontSize: 14, lineHeight: 1.6, marginBottom: 15, fontStyle: 'italic' }}>
-											{summary.visitor_summary}
-										</p>
-
-										{summary.key_highlights?.length > 0 && (
-											<div style={{ marginBottom: 15 }}>
-												<div style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#6ee7b7' : '#15803d', marginBottom: 8 }}>
-													⭐ Highlights:
-												</div>
-												<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-													{summary.key_highlights.map((h: string, hIdx: number) => (
-														<div key={hIdx} style={{
-															fontSize: 12, color: isDark ? '#93c5fd' : '#1e40af',
-															backgroundColor: isDark ? 'rgba(59,130,246,0.12)' : '#dbeafe',
-															border: `1px solid ${isDark ? 'rgba(59,130,246,0.3)' : '#3b82f6'}`,
-															padding: '6px 10px', borderRadius: 6,
-														}}>✓ {h}</div>
-													))}
-												</div>
+										{/* ── Insider tip ── */}
+										{insiderTip && (
+											<div style={{
+												marginTop: 10, padding: '8px 12px', borderRadius: 6,
+												background: isDark ? 'rgba(251,191,36,0.08)' : '#fffbeb',
+												border: `1px solid ${isDark ? 'rgba(251,191,36,0.2)' : '#fde68a'}`,
+												fontSize: 12, color: isDark ? '#fcd34d' : '#92400e',
+												display: 'flex', alignItems: 'flex-start', gap: 6,
+											}}>
+												<span style={{ flexShrink: 0 }}>💡</span>
+												<span>{insiderTip}</span>
 											</div>
 										)}
-
-										{summary.practical_info && (
-											<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 15 }}>
-												{summary.practical_info.best_time_to_visit && (
-													<InfoCard icon="📅" label="Best Time" value={summary.practical_info.best_time_to_visit} isDark={isDark} />
-												)}
-												{summary.practical_info.typical_duration && (
-													<InfoCard icon="⏱️" label="Duration" value={summary.practical_info.typical_duration} isDark={isDark} />
-												)}
-												{summary.practical_info.admission && (
-													<InfoCard icon="🎫" label="Admission" value={summary.practical_info.admission} isDark={isDark} />
-												)}
-											</div>
-										)}
-
-										{(summary.practical_info?.insider_tips?.length ?? 0) > 0 && (
-											<div>
-												<div style={{ fontSize: 13, fontWeight: 600, color: isDark ? '#6ee7b7' : '#15803d', marginBottom: 8 }}>
-													💡 Insider Tips:
-												</div>
-												{(summary.practical_info.insider_tips ?? []).map((tip: string, tipIdx: number) => (
-													<div key={tipIdx} style={{
-														fontSize: 13, color: tk.textPrimary,
-														backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#fef3c7',
-														border: `1px solid ${isDark ? 'rgba(245,158,11,0.3)' : '#fbbf24'}`,
-														padding: 10, borderRadius: 6, marginBottom: 6, lineHeight: 1.5,
-													}}>
-														✓ {tip}
-													</div>
-												))}
-											</div>
-										)}
-
-										<div style={{ fontSize: 11, color: tk.textMuted, borderTop: `1px solid ${borderColor}`, paddingTop: 10, marginTop: 12, fontStyle: 'italic' }}>
-											📊 {summary.confidence_notes} | {venue.total_insights || 0} insights
-										</div>
 									</div>
 								);
 							})}
@@ -312,7 +333,7 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 				</div>
 			)}
 
-			{/* ── Itinerary steps ── */}
+			{/* ── Itinerary ── */}
 			{adventure.steps && adventure.steps.length > 0 && (
 				<div style={{ marginBottom: 20 }}>
 					<h4 style={{ color: tk.textPrimary, marginBottom: 15, fontSize: '1.1rem' }}>
@@ -339,18 +360,13 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 								<div style={{ fontSize: 14, color: tk.textMuted, marginBottom: step.venue_url ? 6 : 0 }}>
 									{step.details}
 								</div>
-								{/* ── Venue link on step ── */}
 								{step.venue_url && (
-									<a
-										href={step.venue_url}
-										target="_blank"
-										rel="noopener noreferrer"
+									<a href={step.venue_url} target="_blank" rel="noopener noreferrer"
 										style={{
 											display: 'inline-flex', alignItems: 'center', gap: 4,
 											fontSize: 12, fontWeight: 500,
 											color: isDark ? '#93c5fd' : '#2563eb',
-											textDecoration: 'none', opacity: 0.85,
-											transition: 'opacity 0.15s',
+											textDecoration: 'none', opacity: 0.85, transition: 'opacity 0.15s',
 										}}
 										onMouseEnter={e => e.currentTarget.style.opacity = '1'}
 										onMouseLeave={e => e.currentTarget.style.opacity = '0.85'}
@@ -366,23 +382,18 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 
 			{/* ── Map button ── */}
 			{adventure.map_url && (
-				<a
-					href={adventure.map_url}
-					target="_blank"
-					rel="noopener noreferrer"
+				<a href={adventure.map_url} target="_blank" rel="noopener noreferrer"
 					style={{
 						display: 'inline-flex', alignItems: 'center', gap: 8,
 						backgroundColor: '#059669', color: 'white',
 						textDecoration: 'none', padding: '12px 20px',
-						borderRadius: 8, fontWeight: 600, fontSize: 14,
-						marginBottom: 12,
+						borderRadius: 8, fontWeight: 600, fontSize: 14, marginBottom: 12,
 					}}
 				>
 					🗺️ Open Route in Google Maps
 				</a>
 			)}
 
-			{/* ── Share card ── */}
 			<ShareCard adventure={adventure} />
 
 			{/* ── Rating modal ── */}
@@ -394,15 +405,13 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 				}}>
 					<div style={{
 						background: isDark ? '#1e1b4b' : 'white',
-						borderRadius: 16, padding: 30,
-						maxWidth: 500, width: '90%',
+						borderRadius: 16, padding: 30, maxWidth: 500, width: '90%',
 						boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
 						border: `1px solid ${borderColor}`,
 					}}>
 						<h3 style={{ marginBottom: 20, color: tk.textPrimary, fontSize: '1.5rem' }}>
 							💾 Save Adventure
 						</h3>
-
 						<div style={{ marginBottom: 20 }}>
 							<label style={{ display: 'block', marginBottom: 10, fontWeight: 600, color: tk.textSecondary }}>
 								Rate this adventure (optional):
@@ -426,7 +435,6 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 								</div>
 							)}
 						</div>
-
 						<div style={{ marginBottom: 20 }}>
 							<label style={{ display: 'block', marginBottom: 10, fontWeight: 600, color: tk.textSecondary }}>
 								Notes (optional):
@@ -441,12 +449,10 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 									border: `2px solid ${borderColor}`, fontSize: '0.95rem',
 									fontFamily: 'inherit', resize: 'vertical',
 									background: isDark ? 'rgba(255,255,255,0.06)' : 'white',
-									color: tk.textPrimary, outline: 'none',
-									boxSizing: 'border-box',
+									color: tk.textPrimary, outline: 'none', boxSizing: 'border-box',
 								}}
 							/>
 						</div>
-
 						<div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
 							<button
 								onClick={() => { setShowRatingModal(false); setRating(null); setNotes(''); }}
@@ -472,26 +478,6 @@ const EnhancedAdventureCard: React.FC<Props> = ({ adventure, index, onSave }) =>
 					</div>
 				</div>
 			)}
-		</div>
-	);
-};
-
-// ── Helper components ─────────────────────────────────────────────────────────
-
-const InfoCard: React.FC<{ icon: string; label: string; value: string; isDark: boolean }> = ({ icon, label, value, isDark }) => {
-	const tk = t(isDark);
-	return (
-		<div style={{
-			backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f9fafb',
-			padding: 12, borderRadius: 8,
-			border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#e5e7eb'}`,
-		}}>
-			<div style={{ fontSize: 12, color: isDark ? '#9ca3af' : '#6b7280', marginBottom: 4, fontWeight: 600 }}>
-				{icon} {label}
-			</div>
-			<div style={{ fontSize: 13, color: tk.textPrimary, lineHeight: 1.4 }}>
-				{value}
-			</div>
 		</div>
 	);
 };

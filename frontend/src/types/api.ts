@@ -1,5 +1,9 @@
 // frontend/src/types/api.ts
 
+/**
+ * API request/response types with full scope handling + progress tracking
+ */
+
 import { Adventure } from './adventure';
 import { GenerationOptions } from '../hooks/useAdventures';
 
@@ -28,10 +32,11 @@ export type QueryType =
 export interface ProgressUpdate {
 	step: string;
 	agent: string;
-	status: 'in_progress' | 'complete' | 'error' | 'clarification_needed';
+	status: 'in_progress' | 'complete' | 'error' | 'clarification_needed' | 'adventure_ready'; // ✅ added adventure_ready
 	message: string;
 	progress: number;
 	details?: Record<string, any>;
+	error?: any;
 }
 
 // ── Request / Response ────────────────────────────────────────────────────────
@@ -41,7 +46,7 @@ export interface AdventureRequest {
 	user_address?: string;
 	preferences?: Record<string, any>;
 	enable_progress?: boolean;
-	generation_options?: GenerationOptions;   // ✅ added
+	generation_options?: GenerationOptions;   // ✅ was missing
 }
 
 export interface AdventureMetadata {
