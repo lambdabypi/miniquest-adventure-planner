@@ -20,6 +20,8 @@ Each request runs through a pipeline of six specialized AI agents coordinated by
 The full pipeline completes in roughly 4 seconds on a warm cache. The ResearchSummary agent (`research_summary_agent.py`) still exists on disk but was removed from the active workflow — its function is handled directly by TavilyResearch and AdventureCreator.
 
 ---
+## Technical Documentation
+[Technical Documentation](https://lambdabypi.github.io/miniquest-adventure-planner/miniquest-technical-complete/index.html#0)
 
 ## Live deployment
 
