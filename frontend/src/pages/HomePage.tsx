@@ -130,7 +130,7 @@ const HomePage: React.FC = () => {
 
 					<p style={{ fontSize: '1.1rem', color: tk.textSecondary, lineHeight: 1.75, marginBottom: 32, maxWidth: 600, margin: '0 auto 32px' }}>
 						Tell MiniQuest what you're in the mood for. Six AI agents find real venues,
-						research them live, and hand you a complete half-day itinerary —
+						research them live, and hand you a complete half-day itinerary -
 						sequenced, routed, and ready to walk out the door.
 						Works in{' '}
 						<strong style={{ color: tk.textAccent }}>any US city</strong>.
@@ -163,7 +163,7 @@ const HomePage: React.FC = () => {
 							onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 30px rgba(124,58,237,0.55)'; }}
 							onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 24px rgba(124,58,237,0.45)'; }}
 						>
-							🚀 {isAuthenticated ? 'Start Exploring' : 'Get Started — Free'}
+							🚀 {isAuthenticated ? 'Start Exploring' : 'Get Started - Free'}
 						</button>
 						<button
 							onClick={() => navigate('/about')}

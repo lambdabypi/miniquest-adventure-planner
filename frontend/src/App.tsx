@@ -14,6 +14,8 @@ import SavedAdventuresPage from './pages/SavedAdventuresPage';
 import SharedAdventurePage from './pages/SharedAdventurePage';
 import SocialPage from './pages/SocialPage';
 import AboutPage from './pages/AboutPage';
+import FeedbackPage from './pages/FeedbackPage';
+import AdminFeedbackPage from './pages/AdminFeedbackPage';
 import './App.css';
 
 const DARK_BG = 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)';
@@ -93,6 +95,12 @@ const AppShell: React.FC = () => {
         <Route path="/shared/:shareId" element={<SharedAdventurePage />} />
         <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/feedback" element={
+          <ProtectedRoute><FeedbackPage /></ProtectedRoute>
+        } />
+        <Route path="/admin/feedback" element={
+          <ProtectedRoute><AdminFeedbackPage /></ProtectedRoute>
+        } />
       </Routes>
     </div>
   );

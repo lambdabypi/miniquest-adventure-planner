@@ -10,6 +10,7 @@ from .chat import router as chat_router
 from .saved_adventures import router as saved_adventures_router
 from .share import router as share_router
 from .social import router as social_router
+from .feedback import router as feedback_router
 
 __all__ = [
     'adventures_router',
@@ -22,4 +23,5 @@ __all__ = [
     'share_router',
     'social_router',
     'get_current_user',
+	'feedback_router',
 ]

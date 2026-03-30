@@ -1,4 +1,4 @@
-// frontend/src/api/client.ts - FIXED TOKEN EXPIRATION HANDLING
+// frontend/src/api/client.ts
 import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -20,61 +20,41 @@ apiClient.interceptors.request.use(
 		}
 		return config;
 	},
-	(error) => {
-		return Promise.reject(error);
-	}
+	(error) => Promise.reject(error)
 );
 
-// ✅ FIXED: Better token expiration handling
+// Response interceptor
 apiClient.interceptors.response.use(
 	(response) => response,
 	(error) => {
 		console.error('API Error:', error.response?.data || error.message);
 
-		// ✅ Handle 401 Unauthorized (token expired/invalid)
-		if (error.response?.status === 401) {
-			const isAuthRequest = error.config?.url?.includes('/auth/');
-			const isLoginRequest = error.config?.url?.includes('/auth/login');
-			const isRegisterRequest = error.config?.url?.includes('/auth/register');
+		const url = error.config?.url || '';
+		const isLoginRequest = url.includes('/auth/login');
+		const isRegisterRequest = url.includes('/auth/register');
 
-			// ✅ Only auto-logout if NOT a login/register attempt
-			if (!isLoginRequest && !isRegisterRequest) {
-				console.log('🔒 Session expired - logging out...');
-
-				// Clear auth state
-				localStorage.removeItem('auth_token');
-				localStorage.removeItem('user_data');
-
-				// Set session expired flag for login page
-				sessionStorage.setItem('session_expired', 'true');
-				sessionStorage.setItem('session_expired_message',
-					'Your session has expired. Please log in again.');
-
-				// ✅ Redirect to login (not home)
-				window.location.href = '/login';
-
-				// Return rejected promise to stop further processing
-				return Promise.reject(new Error('Session expired'));
-			}
-			// If it's a login/register request, let the form handle the error
-		}
-
-		// ✅ Handle 403 Forbidden (access denied)
-		if (error.response?.status === 403) {
-			console.log('🚫 Access denied');
-
-			// Clear auth state
+		// 401 — token expired or invalid; never on login/register (those surface their own errors)
+		if (error.response?.status === 401 && !isLoginRequest && !isRegisterRequest) {
+			console.log('🔒 Session expired - logging out...');
 			localStorage.removeItem('auth_token');
 			localStorage.removeItem('user_data');
-
-			// Set access denied flag
 			sessionStorage.setItem('session_expired', 'true');
-			sessionStorage.setItem('session_expired_message',
-				'Access denied. Please log in again.');
-
-			// Redirect to login
+			sessionStorage.setItem('session_expired_message', 'Your session has expired. Please log in again.');
 			window.location.href = '/login';
+			return Promise.reject(new Error('Session expired'));
+		}
 
+		// 403 — access denied, but NOT a lost session.
+		// Only treat as session expiry if it comes from an auth endpoint
+		// (e.g. token accepted but account deactivated). A 403 on /api/feedback
+		// just means the user isn't an admin — let the page handle it.
+		if (error.response?.status === 403 && url.includes('/auth/')) {
+			console.log('🚫 Auth 403 - logging out...');
+			localStorage.removeItem('auth_token');
+			localStorage.removeItem('user_data');
+			sessionStorage.setItem('session_expired', 'true');
+			sessionStorage.setItem('session_expired_message', 'Access denied. Please log in again.');
+			window.location.href = '/login';
 			return Promise.reject(new Error('Access denied'));
 		}
 

@@ -9,6 +9,7 @@ import sys
 import os
 from .core.telemetry import setup_telemetry
 from .api.routes.social import router as social_router
+from .api.routes.feedback import router as feedback_router
 from .api.routes.share import router as share_router
 from .core.config import settings
 from .agents.coordination import LangGraphCoordinator
@@ -228,6 +229,7 @@ app.include_router(chat_router)
 app.include_router(saved_adventures_router)
 app.include_router(social_router)
 app.include_router(share_router)
+app.include_router(feedback_router)
 
 # ========================================
 # ✅ NEW: PERFORMANCE & CACHE ROUTES
