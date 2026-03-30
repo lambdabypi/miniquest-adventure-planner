@@ -7,12 +7,15 @@ import { useTheme, t } from '../contexts/ThemeContext';
 const EXAMPLES = [
 	'French breakfast and coffee in Boston',
 	'Art galleries and wine bars in NYC',
-	'Parks, bookshops and brunch in Cambridge',
-	'Jazz clubs and late-night bites in Manhattan',
+	'Hidden gem bars and live music in Nashville',
+	'Jazz clubs and late-night bites in Chicago',
+	'Parks, bookshops and brunch in San Francisco',
+	'Rooftop bars and street food in Austin',
 ];
 
 const AGENTS = [
 	{ icon: '📍', label: 'Location' },
+	{ icon: '🤔', label: 'Intent' },
 	{ icon: '🔍', label: 'Venue Scout' },
 	{ icon: '🔬', label: 'Research' },
 	{ icon: '🗺️', label: 'Routing' },
@@ -21,9 +24,18 @@ const AGENTS = [
 
 const FEATURES = [
 	{ icon: '⚡', title: 'Live Research', desc: 'Tavily API fetches real-time hours, reviews, and tips for every venue.' },
-	{ icon: '🧠', title: '7 AI Agents', desc: 'LangGraph coordinates intent, scouting, routing and creation in parallel.' },
-	{ icon: '🗺️', title: 'Smart Routing', desc: 'Google Maps optimises your stop order to minimise travel time.' },
-	{ icon: '🎯', title: 'Personalised', desc: 'RAG system learns your history to recommend adventures you\'ll love.' },
+	{ icon: '🧠', title: '6 AI Agents', desc: 'LangGraph coordinates location, intent, scouting, research, routing, and creation.' },
+	{ icon: '🗺️', title: 'Smart Routing', desc: 'Google Maps optimises your stop order and injects per-step transit directions.' },
+	{ icon: '🎯', title: 'Personalised', desc: 'RAG system learns from your saved adventures to surface things you\'ll love.' },
+];
+
+const CITIES = [
+	{ emoji: '🏛️', city: 'Boston', desc: 'Back Bay · North End · Cambridge · Beacon Hill' },
+	{ emoji: '🗽', city: 'New York City', desc: 'Manhattan · Brooklyn · SoHo · East Village' },
+	{ emoji: '🎸', city: 'Chicago', desc: 'River North · Wicker Park · Lincoln Park · Loop' },
+	{ emoji: '🌴', city: 'Los Angeles', desc: 'Silver Lake · Venice · Downtown · Culver City' },
+	{ emoji: '🌉', city: 'San Francisco', desc: 'Mission · Hayes Valley · North Beach · Castro' },
+	{ emoji: '🎵', city: 'Nashville', desc: 'East Nashville · The Gulch · 12 South · Germantown' },
 ];
 
 const HomePage: React.FC = () => {
@@ -109,18 +121,19 @@ const HomePage: React.FC = () => {
 						fontWeight: 800, lineHeight: 1.15, marginBottom: 20, letterSpacing: '-1px',
 						color: tk.textPrimary,
 					}}>
-						Discover your next
+						Not recommendations.
 						<span style={{
 							background: 'linear-gradient(90deg, #a78bfa, #60a5fa)',
 							WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-						}}> Mini Adventure</span>
+						}}> Adventures.</span>
 					</h1>
 
 					<p style={{ fontSize: '1.1rem', color: tk.textSecondary, lineHeight: 1.75, marginBottom: 32, maxWidth: 600, margin: '0 auto 32px' }}>
-						Tell MiniQuest what you're in the mood for. Seven AI agents find real venues,
-						research them live, and build a perfect half-day itinerary in{' '}
-						<strong style={{ color: tk.textAccent }}>Boston</strong> or{' '}
-						<strong style={{ color: tk.textAccent }}>New York City</strong>.
+						Tell MiniQuest what you're in the mood for. Six AI agents find real venues,
+						research them live, and hand you a complete half-day itinerary —
+						sequenced, routed, and ready to walk out the door.
+						Works in{' '}
+						<strong style={{ color: tk.textAccent }}>any US city</strong>.
 					</p>
 
 					{/* Animated example */}
@@ -170,36 +183,40 @@ const HomePage: React.FC = () => {
 				</div>
 
 				{/* ── CITY CARDS ── */}
-				<div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center', width: '100%', animation: 'fadeInUp 0.7s ease 0.15s both' }}>
-					{[
-						{ emoji: '🏛️', city: 'Boston', desc: 'Back Bay · North End · Cambridge · Beacon Hill' },
-						{ emoji: '🗽', city: 'New York City', desc: 'Manhattan · Brooklyn · SoHo · East Village' },
-					].map(({ emoji, city, desc }) => (
-						<div key={city} style={{
-							flex: '1 1 260px',
-							background: tk.cardBg,
-							border: `1px solid ${tk.cardBorder}`,
-							borderRadius: 18, padding: '20px 24px',
-							display: 'flex', alignItems: 'center', gap: 16,
-							backdropFilter: 'blur(12px)',
-							transition: 'all 0.25s',
-						}}
-							onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(124,58,237,0.15)'; }}
-							onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'none'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'; }}
-						>
-							<span style={{ fontSize: '2.2rem' }}>{emoji}</span>
-							<div>
-								<div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: 4, color: tk.textPrimary }}>{city}</div>
-								<div style={{ fontSize: '0.8rem', color: tk.textMuted, lineHeight: 1.5 }}>{desc}</div>
+				<div style={{ width: '100%', animation: 'fadeInUp 0.7s ease 0.15s both' }}>
+					<div style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em', color: tk.textAccent, textTransform: 'uppercase', marginBottom: 16, textAlign: 'center' }}>
+						Works anywhere in the US
+					</div>
+					<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+						{CITIES.map(({ emoji, city, desc }) => (
+							<div key={city} style={{
+								background: tk.cardBg,
+								border: `1px solid ${tk.cardBorder}`,
+								borderRadius: 16, padding: '16px 20px',
+								display: 'flex', alignItems: 'center', gap: 14,
+								backdropFilter: 'blur(12px)',
+								transition: 'all 0.25s',
+							}}
+								onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(124,58,237,0.15)'; (e.currentTarget as HTMLDivElement).style.borderColor = tk.textAccent; }}
+								onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'none'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'; (e.currentTarget as HTMLDivElement).style.borderColor = tk.cardBorder; }}
+							>
+								<span style={{ fontSize: '1.8rem', flexShrink: 0 }}>{emoji}</span>
+								<div>
+									<div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: 3, color: tk.textPrimary }}>{city}</div>
+									<div style={{ fontSize: '0.76rem', color: tk.textMuted, lineHeight: 1.5 }}>{desc}</div>
+								</div>
 							</div>
-						</div>
-					))}
+						))}
+					</div>
+					<div style={{ textAlign: 'center', marginTop: 12, fontSize: '0.78rem', color: tk.textMuted }}>
+						+ every other US city and town
+					</div>
 				</div>
 
 				{/* ── AGENT PIPELINE ── */}
 				<div style={{ width: '100%', textAlign: 'center', animation: 'fadeInUp 0.7s ease 0.25s both' }}>
 					<div style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em', color: tk.textAccent, textTransform: 'uppercase', marginBottom: 18 }}>
-						How it works
+						6-agent pipeline
 					</div>
 					<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 6 }}>
 						{AGENTS.map(({ icon, label }, i) => (
@@ -252,7 +269,7 @@ const HomePage: React.FC = () => {
 
 				{/* ── TECH STACK ── */}
 				<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', animation: 'fadeInUp 0.6s ease 0.6s both' }}>
-					{['LangGraph', 'Tavily API', 'OpenAI GPT-4', 'Google Maps', 'MongoDB', 'FastAPI'].map(tech => (
+					{['LangGraph', 'Tavily API', 'OpenAI GPT-4o', 'Google Maps', 'MongoDB', 'FastAPI', 'Redis', 'ChromaDB'].map(tech => (
 						<span key={tech} style={{
 							background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
 							border: `1px solid ${isDark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.08)'}`,

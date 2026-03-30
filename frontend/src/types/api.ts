@@ -46,7 +46,8 @@ export interface AdventureRequest {
 	user_address?: string;
 	preferences?: Record<string, any>;
 	enable_progress?: boolean;
-	generation_options?: GenerationOptions;   // ✅ was missing
+	generation_options?: GenerationOptions;
+	request_time?: string;   // ✅ ISO 8601 local time, e.g. "2025-03-30T08:48:00.000Z"
 }
 
 export interface AdventureMetadata {

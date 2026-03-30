@@ -37,6 +37,10 @@ class AdventureRequest(BaseModel):
     preferences: Optional[Dict] = None
     enable_progress: bool = False
     generation_options: GenerationOptions = Field(default_factory=GenerationOptions)
+    request_time: Optional[str] = Field(
+        default=None,
+        description="ISO 8601 local time when the user submitted the request, e.g. '2025-03-30T08:48:00'"
+    )
 
     class Config:
         json_schema_extra = {
@@ -49,7 +53,8 @@ class AdventureRequest(BaseModel):
                     "stops_per_adventure": 2,
                     "diversity_mode": "high",
                     "exclude_venues": []
-                }
+                },
+                "request_time": "2025-03-30T08:48:00"
             }
         }
 

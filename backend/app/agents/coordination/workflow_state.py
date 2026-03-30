@@ -11,9 +11,10 @@ class AdventureState(TypedDict, total=False):
     user_input: str
     user_address: Optional[str]
     user_id: Optional[str]
+    request_time: Optional[str]          # ISO local time from the frontend
 
     # ── Generation options (diversity / stop count) ───────────────────────────
-    generation_options: Optional[Dict]   # ✅ NEW — from GenerationOptions model
+    generation_options: Optional[Dict]
 
     # ── Parsed data ───────────────────────────────────────────────────────────
     target_location: Optional[str]

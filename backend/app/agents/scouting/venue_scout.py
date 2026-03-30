@@ -13,6 +13,7 @@ import googlemaps
 import json
 import re
 from datetime import datetime
+from difflib import SequenceMatcher
 from ..base import BaseAgent, ValidationError, ProcessingError
 from ...core.config import settings
 from .tavily_scout import TavilyVenueScout
@@ -84,6 +85,23 @@ PREF_TO_SEARCH_QUERY: Dict[str, str] = {
     "art galleries": "{city} art gallery",
     "escape rooms":  "{city} escape room",
     "climbing gyms": "{city} climbing gym",
+}
+
+# Known neighborhood aliases that Google Places addresses may use
+_NEIGHBORHOOD_ALIASES: Dict[str, List[str]] = {
+    "north end":    ["north end", "hanover st", "salem st", "prince st", "commercial st"],
+    "south end":    ["south end", "tremont st", "columbus ave", "shawmut ave"],
+    "back bay":     ["back bay", "boylston st", "newbury st", "commonwealth ave"],
+    "beacon hill":  ["beacon hill", "charles st", "mt vernon st", "pinckney st"],
+    "fenway":       ["fenway", "kenmore", "brookline ave", "park dr"],
+    "seaport":      ["seaport", "fort point", "congress st", "summer st"],
+    "cambridge":    ["cambridge", "harvard sq", "central sq", "kendall sq", "inman sq"],
+    "brooklyn":     ["brooklyn", "williamsburg", "park slope", "dumbo", "bushwick"],
+    "manhattan":    ["manhattan", "upper east", "upper west", "midtown", "downtown", "soho", "tribeca"],
+    "chelsea":      ["chelsea"],
+    "lower east side": ["lower east side", "les"],
+    "east village": ["east village"],
+    "west village": ["west village"],
 }
 
 
@@ -186,7 +204,17 @@ class VenueScoutAgent(BaseAgent):
             all_venues = [v for sublist in results for v in sublist]
 
             unique  = self._deduplicate_venues(all_venues)
-            diverse = self._select_diverse_venues(unique, target_count=12)
+
+            # ✅ Filter to requested neighborhood if one is present in location
+            neighborhood = self._extract_neighborhood_from_location(location)
+            if neighborhood:
+                unique = self._filter_by_neighborhood(unique, neighborhood)
+                self.log_processing(
+                    "Neighborhood filter applied",
+                    f"'{neighborhood}' — {len(unique)} venues remain"
+                )
+
+            diverse  = self._select_diverse_venues(unique, target_count=12)
             enhanced = [self._enhance_venue(v, location) for v in diverse]
 
             self.log_success(f"Google Places discovery: {len(enhanced)} venues")
@@ -282,15 +310,10 @@ class VenueScoutAgent(BaseAgent):
             "current_status_confidence": "High",
             "establishment_type": "Verified",
             "proximity_based": True,
-            # website filled in by _fetch_place_details if needed
             "website": None,
         }
 
     def _fetch_place_website(self, place_id: str) -> Optional[str]:
-        """
-        Fetch the official website for a place using Place Details API.
-        Called selectively — only when we need the website field.
-        """
         if not place_id or not self.google_enabled:
             return None
         try:
@@ -305,10 +328,6 @@ class VenueScoutAgent(BaseAgent):
             return None
 
     async def _fetch_websites_for_venues(self, venues: List[Dict]) -> List[Dict]:
-        """
-        Batch-fetch official websites for all venues that have a place_id.
-        Done async using run_in_executor to avoid blocking.
-        """
         loop = asyncio.get_event_loop()
 
         async def fetch_one(venue: Dict) -> Dict:
@@ -323,6 +342,82 @@ class VenueScoutAgent(BaseAgent):
             return venue
 
         return list(await asyncio.gather(*[fetch_one(v) for v in venues]))
+
+    # ─── Neighborhood filtering ───────────────────────────────────────────────
+
+    def _extract_neighborhood_from_location(self, location: str) -> Optional[str]:
+        """
+        Return the neighborhood component if location is 'Neighborhood, City, ST'
+        rather than just a city. E.g. 'North End, Boston, MA' → 'north end'.
+        A plain city string like 'Boston, MA' returns None.
+        """
+        parts = [p.strip() for p in location.split(",")]
+        if len(parts) < 3:
+            return None
+
+        # First segment is a neighborhood only if it doesn't look like a street
+        # address and isn't just a city/state abbreviation
+        candidate = parts[0].lower()
+        if any(c.isdigit() for c in candidate):
+            return None
+        if len(candidate) <= 2:
+            return None
+        # Reject bare city names that happen to be the first part
+        city_part = parts[1].strip().lower()
+        if candidate == city_part:
+            return None
+        return candidate
+
+    def _neighborhood_match_score(self, neighborhood_query: str, venue: Dict) -> float:
+        """
+        Return a match score [0, 1] between a requested neighborhood and a venue.
+        Checks the venue's neighborhood field and address against known aliases.
+        """
+        nq = neighborhood_query.lower().strip()
+
+        # Direct alias lookup
+        aliases = _NEIGHBORHOOD_ALIASES.get(nq, [nq])
+
+        venue_neighborhood = (venue.get("neighborhood") or "").lower()
+        venue_address      = (venue.get("address") or "").lower()
+        search_text        = f"{venue_neighborhood} {venue_address}"
+
+        # Exact alias match anywhere in address/neighborhood
+        for alias in aliases:
+            if alias in search_text:
+                return 1.0
+
+        # Fuzzy match on the neighborhood field itself
+        if venue_neighborhood:
+            score = SequenceMatcher(None, nq, venue_neighborhood).ratio()
+            if score >= 0.7:
+                return score
+
+        return 0.0
+
+    def _filter_by_neighborhood(
+        self, venues: List[Dict], neighborhood: str, min_score: float = 0.7
+    ) -> List[Dict]:
+        """
+        Keep only venues that match the requested neighborhood.
+        If fewer than 3 venues pass, return all (prevents empty results for
+        neighbourhoods where Google geocodes to the right lat/lng but uses
+        slightly different address labeling).
+        """
+        scored = [
+            (v, self._neighborhood_match_score(neighborhood, v))
+            for v in venues
+        ]
+        filtered = [v for v, score in scored if score >= min_score]
+
+        if len(filtered) < 3:
+            logger.warning(
+                f"Neighborhood filter for '{neighborhood}' matched only "
+                f"{len(filtered)}/{len(venues)} venues — relaxing filter"
+            )
+            return venues  # Graceful fallback: return all rather than starve the pipeline
+
+        return filtered
 
     # ─── Path 2: Tavily ───────────────────────────────────────────────────────
 

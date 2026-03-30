@@ -77,6 +77,39 @@ _PRICE_PATTERNS = [
     re.compile(r"\bfree\b", re.IGNORECASE),
 ]
 
+# ─── Temporary closure patterns ───────────────────────────────────────────────
+_CLOSURE_PATTERNS = [
+    # Explicit temporary closure language
+    re.compile(
+        r"(?:temporarily|currently|will be)\s+closed",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"closed\s+(?:for|until|through|from)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bclosed\s+(?:to\s+the\s+public|for\s+(?:renovation|construction|maintenance|repairs?|private|a\s+special|the\s+season))",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"not\s+(?:open|available|accessible)\s+(?:to\s+the\s+public\s+)?until",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"reopens?\s+(?:on|in|at|after|following)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:under|undergoing)\s+(?:renovation|construction|restoration|maintenance)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"scheduled\s+(?:closure|closing|maintenance)",
+        re.IGNORECASE,
+    ),
+]
+
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -118,6 +151,21 @@ def _extract_price_tier(raw: str) -> Optional[str]:
             hit = m.group(0).strip()
             return "Free" if hit.lower() == "free" else hit
     return None
+
+
+def _detect_temporary_closure(text: str) -> bool:
+    """
+    Return True if the research text contains strong signals that a venue is
+    temporarily closed (renovation, scheduled closure, not open until X, etc.).
+    Does NOT flag permanent closures — those are already filtered upstream by
+    Google Places business_status and venue name patterns.
+    """
+    if not text:
+        return False
+    for pattern in _CLOSURE_PATTERNS:
+        if pattern.search(text):
+            return True
+    return False
 
 
 def _clean_verified_address(raw: str) -> Optional[str]:
@@ -174,6 +222,8 @@ class TavilyResearchAgent(BaseAgent):
     6. LLM BATCH ENRICHMENT: Single GPT-4o-mini call for all descriptions,
        price, insider tips, best time, crowd level (~1-2s, ~$0.001/run)
     7. HOURS: Still regex-based (faster and more reliable for structured time data)
+    8. CLOSURE DETECTION: Post-research regex scan + LLM flag strips temporarily
+       closed venues before they reach AdventureCreator
     """
 
     def __init__(self, tavily_api_key: str, use_cache: bool = True):
@@ -186,7 +236,7 @@ class TavilyResearchAgent(BaseAgent):
         logger.info(
             f"✅ OPTIMIZED Tavily Agent "
             f"(Parallel + {'Cached' if use_cache else 'No Cache'} + "
-            f"Address Extraction + LLM Batch Enrichment)"
+            f"Address Extraction + LLM Batch Enrichment + Closure Detection)"
         )
 
     async def process(self, input_data: Dict) -> Dict:
@@ -224,8 +274,17 @@ class TavilyResearchAgent(BaseAgent):
             elapsed           = (datetime.now() - start_time).total_seconds()
             self.log_processing("Parallel research complete", f"{elapsed:.2f}s")
 
-            # ✅ Single batched LLM call for all enrichment fields
+            # ✅ Single batched LLM call for all enrichment fields (including closure flag)
             researched_venues = await self._enrich_batch(researched_venues, location)
+
+            # ✅ Strip temporarily closed venues detected by regex OR LLM
+            open_venues, closed_venues = self._partition_by_closure(researched_venues)
+            if closed_venues:
+                names = [v.get("name", "?") for v in closed_venues]
+                logger.warning(
+                    f"🚫 Removed {len(closed_venues)} temporarily closed venue(s): {names}"
+                )
+            researched_venues = open_venues
 
             successful_research = sum(
                 1 for v in researched_venues
@@ -250,12 +309,14 @@ class TavilyResearchAgent(BaseAgent):
                     "addresses_found":     addresses_found,
                     "cache_hits":          cache_stats.get("hits", 0),
                     "cache_hit_rate":      cache_stats.get("hit_rate", "0%"),
+                    "closed_venues_removed": len(closed_venues),
                 },
             }
 
             self.log_success(
                 f"Research complete: {successful_research}/{len(selected_venues)} successful, "
                 f"{total_insights} insights, {addresses_found} addresses found, "
+                f"{len(closed_venues)} closed removed, "
                 f"{elapsed:.2f}s, Cache: {cache_stats.get('hit_rate', '0%')}"
             )
             return self.create_response(True, result)
@@ -264,12 +325,42 @@ class TavilyResearchAgent(BaseAgent):
             self.log_error(f"Venue research failed: {e}")
             raise ProcessingError(self.name, str(e))
 
+    # ─── Closure partitioning ─────────────────────────────────────────────────
+
+    def _partition_by_closure(
+        self, venues: List[Dict]
+    ) -> tuple[List[Dict], List[Dict]]:
+        """
+        Split venues into (open, closed) based on:
+        1. regex scan of comprehensive_research_text + current_info
+        2. LLM-set 'temporarily_closed' flag from _enrich_batch
+        """
+        open_venues, closed_venues = [], []
+        for v in venues:
+            if v.get("temporarily_closed"):
+                closed_venues.append(v)
+                continue
+
+            research_text = " ".join(filter(None, [
+                v.get("comprehensive_research_text", ""),
+                v.get("current_info", ""),
+                v.get("hours_info", ""),
+            ]))
+            if _detect_temporary_closure(research_text):
+                v["temporarily_closed"] = True
+                closed_venues.append(v)
+            else:
+                open_venues.append(v)
+
+        return open_venues, closed_venues
+
     # ─── LLM batch enrichment ─────────────────────────────────────────────────
 
     async def _enrich_batch(self, venues: List[Dict], location: str) -> List[Dict]:
         """
         Single GPT-4o-mini call extracting structured info for all venues.
-        Extracts: description, price_tier (fallback), insider_tip, best_time, crowd_level.
+        Extracts: description, price_tier (fallback), insider_tip, best_time,
+        crowd_level, and temporarily_closed flag.
         Hours stay as regex — more reliable for structured time patterns.
         Non-fatal: if the call fails, existing fields are unchanged.
         """
@@ -294,16 +385,18 @@ class TavilyResearchAgent(BaseAgent):
 For each venue, extract what you can from the research text. Return null for fields not clearly supported by the text.
 
 Return ONLY valid JSON. Keys are venue index numbers as strings. Each value has:
-  "description"  : One clear sentence (15-25 words) describing what it is and why to visit. Always provide this — use venue type/name if research is sparse. Never include city name, addresses, or "located at".
-  "price_tier"   : "Free", "$", "$$", "$$$", "$$$$", or specific like "$15 admission". null if unknown.
-  "insider_tip"  : One short practical tip from the research text. null if nothing useful found.
-  "best_time"    : Best time to visit if inferable, e.g. "Weekday mornings", "Evenings". null if unknown.
-  "crowd_level"  : One of: "Usually quiet", "Moderately busy", "Can get crowded", "Very popular". null if unknown.
+  "description"        : One clear sentence (15-25 words) describing what it is and why to visit. Always provide this — use venue type/name if research is sparse. Never include city name, addresses, or "located at".
+  "price_tier"         : "Free", "$", "$$", "$$$", "$$$$", or specific like "$15 admission". null if unknown.
+  "insider_tip"        : One short practical tip from the research text. null if nothing useful found.
+  "best_time"          : Best time to visit if inferable, e.g. "Weekday mornings", "Evenings". null if unknown.
+  "crowd_level"        : One of: "Usually quiet", "Moderately busy", "Can get crowded", "Very popular". null if unknown.
+  "temporarily_closed" : true ONLY if the research text explicitly states the venue is currently closed, temporarily shut, undergoing renovation, or not open to the public. false otherwise.
 
 Rules:
 - description must NOT mention city name, street address, or phrases like "located at" / "find us at".
 - price_tier and insider_tip must come from research text — do NOT invent them.
-- Return null rather than guessing.
+- temporarily_closed must only be true when the closure is clearly stated and current — do NOT flag venues just because old reviews mention past closures.
+- Return null rather than guessing for optional fields.
 
 Venues:
 {chr(10).join(venue_entries)}"""
@@ -313,7 +406,7 @@ Venues:
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,
-                max_tokens=700,
+                max_tokens=800,
             )
             content = response.choices[0].message.content.strip()
             if content.startswith("```"):
@@ -337,7 +430,6 @@ Venues:
                     if desc and len(desc.strip()) > 10:
                         v["description_clean"] = desc.strip()
 
-                    # Only fill price if regex didn't already find one
                     price = data.get("price_tier")
                     if price and not v.get("price_tier"):
                         v["price_tier"] = price
@@ -353,6 +445,11 @@ Venues:
                     crowd = data.get("crowd_level")
                     if crowd:
                         v["crowd_level"] = crowd.strip()
+
+                    # ✅ LLM closure flag — only set to True, never override an
+                    # existing True value with False (regex may have caught it first)
+                    if data.get("temporarily_closed") is True:
+                        v["temporarily_closed"] = True
 
                     count += 1
 
@@ -537,7 +634,6 @@ Venues:
 
         venue_name = venue.get("name", "")
 
-        # ── Address extraction ────────────────────────────────────────────────
         verified_address: Optional[str] = None
         ordered = sorted(research, key=lambda r: r.get("method") == "tavily_extract", reverse=True)
         for item in ordered:
@@ -548,7 +644,6 @@ Venues:
                     logger.info(f"  📍 Address resolved via research: {verified_address}")
                     break
 
-        # ── Text buckets ──────────────────────────────────────────────────────
         hours_texts     = [r["content"] for r in research if r.get("info_type") == "hours"     or r.get("has_hours_info")]
         menu_texts      = [r["content"] for r in research if r.get("info_type") in ("menu_info","exhibition_info") or r.get("has_menu_info") or r.get("has_activity_info")]
         admission_texts = [r["content"] for r in research if r.get("has_admission_info")]
@@ -573,12 +668,10 @@ Venues:
         menu_info    = "\n\n".join(menu_texts[:2])[:600]    if menu_texts    else ""
         current_info = "\n\n".join(current_texts[:2])[:400] if current_texts else ""
 
-        # ── Hours and price via regex (reliable for structured data) ──────────
         search_corpus = "\n\n".join(filter(None, [hours_info, menu_info, current_info, comprehensive_text]))
         hours_clean   = _extract_hours_clean(search_corpus)
         price_tier    = _extract_price_tier(search_corpus)
 
-        # ── Confidence ────────────────────────────────────────────────────────
         has_extract  = extracted_count > 0
         has_snippets = any(r.get("method") == "search_snippet" for r in research)
         confidence   = 1.0 if has_extract else 0.9 if has_snippets else 0.5
@@ -592,15 +685,13 @@ Venues:
             "current_info":                current_info or comprehensive_text[:500],
             "hours_info":                  hours_info   or comprehensive_text[:600],
             "venue_summary":               menu_info    or comprehensive_text[:600],
-            # ── Regex-extracted (reliable structured data) ───────────────────
             "hours_clean":                 hours_clean,
             "price_tier":                  price_tier,
-            # ── LLM-extracted fields (set to None here; filled by _enrich_batch)
             "description_clean":           None,
             "insider_tip_clean":           None,
             "best_time":                   None,
             "crowd_level":                 None,
-            # ── Tips & counts ─────────────────────────────────────────────────
+            "temporarily_closed":          False,   # default; overridden by _enrich_batch / _partition_by_closure
             "visitor_tips":                self._extract_visitor_tips(research),
             "total_insights":              len(research),
             "unique_insights":             len(all_unique_texts),
@@ -645,6 +736,7 @@ Venues:
             "insider_tip_clean":           None,
             "best_time":                   None,
             "crowd_level":                 None,
+            "temporarily_closed":          False,
             "visitor_tips":                [],
             "total_insights":              0,
             "verified_address":            None,

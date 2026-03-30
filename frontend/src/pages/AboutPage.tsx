@@ -4,12 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme, t } from '../contexts/ThemeContext';
 
 const AGENTS = [
+	{ icon: '📍', name: 'LocationParser', desc: 'Resolves your location to coordinates and a canonical city name. Supports any US city. Defaults to your address if no location is found in the query.' },
 	{ icon: '🤔', name: 'IntentParser', desc: 'Reads your request and extracts themes, activities, meal context, group size, and time-of-day — including vibe words like "chill", "party", or "date night".' },
-	{ icon: '📍', name: 'LocationParser', desc: 'Resolves your location to a canonical city name and coordinates. Only Boston and NYC are supported — anything else is caught here.' },
-	{ icon: '🔍', name: 'VenueScout', desc: 'Uses GPT-4o to generate 15-20 diverse venue candidates based on your intent and city.' },
-	{ icon: '🔬', name: 'TavilyResearch', desc: 'Runs 8 parallel live web searches — one per venue — pulling current hours, prices, reviews, and standout details.' },
-	{ icon: '🗺️', name: 'RoutingAgent', desc: 'Calculates optimal stop order, builds Google Maps deep links, and injects per-step transit directions (live MBTA for Boston).' },
-	{ icon: '✨', name: 'AdventureCreator', desc: 'Assembles 3 themed, narrative itineraries from the researched and routed venues, anchored to the real-time city clock.' },
+	{ icon: '🔍', name: 'VenueScout', desc: 'Discovers venues via Google Places (primary), Tavily live discovery (fallback), or GPT-4o knowledge base (last resort). Batch-fetches websites for all results.' },
+	{ icon: '🔬', name: 'TavilyResearch', desc: 'Runs up to 18 parallel live web searches — pulling current hours, prices, reviews, and standout details. Results are Redis-cached for 24 hours.' },
+	{ icon: '🗺️', name: 'RoutingAgent', desc: 'Resolves street-level addresses, builds Google Maps deep links, and injects per-step transit directions. Live MBTA integration for Boston itineraries.' },
+	{ icon: '✨', name: 'AdventureCreator', desc: 'Assembles 3 themed, narrative itineraries from researched and routed venues — streamed to you one by one as each finishes.' },
 ];
 
 const STEPS = [
@@ -32,7 +32,7 @@ const STATS = [
 	{ val: '6', label: 'AI Agents' },
 	{ val: '~4s', label: 'Warm Cache' },
 	{ val: '90%+', label: 'Cache Hit Rate' },
-	{ val: '2', label: 'Cities' },
+	{ val: 'US-wide', label: 'Coverage' },
 ];
 
 const FEATURES = [
@@ -105,14 +105,37 @@ const AboutPage: React.FC = () => {
 						fontSize: '0.82rem', fontWeight: 600, letterSpacing: '0.04em', marginBottom: 24,
 					}}>About MiniQuest</div>
 					<h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.2rem)', fontWeight: 800, lineHeight: 1.2, marginBottom: 20, color: tk.textPrimary }}>
-						Your city. Your afternoon.
-						<span style={{ background: 'linear-gradient(90deg, #a78bfa, #60a5fa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}> Perfectly planned.</span>
+						Not recommendations.
+						<span style={{ background: 'linear-gradient(90deg, #a78bfa, #60a5fa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}> Adventures.</span>
 					</h1>
 					<p style={{ fontSize: '1.05rem', color: tk.textSecondary, lineHeight: 1.8 }}>
-						MiniQuest is an AI-powered adventure planner for Boston and New York City.
-						It runs 7 specialized agents in a LangGraph workflow to turn a casual sentence
-						into a fully-researched, routed, single-day itinerary in seconds.
+						MiniQuest turns a single sentence into a complete, themed day plan — sequenced stops,
+						a live-researched route, transit directions, and a budget estimate. Not a list of places.
+						A full adventure, ready to walk out the door.
 					</p>
+
+					{/* Proof-point strip */}
+					<div style={{
+						display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginTop: 28,
+					}}>
+						{[
+							{ icon: '⚡', text: '~4s on warm cache' },
+							{ icon: '🔍', text: 'Live venue research' },
+							{ icon: '🗺️', text: 'Full route + transit' },
+							{ icon: '🧠', text: 'Learns from your history' },
+							{ icon: '📱', text: 'Web + mobile app' },
+						].map(({ icon, text }) => (
+							<div key={text} style={{
+								display: 'flex', alignItems: 'center', gap: 6,
+								background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
+								border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'}`,
+								borderRadius: 999, padding: '5px 14px',
+								fontSize: '0.8rem', color: tk.textSecondary, fontWeight: 500,
+							}}>
+								<span>{icon}</span>{text}
+							</div>
+						))}
+					</div>
 				</div>
 
 				{/* Steps */}
@@ -139,7 +162,7 @@ const AboutPage: React.FC = () => {
 
 				{/* Agents */}
 				<div id="agents" data-section style={{ width: '100%', ...sectionStyle('agents') }}>
-					<SectionLabel label="The 7 AI Agents" color={tk.textAccent} />
+					<SectionLabel label="The 6 AI Agents" color={tk.textAccent} />
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
 						{AGENTS.map(({ icon, name, desc }, i) => (
 							<div key={name} style={{
@@ -226,7 +249,7 @@ const AboutPage: React.FC = () => {
 				<div id="cta" data-section style={{ textAlign: 'center', maxWidth: 500, ...sectionStyle('cta') }}>
 					<div style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: 12, color: tk.textPrimary }}>Ready to explore?</div>
 					<p style={{ fontSize: '0.95rem', color: tk.textSecondary, marginBottom: 28, lineHeight: 1.6 }}>
-						Boston and NYC are waiting. Your next adventure is one sentence away.
+						Any US city. Your next adventure is one sentence away.
 					</p>
 					<button
 						onClick={() => navigate('/register')}

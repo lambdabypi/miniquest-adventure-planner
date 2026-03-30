@@ -354,7 +354,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 						History
 					</button>
 				</div>
-				<div style={{ fontSize: '0.75rem', opacity: 0.9 }}>7 AI Agents • Live Research • Real-time Progress</div>
+				<div style={{ fontSize: '0.75rem', opacity: 0.9 }}>6 AI Agents • Live Research • Real-time Progress</div>
 				{currentConversationId && (
 					<div style={{ fontSize: '0.65rem', opacity: 0.7, marginTop: 4 }}>💾 Auto-saving conversation</div>
 				)}
@@ -399,7 +399,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 							<strong>Processing...</strong>
 						</div>
 						<div style={{ fontSize: '0.75rem', color: tk.textMuted }}>
-							7 agents working{!isMobile && ' • Check right panel for progress'}
+							6 agents working{!isMobile && ' • Check right panel for progress'}
 						</div>
 					</div>
 				)}

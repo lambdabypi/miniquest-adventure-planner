@@ -103,6 +103,7 @@ export const useAdventures = () => {
 					user_input: query,
 					user_address: location,
 					generation_options: options,
+					request_time: new Date().toISOString(),   // ✅ local ISO time
 				}),
 			});
 
@@ -212,7 +213,8 @@ export const useAdventures = () => {
 			const response = await adventuresApi.generateAdventures({
 				user_input: query,
 				user_address: location,
-				generation_options: options,   // ✅ NEW field
+				generation_options: options,
+				request_time: new Date().toISOString(),       // ✅ local ISO time
 			});
 
 			if (response.metadata?.unrelated_query) {

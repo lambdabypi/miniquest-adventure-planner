@@ -1,24 +1,20 @@
 # backend/app/agents/intent/intent_parser.py
-"""Intent parsing agent with city constraints, vibe mapping, and rich preference extraction"""
+"""Intent parsing agent with US-wide city support, vibe mapping, and rich preference extraction"""
 
 from openai import AsyncOpenAI
 import json
 import logging
-from typing import Dict, List
+from datetime import datetime
+from typing import Dict, List, Optional
 from ..base import BaseAgent
 
 logger = logging.getLogger(__name__)
 
 
 class IntentParserAgent(BaseAgent):
-    """Parse user intent with city constraints, scope guardrails, and vibe-to-venue mapping"""
+    """Parse user intent with US city support, scope guardrails, and vibe-to-venue mapping"""
 
-    ALLOWED_CITIES = ["Boston", "New York", "New York City", "NYC"]
-    ALLOWED_STATES = ["MA", "Massachusetts", "NY", "New York"]
-
-    # ─── Vibe/mood → concrete venue categories ───────────────────────────────
     VIBE_TO_VENUES: Dict[str, List[str]] = {
-        # Nightlife / party
         "party":          ["bars", "nightlife", "cocktail bars", "rooftop bars", "dance clubs"],
         "parties":        ["bars", "nightlife", "cocktail bars", "rooftop bars", "dance clubs"],
         "nightlife":      ["bars", "nightlife", "cocktail bars", "dance clubs", "lounges"],
@@ -27,45 +23,37 @@ class IntentParserAgent(BaseAgent):
         "drinks":         ["bars", "cocktail bars", "breweries", "wine bars"],
         "going out":      ["bars", "nightlife", "cocktail bars", "rooftop bars"],
         "night out":      ["bars", "nightlife", "cocktail bars", "rooftop bars"],
-        # Chill / relax
         "chill":          ["coffee shops", "parks", "bookstores", "cafes"],
         "chilling":       ["coffee shops", "parks", "bookstores", "cafes"],
         "relax":          ["parks", "coffee shops", "spas", "gardens"],
         "relaxing":       ["parks", "coffee shops", "spas", "gardens"],
         "lazy":           ["coffee shops", "parks", "bookstores"],
         "slow":           ["coffee shops", "parks", "gardens", "bookstores"],
-        # Romantic
         "date":           ["restaurants", "wine bars", "rooftop bars", "parks", "art galleries"],
         "date night":     ["restaurants", "wine bars", "rooftop bars", "cocktail bars"],
         "romantic":       ["restaurants", "wine bars", "gardens", "waterfront"],
         "anniversary":    ["restaurants", "wine bars", "rooftop bars", "gardens"],
-        # Active / outdoors
         "active":         ["parks", "hiking trails", "sports", "climbing gyms"],
         "workout":        ["parks", "sports", "fitness", "climbing gyms"],
         "outdoors":       ["parks", "gardens", "waterfronts", "trails"],
         "nature":         ["parks", "gardens", "arboretums", "waterfronts"],
         "adventure":      ["parks", "climbing gyms", "kayaking", "escape rooms"],
-        # Food / drink
         "foodie":         ["restaurants", "food markets", "bakeries", "cafes"],
         "brunch":         ["brunch spots", "cafes", "bakeries", "coffee shops"],
         "lunch":          ["restaurants", "cafes", "food markets"],
         "dinner":         ["restaurants", "wine bars", "cocktail bars"],
         "coffee":         ["coffee shops", "cafes", "bakeries"],
         "boba":           ["boba shops", "cafes", "tea houses"],
-        # Culture / arts
         "artsy":          ["art galleries", "museums", "street art", "indie cinemas"],
         "cultural":       ["museums", "historic sites", "art galleries", "cultural centers"],
         "history":        ["historic sites", "museums", "historic districts"],
         "museums":        ["museums", "galleries", "science centers"],
-        # Shopping
         "shopping":       ["boutiques", "markets", "vintage shops", "bookstores"],
         "vintage":        ["vintage shops", "thrift stores", "antique shops"],
-        # Social / group
         "friends":        ["bars", "restaurants", "bowling", "escape rooms", "parks"],
         "group":          ["restaurants", "bars", "bowling", "arcades", "escape rooms"],
         "birthday":       ["bars", "restaurants", "rooftop bars", "cocktail bars", "bowling"],
         "celebration":    ["bars", "restaurants", "rooftop bars", "cocktail bars"],
-        # Specific vibes
         "hipster":        ["coffee shops", "vintage shops", "indie bookstores", "craft breweries"],
         "touristy":       ["historic sites", "museums", "famous landmarks", "waterfront"],
         "local":          ["neighborhood cafes", "local bars", "farmers markets", "parks"],
@@ -74,7 +62,6 @@ class IntentParserAgent(BaseAgent):
         "hot day":        ["ice cream shops", "waterfronts", "parks", "air-conditioned museums"],
     }
 
-    # ─── Budget string → dollar range ─────────────────────────────────────────
     BUDGET_MAP = {
         "free":       (0, 0),
         "cheap":      (0, 20),
@@ -90,18 +77,18 @@ class IntentParserAgent(BaseAgent):
     def __init__(self):
         super().__init__("IntentParser")
         self.client = AsyncOpenAI()
-        self.log_success("IntentParser initialized with vibe mapping + rich preferences")
+        self.log_success("IntentParser initialized — US-wide city support")
 
     async def process(self, input_data: Dict) -> Dict:
-        user_input = input_data.get("user_input", "")
+        user_input    = input_data.get("user_input", "")
         user_location = input_data.get("user_address", "")
+        request_time  = input_data.get("request_time")   # ✅ ISO string from frontend
 
         self.log_processing("Parsing and validating intent", f"Query: '{user_input[:60]}'")
 
-        # Early city-constraint check
-        city_validation = self._validate_city_constraint(user_input, user_location)
+        city_validation = self._validate_location_constraint(user_input)
         if not city_validation["valid"]:
-            self.log_warning(f"Invalid city: {city_validation['detected_city']}")
+            self.log_warning(f"International location detected: {city_validation['detected_city']}")
             return self.create_response(False, {
                 "needs_clarification": True,
                 "out_of_scope": True,
@@ -112,7 +99,7 @@ class IntentParserAgent(BaseAgent):
             })
 
         try:
-            prompt = self._build_enhanced_prompt(user_input, user_location)
+            prompt = self._build_enhanced_prompt(user_input, user_location, request_time)
             response = await self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
@@ -153,12 +140,20 @@ class IntentParserAgent(BaseAgent):
             if not params:
                 params = self._get_fallback_preferences()
 
-            # ── Post-processing: expand vibes, normalise budget ──────────────
             params["preferences"] = self._expand_vibe_preferences(
                 params.get("preferences", [])
             )
             params = self._normalise_budget(params)
             params = self._infer_energy_level(params)
+
+            # ✅ If the LLM left time_of_day as "any" but we have a real clock
+            # time, derive it precisely rather than leaving it vague.
+            if request_time and params.get("time_of_day") in ("any", None, ""):
+                params["time_of_day"] = self._derive_time_of_day(request_time)
+                self.log_processing(
+                    "time_of_day derived from request_time",
+                    f"{request_time} → {params['time_of_day']}"
+                )
 
             self.log_success(f"Intent parsed: {params.get('preferences', [])}")
             return self.create_response(True, {
@@ -176,24 +171,37 @@ class IntentParserAgent(BaseAgent):
                 "needs_clarification": False,
             })
 
+    # ─── Time derivation ──────────────────────────────────────────────────────
+
+    def _derive_time_of_day(self, request_time: str) -> str:
+        """
+        Convert an ISO timestamp to a time_of_day label.
+        Buckets: morning (6-11), afternoon (11-17), evening (17-21), night (21-6).
+        Falls back to "any" on parse failure.
+        """
+        try:
+            dt = datetime.fromisoformat(request_time)
+            h = dt.hour
+            if 6 <= h < 11:
+                return "morning"
+            if 11 <= h < 17:
+                return "afternoon"
+            if 17 <= h < 21:
+                return "evening"
+            return "night"
+        except (ValueError, TypeError):
+            return "any"
+
     # ─── Vibe expansion ────────────────────────────────────────────────────────
 
     def _expand_vibe_preferences(self, preferences: List[str]) -> List[str]:
-        """
-        Translate vibe/mood words into concrete venue categories.
-        E.g. ["party"] → ["bars", "nightlife", "cocktail bars", "rooftop bars", "dance clubs"]
-        Concrete categories (coffee shops, museums, etc.) are kept as-is.
-        """
         expanded = []
         for pref in preferences:
-            pref_lower = pref.lower().strip()
-            mapped = self.VIBE_TO_VENUES.get(pref_lower)
+            mapped = self.VIBE_TO_VENUES.get(pref.lower().strip())
             if mapped:
                 expanded.extend(mapped)
             else:
                 expanded.append(pref)
-
-        # Deduplicate, preserve order
         seen: set = set()
         result = []
         for p in expanded:
@@ -205,17 +213,12 @@ class IntentParserAgent(BaseAgent):
     # ─── Budget normalisation ─────────────────────────────────────────────────
 
     def _normalise_budget(self, params: Dict) -> Dict:
-        """
-        Accept budget as a dollar float OR a string label (cheap / moderate / splurge).
-        Adds budget_min / budget_max for downstream agents.
-        """
         raw = params.get("budget")
         if raw is None:
             params.setdefault("budget", 75.0)
             params["budget_min"] = 0
             params["budget_max"] = 150
             return params
-
         if isinstance(raw, str):
             label = raw.lower().strip()
             lo, hi = self.BUDGET_MAP.get(label, (20, 100))
@@ -224,7 +227,6 @@ class IntentParserAgent(BaseAgent):
             params["budget_max"] = hi
             params["budget_label"] = label
         else:
-            # numeric — infer label
             val = float(raw)
             params["budget"] = val
             params["budget_min"] = 0
@@ -237,20 +239,15 @@ class IntentParserAgent(BaseAgent):
                 params["budget_label"] = "moderate"
             else:
                 params["budget_label"] = "splurge"
-
         return params
 
     # ─── Energy-level inference ───────────────────────────────────────────────
 
     def _infer_energy_level(self, params: Dict) -> Dict:
-        """Infer energy_level from preferences if not set explicitly."""
         if params.get("energy_level"):
             return params
-
-        prefs_str = " ".join(params.get("preferences", [])).lower()
         high_energy = {"dance clubs", "clubbing", "climbing gyms", "kayaking", "sports", "hiking"}
-        low_energy = {"parks", "coffee shops", "bookstores", "cafes", "gardens", "spas"}
-
+        low_energy  = {"parks", "coffee shops", "bookstores", "cafes", "gardens", "spas"}
         pref_set = set(params.get("preferences", []))
         if pref_set & high_energy:
             params["energy_level"] = "high"
@@ -258,19 +255,34 @@ class IntentParserAgent(BaseAgent):
             params["energy_level"] = "low"
         else:
             params["energy_level"] = "medium"
-
         return params
 
     # ─── Prompt ───────────────────────────────────────────────────────────────
 
-    def _build_enhanced_prompt(self, user_input: str, user_location: str) -> str:
-        allowed = " or ".join(self.ALLOWED_CITIES[:2])
+    def _build_enhanced_prompt(
+        self, user_input: str, user_location: str, request_time: Optional[str] = None
+    ) -> str:
+        # Build a human-readable time context line for the LLM
+        if request_time:
+            try:
+                dt = datetime.fromisoformat(request_time)
+                time_label = self._derive_time_of_day(request_time)
+                time_context = (
+                    f'REQUEST TIME: {dt.strftime("%I:%M %p")} local time '
+                    f'({time_label}) — use this to set time_of_day precisely.'
+                )
+            except (ValueError, TypeError):
+                time_context = "REQUEST TIME: unknown"
+        else:
+            time_context = "REQUEST TIME: not provided — infer time_of_day from the query text if possible, otherwise use \"any\"."
+
         return f"""You are an intelligent intent parser for MiniQuest - a LOCAL ADVENTURE planning app.
 
 USER REQUEST: "{user_input}"
 USER LOCATION: "{user_location}"
+{time_context}
 
-APP SCOPE: MiniQuest creates SHORT, SPONTANEOUS local adventures (2-6 hours, single day) in {allowed} ONLY.
+APP SCOPE: MiniQuest creates SHORT, SPONTANEOUS local adventures (2-6 hours, single day) anywhere in the UNITED STATES.
 
 TASK: Categorize this request into ONE of these categories:
 
@@ -283,9 +295,12 @@ Response: {{"unrelated_query": true, "query_type": "general_knowledge", "clarifi
 
 ═══════════════════════════════════════════════════════════════
 CATEGORY 2: OUT OF SCOPE
-❌ "Plan my 1 week trip" ❌ "Where should I stay?" ❌ "$5000 vacation"
-Detection: "week", "days", "weekend trip", budget > $500, "hotel", "accommodation"
-Response: {{"out_of_scope": true, "scope_issue": "multi_day_trip|accommodation_planning|trip_budget_detected", "clarification_message": "...", "suggestions": [...]}}
+❌ "Plan my 1 week trip" ❌ "Where should I stay?" ❌ "$5000 vacation" ❌ "Paris trip"
+Detection: "week", "days", "weekend trip", budget > $500, "hotel", "accommodation", non-US country/city
+Response: {{"out_of_scope": true, "scope_issue": "multi_day_trip|accommodation_planning|trip_budget_detected|unsupported_city", "clarification_message": "...", "suggestions": [...]}}
+
+NOTE: International locations (Paris, London, Tokyo, etc.) are out of scope.
+US cities of ALL sizes are IN scope — Boston, NYC, Chicago, LA, Austin, Nashville, etc.
 
 ═══════════════════════════════════════════════════════════════
 CATEGORY 3: NEEDS CLARIFICATION
@@ -295,31 +310,33 @@ Response: {{"is_actionable": false, "clarification_needed": "...", "suggestions"
 ═══════════════════════════════════════════════════════════════
 CATEGORY 4: IN SCOPE ✅
 
-VIBE / MOOD WORDS → you MUST translate to real venue types in preferences[]:
-  "party" / "going out" / "night out"  → bars, nightlife, cocktail bars, rooftop bars
-  "clubbing"                           → nightclubs, dance clubs, bars
-  "drinks" / "bar hopping"             → bars, breweries, cocktail bars, wine bars
-  "date night" / "romantic"            → restaurants, wine bars, rooftop bars
-  "chill" / "relaxing"                 → coffee shops, parks, bookstores
-  "brunch" / "mimosas" / "brunch spots" → brunch spots, cafes, bakeries
-  "foodie" / "lunch" / "dinner"        → restaurants, cafes, food markets
-  "artsy" / "cultural"                 → art galleries, museums
-  "friends" / "group"                  → bars, restaurants, bowling, escape rooms
-  "birthday" / "celebration"           → bars, cocktail bars, restaurants, rooftop bars
-  "hidden gems"                        → dive bars, local cafes, indie shops
-  "rainy day"                          → museums, coffee shops, bookstores, cinemas
+VIBE / MOOD WORDS → translate to real venue types in preferences[]:
+  "party" / "going out" / "night out"   → bars, nightlife, cocktail bars, rooftop bars, nightclubs, dance clubs, bars
+  "clubbing"                            → nightclubs, dance clubs, bars
+  "drinks" / "bar hopping"              → bars, breweries, cocktail bars, wine bars
+  "date night" / "romantic"             → restaurants, wine bars, rooftop bars
+  "chill" / "relaxing"                  → coffee shops, parks, bookstores
+  "brunch" / "mimosas"                  → brunch spots, cafes, bakeries
+  "foodie" / "lunch" / "dinner"         → restaurants, cafes, food markets
+  "artsy" / "cultural"                  → art galleries, museums
+  "friends" / "group"                   → bars, restaurants, bowling, escape rooms
+  "birthday" / "celebration"            → bars, cocktail bars, restaurants, rooftop bars
+  "hidden gems"                         → dive bars, local cafes, indie shops
+  "rainy day"                           → museums, coffee shops, bookstores, cinemas
   IMPORTANT: Do NOT put the vibe word itself in preferences[]. Use venue types ONLY.
-  IMPORTANT: "brunch" and "mimosas" MUST map to "brunch spots" — NOT "restaurants" or "cafes", 
-  and similiarly for any other related queries.
 
 BUDGET PARSING — accept any of these forms:
-  - Dollar amount: "$40", "40 dollars", "under $50"   → numeric value
+  - Dollar amount: "$40", "40 dollars", "under $50" → numeric value
   - Label: "free", "cheap", "budget", "moderate", "splurge", "fancy", "luxury"
   - Default if not mentioned: 75.0
 
 GROUP SIZE — extract if mentioned: "just me" → 1, "couple" → 2, "group of 5" → 5
 
-TIME OF DAY — extract if mentioned: "morning", "afternoon", "evening", "night", "now"
+TIME OF DAY — rules (in priority order):
+  1. If the user explicitly states a time ("this morning", "tonight", "at 3pm") → use that
+  2. If REQUEST TIME is provided above → use that time_label exactly
+  3. Otherwise → "any"
+  Valid values: "morning" | "afternoon" | "evening" | "night" | "any"
 
 Response:
 {{
@@ -342,63 +359,56 @@ Response:
 ═══════════════════════════════════════════════════════════════
 RULES:
 1. CHECK UNRELATED first → OUT OF SCOPE second → CLARIFICATION third → IN SCOPE last
-2. MiniQuest ONLY operates in Boston and New York City (city filter already applied)
-3. "party", "going out", "birthday" are IN SCOPE — map to nightlife venues
-4. group_size defaults to 1 if not mentioned
-5. time_of_day defaults to "any" if not mentioned
-6. meal_context defaults to "none" unless food is central to the request
-7. special_occasion defaults to "none"
+2. Any US city/town is valid — do NOT flag US cities as out of scope
+3. Only international locations (non-US) are out of scope for city reasons
+4. "party", "going out", "birthday" are IN SCOPE — map to nightlife venues
+5. group_size defaults to 1, meal_context defaults to "none"
+6. For time_of_day: explicit user wording beats REQUEST TIME beats "any"
 
 CRITICAL: Return ONLY valid JSON. No explanation, no preamble."""
 
-    # ─── Helpers ──────────────────────────────────────────────────────────────
+    # ─── Location validation (international only) ─────────────────────────────
 
-    def _validate_city_constraint(self, user_input: str, user_location: str) -> Dict:
-        user_input_lower = user_input.lower()
+    def _validate_location_constraint(self, user_input: str) -> Dict:
+        text = user_input.lower()
 
         international_cities = [
             "paris", "london", "tokyo", "rome", "barcelona", "berlin", "amsterdam",
             "dubai", "singapore", "hong kong", "beijing", "shanghai", "sydney",
             "melbourne", "toronto", "vancouver", "mexico city", "mumbai", "delhi",
-        ]
-        us_cities_outside_scope = [
-            "chicago", "los angeles", "la ", " la", "san francisco", "sf ", " sf",
-            "seattle", "miami", "austin", "denver", "portland", "las vegas",
-            "atlanta", "dallas", "houston", "philadelphia", "phoenix", "san diego",
+            "cairo", "istanbul", "moscow", "seoul", "bangkok", "jakarta",
         ]
         continents = ["europe", "asia", "africa", "australia", "south america"]
-        countries = ["france", "uk", "england", "japan", "italy", "spain", "germany"]
+        countries = [
+            "france", "uk", "england", "japan", "italy", "spain", "germany",
+            "china", "india", "brazil", "canada", "mexico", "australia",
+            "russia", "korea", "thailand", "indonesia",
+        ]
 
         for city in international_cities:
-            if city in user_input_lower:
+            if city in text:
                 return {
                     "valid": False, "detected_city": city.title(),
-                    "message": f"MiniQuest currently operates in Boston and NYC only. We don't support {city.title()} yet.",
-                    "suggestions": self._default_suggestions(),
-                }
-        for city in us_cities_outside_scope:
-            if city in user_input_lower:
-                name = city.title().strip()
-                return {
-                    "valid": False, "detected_city": name,
-                    "message": f"MiniQuest currently operates in Boston and NYC only. We'd love to expand to {name} in the future!",
+                    "message": f"MiniQuest currently operates within the US only. We don't support {city.title()} yet — try TripAdvisor for international adventures!",
                     "suggestions": self._default_suggestions(),
                 }
         for continent in continents:
-            if continent in user_input_lower:
+            if continent in text:
                 return {
                     "valid": False, "detected_city": continent.title(),
-                    "message": f"MiniQuest creates local adventures in Boston and NYC. For {continent.title()} travel, try TripAdvisor!",
+                    "message": f"MiniQuest creates local adventures across the US. For {continent.title()} travel, try TripAdvisor!",
                     "suggestions": self._default_suggestions(),
                 }
         for country in countries:
-            if country in user_input_lower:
+            if country in text:
                 return {
                     "valid": False, "detected_city": country.title(),
-                    "message": f"MiniQuest operates in Boston and NYC only. For {country.title()} travel, try Google Travel!",
+                    "message": f"MiniQuest operates within the US only. For {country.title()} travel, try Google Travel!",
                     "suggestions": self._default_suggestions(),
                 }
         return {"valid": True}
+
+    # ─── Helpers ──────────────────────────────────────────────────────────────
 
     def _parse_json_response(self, content: str) -> Dict:
         if content.startswith("```json"):
@@ -430,7 +440,7 @@ CRITICAL: Return ONLY valid JSON. No explanation, no preamble."""
 
     def _default_suggestions(self) -> List[str]:
         return [
-            "Party spots and rooftop bars in Boston",
-            "Coffee shops and parks in New York",
-            "Art galleries and wine bars in Boston",
+            "Party spots and rooftop bars in Chicago",
+            "Coffee shops and parks in Austin",
+            "Art galleries and wine bars in San Francisco",
         ]
