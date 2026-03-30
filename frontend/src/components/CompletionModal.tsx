@@ -135,7 +135,7 @@ const CompletionModal: React.FC<Props> = ({ adventure, savedAdventureId, onClose
 			background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
 			display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
 		}}>
-			{/* Confetti canvas — sits above backdrop, below modal */}
+			{/* Confetti canvas - sits above backdrop, below modal */}
 			<canvas ref={canvasRef} style={{
 				position: 'fixed', inset: 0, zIndex: 4001, pointerEvents: 'none',
 			}} />

@@ -87,7 +87,7 @@ function StatCard({ icon, label, value, sub, color = "#6366f1" }: StatCardProps)
 			borderTop: `3px solid ${color}`, flex: 1, minWidth: 140
 		}}>
 			<div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
-			<div style={{ fontSize: 28, fontWeight: 700, color: "#f1f5f9" }}>{value ?? "—"}</div>
+			<div style={{ fontSize: 28, fontWeight: 700, color: "#f1f5f9" }}>{value ?? "-"}</div>
 			<div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>{label}</div>
 			{sub && <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{sub}</div>}
 		</div>
@@ -168,7 +168,7 @@ export default function ObservabilityPage() {
 			const now = Math.floor(Date.now() / 1000);
 			const oneHourAgo = now - 3600;
 
-			// Total workflow runs — sum across all label variants
+			// Total workflow runs - sum across all label variants
 			const totalCalls = await query('sum(llm_traces_span_metrics_calls_total{span_name="miniquest.generate_adventures"})');
 			const totalCallsVal = totalCalls.length > 0 ? parseFloat(totalCalls[0].value[1]) : 0;
 
@@ -185,7 +185,7 @@ export default function ObservabilityPage() {
 				agentCalls[agent.key] = c;
 			}
 
-			// Latest run — increase() over last 2 hours (wide enough to always catch last run)
+			// Latest run - increase() over last 2 hours (wide enough to always catch last run)
 			const latestAgentDurations: Record<string, number> = {};
 			for (const agent of AGENTS) {
 				const spanName = `miniquest.agent.${agent.key}`;
@@ -306,12 +306,12 @@ export default function ObservabilityPage() {
 								<StatCard icon="🚀" label="Total Workflow Runs" value={Math.round(data.totalCalls)} color="#6366f1" />
 								<StatCard
 									icon="⏱️" label="Avg Workflow Duration"
-									value={data.avgWorkflow > 0 ? `${data.avgWorkflow.toFixed(1)}s` : "—"}
+									value={data.avgWorkflow > 0 ? `${data.avgWorkflow.toFixed(1)}s` : "-"}
 									sub="end-to-end per request" color="#10b981"
 								/>
 								<StatCard
 									icon="🐌" label="Slowest Agent"
-									value={data.slowestAgent?.icon ?? "—"}
+									value={data.slowestAgent?.icon ?? "-"}
 									sub={data.slowestAgent?.label} color="#f59e0b"
 								/>
 								<StatCard icon="❌" label="Error Spans" value={Math.round(data.errorCount)} color="#ef4444" />
@@ -333,7 +333,7 @@ export default function ObservabilityPage() {
 													<div style={{ fontSize: 16 }}>{agent.icon}</div>
 													<div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{agent.label.split(" ")[0]}</div>
 													<div style={{ fontSize: 12, color: agent.color, fontWeight: 700, marginTop: 2 }}>
-														{dur > 0 ? `${dur.toFixed(2)}s` : "—"}
+														{dur > 0 ? `${dur.toFixed(2)}s` : "-"}
 													</div>
 												</div>
 												{i < AGENTS.length - 1 && (
@@ -371,7 +371,7 @@ export default function ObservabilityPage() {
 							<p style={{ color: "#64748b", fontSize: 13, margin: "0 0 24px" }}>
 								{agentView === "average"
 									? "Average duration per agent across all recorded runs."
-									: "Average duration per agent over the last 2 hours — reflects your most recent requests."}
+									: "Average duration per agent over the last 2 hours - reflects your most recent requests."}
 							</p>
 							{(() => {
 								const durations = agentView === "average" ? data.agentDurations : data.latestAgentDurations;
@@ -414,7 +414,7 @@ export default function ObservabilityPage() {
 								<MiniSparkline values={data.sparkValues} color="#6366f1" />
 								{data.sparkValues.length === 0 && (
 									<div style={{ color: "#475569", fontSize: 13, marginTop: 8 }}>
-										No throughput data yet — send a few requests to MiniQuest first.
+										No throughput data yet - send a few requests to MiniQuest first.
 									</div>
 								)}
 							</div>
@@ -426,7 +426,7 @@ export default function ObservabilityPage() {
 									}}>
 										<span style={{ fontSize: 13, color: "#94a3b8" }}>{agent.icon} {agent.label}</span>
 										<span style={{ fontWeight: 700, color: agent.color, fontSize: 14 }}>
-											{(data.agentCalls[agent.key] ?? 0) > 0 ? `${data.agentCalls[agent.key]} calls` : "—"}
+											{(data.agentCalls[agent.key] ?? 0) > 0 ? `${data.agentCalls[agent.key]} calls` : "-"}
 										</span>
 									</div>
 								))}

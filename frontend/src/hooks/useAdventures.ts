@@ -135,7 +135,7 @@ export const useAdventures = () => {
 					try {
 						const data = JSON.parse(jsonStr);
 
-						// ✅ Individual adventure ready — show it immediately
+						// ✅ Individual adventure ready - show it immediately
 						if (data.type === 'adventure_ready' && data.adventure) {
 							streamedAdventures.push(data.adventure as Adventure);
 							// Update state incrementally so the card renders right away
@@ -261,7 +261,7 @@ export const useAdventures = () => {
 			setSuggestions(meta.suggestions || []);
 			setRecommendedServices(meta.recommended_services || []);
 		} else if (meta.location_not_found) {
-			// ✅ Distinct path — renders as chat bubble, not a panel block
+			// ✅ Distinct path - renders as chat bubble, not a panel block
 			setLocationNotFound(true);
 			setClarificationMessage(meta.clarification_message || '');
 			setSuggestions(meta.suggestions || []);

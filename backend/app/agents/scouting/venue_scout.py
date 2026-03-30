@@ -1,6 +1,6 @@
 # backend/app/agents/scouting/venue_scout.py
 """
-Venue Scout — Google Places primary discovery + Tavily fallback.
+Venue Scout - Google Places primary discovery + Tavily fallback.
 Google Places is used for ALL city-level searches (not just specific addresses).
 This gives proximity-ranked, geocoded venues with verified addresses from the start.
 """
@@ -108,9 +108,9 @@ _NEIGHBORHOOD_ALIASES: Dict[str, List[str]] = {
 class VenueScoutAgent(BaseAgent):
     """
     Venue discovery with three paths:
-      Path 1 — Google Places Nearby  (city or specific address, Google Maps enabled)
-      Path 2 — Tavily live discovery  (Google Maps unavailable, Tavily key present)
-      Path 3 — GPT-4o knowledge       (last resort fallback)
+      Path 1 - Google Places Nearby  (city or specific address, Google Maps enabled)
+      Path 2 - Tavily live discovery  (Google Maps unavailable, Tavily key present)
+      Path 3 - GPT-4o knowledge       (last resort fallback)
     """
 
     def __init__(self):
@@ -125,7 +125,7 @@ class VenueScoutAgent(BaseAgent):
         else:
             self.gmaps = None
             self.google_enabled = False
-            logger.warning("⚠️ Google Places disabled — using Tavily/GPT-4o fallback")
+            logger.warning("⚠️ Google Places disabled - using Tavily/GPT-4o fallback")
 
         if settings.TAVILY_API_KEY:
             self.tavily_scout = TavilyVenueScout(
@@ -149,24 +149,25 @@ class VenueScoutAgent(BaseAgent):
         user_query         = input_data.get("user_query", "")
         parsed_prefs       = input_data.get("parsed_preferences", {})
         generation_options = input_data.get("generation_options", {})
+        proximity_mode     = input_data.get("proximity_mode", False)  # ✅ NEW
 
         self.log_processing("Starting venue scouting", f"{preferences} in {location}")
 
-        # Path 1 — Google Places (always preferred when available)
+        # Path 1 - Google Places (if enabled and location is valid)
         if self.google_enabled:
             self.log_processing("Using GOOGLE PLACES discovery", location)
             return await self._google_places_search(
-                preferences, location, user_query, generation_options
+                preferences, location, user_query, generation_options, proximity_mode
             )
 
-        # Path 2 — Tavily
+        # Path 2 - Tavily
         if self.tavily_enabled:
             self.log_processing("Using TAVILY discovery", location)
             return await self._tavily_discovery_search(
                 preferences, location, user_query, parsed_prefs, generation_options
             )
 
-        # Path 3 — GPT-4o knowledge fallback
+        # Path 3 - GPT-4o knowledge fallback
         self.log_processing("Using GPT-4o fallback", location)
         return await self._knowledge_based_search(preferences, location, user_query, parsed_prefs)
 
@@ -178,28 +179,36 @@ class VenueScoutAgent(BaseAgent):
         location: str,
         user_query: str,
         generation_options: Dict,
+        proximity_mode: bool = False,   # ✅ NEW
     ) -> Dict:
         try:
-            # Geocode the location string — works for both "Boston, MA" and
-            # "North End, Boston, MA" since Google geocodes neighbourhoods directly.
             geocode = self.gmaps.geocode(location)
             if not geocode:
-                logger.warning("Geocoding failed — falling back to Tavily/GPT")
+                logger.warning("Geocoding failed - falling back to Tavily/GPT")
                 return await self._fallback(preferences, location, user_query, {})
 
             lat = geocode[0]["geometry"]["location"]["lat"]
             lng = geocode[0]["geometry"]["location"]["lng"]
             self.log_processing("Geocoded origin", f"{lat:.4f}, {lng:.4f}")
 
-            # ✅ Use a tight radius when a neighbourhood is requested so that
-            # Google Places doesn't wander into adjacent districts.
+            # ✅ Radius logic - three tiers:
+            #   800m  → "near me" (street address origin) or neighborhood query
+            #   1500m → full street address without proximity keyword (routing origin)
+            #   3000m → city-level query
             neighborhood = self._extract_neighborhood_from_location(location)
-            search_radius = 800 if neighborhood else 3000
-            if neighborhood:
-                self.log_processing(
-                    "Neighborhood mode",
-                    f"'{neighborhood}' detected — radius capped at {search_radius}m"
-                )
+            has_street   = any(c.isdigit() for c in location.split(",")[0])
+
+            if proximity_mode:
+                search_radius = 800
+                self.log_processing("Proximity mode", f"'near me' detected - radius 800m")
+            elif neighborhood:
+                search_radius = 800
+                self.log_processing("Neighborhood mode", f"'{neighborhood}' detected - radius 800m")
+            elif has_street:
+                # Street address provided but not a proximity query - moderate radius
+                search_radius = 1500
+            else:
+                search_radius = 3000
 
             loop = asyncio.get_event_loop()
 
@@ -212,14 +221,14 @@ class VenueScoutAgent(BaseAgent):
                     ),
                 )
 
-            results = await asyncio.gather(*[search_pref(p) for p in preferences[:6]])
+            results  = await asyncio.gather(*[search_pref(p) for p in preferences[:6]])
             all_venues = [v for sublist in results for v in sublist]
 
-            unique  = self._deduplicate_venues(all_venues)
-            diverse = self._select_diverse_venues(unique, target_count=12)
+            unique   = self._deduplicate_venues(all_venues)
+            diverse  = self._select_diverse_venues(unique, target_count=12)
             enhanced = [self._enhance_venue(v, location) for v in diverse]
 
-            self.log_success(f"Google Places discovery: {len(enhanced)} venues")
+            self.log_success(f"Google Places discovery: {len(enhanced)} venues (radius={search_radius}m)")
             return self.create_response(True, {
                 "venues": enhanced,
                 "total_found": len(enhanced),
@@ -416,7 +425,7 @@ class VenueScoutAgent(BaseAgent):
         if len(filtered) < 3:
             logger.warning(
                 f"Neighborhood filter for '{neighborhood}' matched only "
-                f"{len(filtered)}/{len(venues)} venues — relaxing filter"
+                f"{len(filtered)}/{len(venues)} venues - relaxing filter"
             )
             return venues  # Graceful fallback: return all rather than starve the pipeline
 

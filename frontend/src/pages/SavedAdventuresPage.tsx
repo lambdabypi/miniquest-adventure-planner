@@ -218,7 +218,7 @@ const SavedAdventuresPage: React.FC = () => {
 												<span style={{ display: 'inline-block', marginLeft: 8, backgroundColor: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 600, verticalAlign: 'middle' }}>✓ Done</span>
 											)}
 										</h3>
-										{/* Action buttons — icon-only on mobile */}
+										{/* Action buttons - icon-only on mobile */}
 										<div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
 											<button onClick={() => toggleExpand(saved._id)}
 												style={{ background: isExpanded ? '#3b82f6' : '#667eea', color: 'white', border: 'none', borderRadius: '8px', padding: isMobile ? '8px 10px' : '9px 13px', cursor: 'pointer', fontSize: '0.9rem' }}>
@@ -248,7 +248,7 @@ const SavedAdventuresPage: React.FC = () => {
 									</div>
 								</div>
 
-								{/* Stats — 3 col on all sizes, compact on mobile */}
+								{/* Stats - 3 col on all sizes, compact on mobile */}
 								<div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '12px' }}>
 									{[
 										{ val: `${adv.duration}min`, label: 'Duration', color: '#059669' },

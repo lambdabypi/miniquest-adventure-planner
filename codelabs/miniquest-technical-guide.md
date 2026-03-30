@@ -1,5 +1,5 @@
 author: Shreyas
-summary: MiniQuest — AI-Powered Local Adventure Planner, Complete Technical Documentation
+summary: MiniQuest - AI-Powered Local Adventure Planner, Complete Technical Documentation
 id: miniquest-technical-complete
 categories: AI, Multi-Agent Systems, LangGraph, Tavily API, GCP
 environments: Web
@@ -136,7 +136,7 @@ progress_updates: List[Dict]
 
 TavilyResearch accounts for most cold-cache time. It runs up to 18 parallel searches using `asyncio.TaskGroup`. AdventureCreator creates all three itineraries concurrently using `asyncio.as_completed`, streaming each one to the frontend as it finishes.
 
-## Backend — Agents
+## Backend - Agents
 Duration: 15
 
 ### LocationParser
@@ -162,18 +162,18 @@ Extracted fields: `preferences`, `activities`, `themes`, `meal_context`, `time_o
 
 `venue_scout.py` uses three discovery paths in priority order:
 
-**Path 1 — Google Places** (when `GOOGLE_MAPS_KEY` is set)
+**Path 1 - Google Places** (when `GOOGLE_MAPS_KEY` is set)
 - Geocodes the city/address to lat/lng
 - Runs parallel nearby searches per preference using `asyncio.gather` (up to 6 preferences)
 - Uses `PREF_TO_PLACE_TYPE` for type searches and `PREF_TO_SEARCH_QUERY` for text searches on specific categories like "rooftop bars" or "brunch spots"
 - Deduplicates, selects a diverse set of up to 12 venues
 - Batch-fetches official websites for all venues via `_fetch_websites_for_venues`
 
-**Path 2 — Tavily** (`tavily_scout.py`, when Google Maps is unavailable)
+**Path 2 - Tavily** (`tavily_scout.py`, when Google Maps is unavailable)
 - `TavilyVenueScout` builds search queries per preference and runs up to 6 concurrent Tavily searches
 - `diversity_mode` controls query variation: `standard` = deterministic, `high` = random modifiers appended, `fresh` = also rotates source domains
 
-**Path 3 — GPT-4o knowledge base** (last resort fallback)
+**Path 3 - GPT-4o knowledge base** (last resort fallback)
 
 ### TavilyResearch
 
@@ -224,8 +224,8 @@ The frontend exposes this as a collapsible options panel with a stops slider and
 
 `core/rag/rag_system.py` uses ChromaDB with `text-embedding-3-small`. Two collections:
 
-- `user_adventure_history` — one document per saved adventure per user, queried at `get_personalization` to surface preferred themes, locations, and ratings
-- `dynamic_location_tips` — Tavily-sourced local tips with an `authenticity_score` for ranking
+- `user_adventure_history` - one document per saved adventure per user, queried at `get_personalization` to surface preferred themes, locations, and ratings
+- `dynamic_location_tips` - Tavily-sourced local tips with an `authenticity_score` for ranking
 
 When a user saves an adventure via `/api/saved-adventures`, it is also written to ChromaDB.
 
@@ -233,7 +233,7 @@ When a user saves an adventure via `/api/saved-adventures`, it is also written t
 
 `core/telemetry.py` initializes OpenTelemetry at FastAPI startup. Span names:
 
-- `miniquest.generate_adventures` — full workflow
+- `miniquest.generate_adventures` - full workflow
 - `miniquest.agent.location_parser`
 - `miniquest.agent.venue_scout`
 - `miniquest.agent.tavily_research`
@@ -242,7 +242,7 @@ When a user saves an adventure via `/api/saved-adventures`, it is also written t
 
 Set `OBSERVABILITY_ENABLED=false` to disable cleanly (substitutes a no-op tracer).
 
-## Backend — API Routes
+## Backend - API Routes
 Duration: 7
 
 ### Authentication `/api/auth`
@@ -265,7 +265,7 @@ Duration: 7
 { "access_token": "eyJ...", "token_type": "bearer", "user": { ... } }
 ```
 
-**GET /api/auth/me** — protected, returns current user.
+**GET /api/auth/me** - protected, returns current user.
 
 ### Adventures `/api/adventures`
 
@@ -321,8 +321,8 @@ All protected.
 **Chat** (`/api/chat`): create, list, get, delete conversations.
 
 **Share** (`/api/share`):
-- `POST /api/share` — creates a public link expiring in 30 days
-- `GET /api/share/{share_id}` — public, no auth. Returns 404 if not found, 410 if expired.
+- `POST /api/share` - creates a public link expiring in 30 days
+- `GET /api/share/{share_id}` - public, no auth. Returns 404 if not found, 410 if expired.
 
 **Social** (`/api/social`): feed (limit/offset), create post (max 500 chars), toggle like, add comment, delete own post.
 
@@ -404,9 +404,9 @@ Positive
 
 ### ChromaDB Collections
 
-**user_adventure_history** — one document per saved adventure per user. Embedded with `text-embedding-3-small`. Queried at generation time to personalize venue selection.
+**user_adventure_history** - one document per saved adventure per user. Embedded with `text-embedding-3-small`. Queried at generation time to personalize venue selection.
 
-**dynamic_location_tips** — Tavily-sourced local tips with an `authenticity_score` field used for ranking.
+**dynamic_location_tips** - Tavily-sourced local tips with an `authenticity_score` field used for ranking.
 
 ### Redis Cache
 
@@ -457,21 +457,21 @@ The main generation interface. Chat panel and adventures panel are side by side 
 
 **Chat input controls:**
 
-- **VibeChipPanel** — 12 quick-select mood chips (Party, Date Night, Drinks, Foodie, Brunch, Chill, Artsy, Active, Birthday, Hidden Gems, Rainy Day, Shopping). Desktop shows 6, mobile shows 4, with an expand toggle for the rest.
-- **SurpriseButton** (🎲) — picks randomly from 8 preset prompts and fires immediately.
-- **Group mode button** (👥) — opens `GroupModeModal` for up to 6 people with individual preference strings.
-- **GenerationOptionsPanel** — collapsible, stops slider (1–6) and diversity mode selector (Standard / High / Fresh).
+- **VibeChipPanel** - 12 quick-select mood chips (Party, Date Night, Drinks, Foodie, Brunch, Chill, Artsy, Active, Birthday, Hidden Gems, Rainy Day, Shopping). Desktop shows 6, mobile shows 4, with an expand toggle for the rest.
+- **SurpriseButton** (🎲) - picks randomly from 8 preset prompts and fires immediately.
+- **Group mode button** (👥) - opens `GroupModeModal` for up to 6 people with individual preference strings.
+- **GenerationOptionsPanel** - collapsible, stops slider (1–6) and diversity mode selector (Standard / High / Fresh).
 
 **Chat panel extras:**
 
-- **ChatSidebar** — slide-in conversation history panel (follows layout mode: left or right). Load or delete any past conversation.
-- **ProgressTracker** — per-agent progress during generation with agent-specific messages.
-- **OutOfScopeMessage** — typed rejection UI for 5 scope issues: `unsupported_city`, `multi_day_trip`, `international_travel`, `accommodation_planning`, `trip_budget_detected`.
+- **ChatSidebar** - slide-in conversation history panel (follows layout mode: left or right). Load or delete any past conversation.
+- **ProgressTracker** - per-agent progress during generation with agent-specific messages.
+- **OutOfScopeMessage** - typed rejection UI for 5 scope issues: `unsupported_city`, `multi_day_trip`, `international_travel`, `accommodation_planning`, `trip_budget_detected`.
 
 **Modals:**
 
-- **OnboardingModal** — shown on first login (checks `localStorage` for `miniquest_onboarded`). 3-step preference survey (time of day, vibe, companion). Fires an initial generation from the result.
-- **GroupModeModal** — up to 6 people with name and preference string. Builds a combined query and fires generation.
+- **OnboardingModal** - shown on first login (checks `localStorage` for `miniquest_onboarded`). 3-step preference survey (time of day, vibe, companion). Fires an initial generation from the result.
+- **GroupModeModal** - up to 6 people with name and preference string. Builds a combined query and fires generation.
 
 **Layout:** a toggle button swaps the chat and adventures panels left/right. Mode is persisted to `localStorage` as `miniquest_layout_mode`.
 
@@ -493,7 +493,7 @@ Gated behind `VITE_OBSERVABILITY_ENABLED=true`. Queries Prometheus-compatible AP
 
 - Total workflow runs (all-time)
 - Average end-to-end latency and error count
-- Per-agent latency bars — toggle between all-time average and last 2-hour average
+- Per-agent latency bars - toggle between all-time average and last 2-hour average
 - Throughput sparkline (5-minute rolling rate over the past hour)
 - Per-agent call counts
 
@@ -754,19 +754,19 @@ VITE_OBSERVABILITY_ENABLED=false
 ### Common Issues
 
 Negative
-: **CORS error** — verify `VITE_API_URL` in `frontend/.env` and confirm the backend CORS config includes `http://localhost:3000`.
+: **CORS error** - verify `VITE_API_URL` in `frontend/.env` and confirm the backend CORS config includes `http://localhost:3000`.
 
 Negative
-: **JWT invalid** — clear `localStorage` in the browser and log in again.
+: **JWT invalid** - clear `localStorage` in the browser and log in again.
 
 Negative
-: **MongoDB connection failed** — verify `MONGODB_URL` and check that your IP is whitelisted in MongoDB Atlas Network Access.
+: **MongoDB connection failed** - verify `MONGODB_URL` and check that your IP is whitelisted in MongoDB Atlas Network Access.
 
 Negative
-: **Firebase deploy fails** — confirm `firebase init` was run from inside `frontend/`, not the project root.
+: **Firebase deploy fails** - confirm `firebase init` was run from inside `frontend/`, not the project root.
 
 Negative
-: **Secret Manager BOM on Windows** — use `System.IO.File::WriteAllText` with `UTF8Encoding $false`. See the Deployment section.
+: **Secret Manager BOM on Windows** - use `System.IO.File::WriteAllText` with `UTF8Encoding $false`. See the Deployment section.
 
 ### Running Tests
 
@@ -787,19 +787,19 @@ python tests/quick_test.py
 Duration: 2
 
 Positive
-: **6-agent pipeline** — LocationParser, IntentParser, VenueScout, TavilyResearch, RoutingAgent, AdventureCreator. Each is independently testable and optimizable.
+: **6-agent pipeline** - LocationParser, IntentParser, VenueScout, TavilyResearch, RoutingAgent, AdventureCreator. Each is independently testable and optimizable.
 
 Positive
-: **Three-path venue discovery** — Google Places is the primary path with proximity-ranked, geocoded results. Tavily and GPT-4o are progressively cheaper fallbacks.
+: **Three-path venue discovery** - Google Places is the primary path with proximity-ranked, geocoded results. Tavily and GPT-4o are progressively cheaper fallbacks.
 
 Positive
-: **Progressive streaming** — adventures are emitted one by one via SSE as each finishes, so the user sees results immediately rather than waiting for all three.
+: **Progressive streaming** - adventures are emitted one by one via SSE as each finishes, so the user sees results immediately rather than waiting for all three.
 
 Positive
-: **Fully deployed on GCP** — Cloud Run backend, Firebase Hosting frontend, all secrets in Secret Manager. Deployment is a single PowerShell command.
+: **Fully deployed on GCP** - Cloud Run backend, Firebase Hosting frontend, all secrets in Secret Manager. Deployment is a single PowerShell command.
 
 Positive
-: **RAG personalization** — ChromaDB embeddings learn from every saved and rated adventure, improving recommendations over time.
+: **RAG personalization** - ChromaDB embeddings learn from every saved and rated adventure, improving recommendations over time.
 
 ### By the Numbers
 

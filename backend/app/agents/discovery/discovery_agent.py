@@ -157,7 +157,7 @@ def _detect_temporary_closure(text: str) -> bool:
     """
     Return True if the research text contains strong signals that a venue is
     temporarily closed (renovation, scheduled closure, not open until X, etc.).
-    Does NOT flag permanent closures — those are already filtered upstream by
+    Does NOT flag permanent closures - those are already filtered upstream by
     Google Places business_status and venue name patterns.
     """
     if not text:
@@ -361,7 +361,7 @@ class TavilyResearchAgent(BaseAgent):
         Single GPT-4o-mini call extracting structured info for all venues.
         Extracts: description, price_tier (fallback), insider_tip, best_time,
         crowd_level, and temporarily_closed flag.
-        Hours stay as regex — more reliable for structured time patterns.
+        Hours stay as regex - more reliable for structured time patterns.
         Non-fatal: if the call fails, existing fields are unchanged.
         """
         if not venues:
@@ -385,7 +385,7 @@ class TavilyResearchAgent(BaseAgent):
 For each venue, extract what you can from the research text. Return null for fields not clearly supported by the text.
 
 Return ONLY valid JSON. Keys are venue index numbers as strings. Each value has:
-  "description"        : One clear sentence (15-25 words) describing what it is and why to visit. Always provide this — use venue type/name if research is sparse. Never include city name, addresses, or "located at".
+  "description"        : One clear sentence (15-25 words) describing what it is and why to visit. Always provide this - use venue type/name if research is sparse. Never include city name, addresses, or "located at".
   "price_tier"         : "Free", "$", "$$", "$$$", "$$$$", or specific like "$15 admission". null if unknown.
   "insider_tip"        : One short practical tip from the research text. null if nothing useful found.
   "best_time"          : Best time to visit if inferable, e.g. "Weekday mornings", "Evenings". null if unknown.
@@ -394,8 +394,8 @@ Return ONLY valid JSON. Keys are venue index numbers as strings. Each value has:
 
 Rules:
 - description must NOT mention city name, street address, or phrases like "located at" / "find us at".
-- price_tier and insider_tip must come from research text — do NOT invent them.
-- temporarily_closed must only be true when the closure is clearly stated and current — do NOT flag venues just because old reviews mention past closures.
+- price_tier and insider_tip must come from research text - do NOT invent them.
+- temporarily_closed must only be true when the closure is clearly stated and current - do NOT flag venues just because old reviews mention past closures.
 - Return null rather than guessing for optional fields.
 
 Venues:
@@ -446,7 +446,7 @@ Venues:
                     if crowd:
                         v["crowd_level"] = crowd.strip()
 
-                    # ✅ LLM closure flag — only set to True, never override an
+                    # ✅ LLM closure flag - only set to True, never override an
                     # existing True value with False (regex may have caught it first)
                     if data.get("temporarily_closed") is True:
                         v["temporarily_closed"] = True
@@ -552,10 +552,10 @@ Venues:
                         extracted_content_count += 1
 
                 if extracted_content_count == 0:
-                    self.log_warning("Extract API returned 0 results — using search snippets")
+                    self.log_warning("Extract API returned 0 results - using search snippets")
 
             except Exception as e:
-                self.log_warning(f"Extract failed: {e} — using search snippets")
+                self.log_warning(f"Extract failed: {e} - using search snippets")
 
         return self._build_venue_profile(venue, all_research, extracted_content_count, location)
 
@@ -707,9 +707,9 @@ Venues:
     def _extract_visitor_tips(self, research: List[Dict]) -> List[str]:
         tips = []
         if any(r.get("has_hours_info")                             for r in research):
-            tips.append("Current hours information found — check before visiting")
+            tips.append("Current hours information found - check before visiting")
         if any(r.get("has_menu_info") or r.get("has_activity_info") for r in research):
-            tips.append("Menu/activity details available — check current offerings")
+            tips.append("Menu/activity details available - check current offerings")
         if any(r.get("has_current_info")                           for r in research):
             tips.append("Recently updated information available")
         return tips[:3]

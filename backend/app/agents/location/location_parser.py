@@ -1,6 +1,6 @@
 # backend/app/agents/location/location_parser.py
 """
-LocationParser — Query location takes priority over user_address.
+LocationParser - Query location takes priority over user_address.
 
 Priority order:
 1. Explicit location in query  ("in the North End", "near Acadia", "in Boston")
@@ -18,7 +18,7 @@ from ..base import BaseAgent, ValidationError, ProcessingError
 logger = logging.getLogger(__name__)
 
 
-# Neighborhoods that exist in multiple major US cities — need city context to resolve
+# Neighborhoods that exist in multiple major US cities - need city context to resolve
 _AMBIGUOUS_NEIGHBORHOODS = {
     "north end", "south end", "west end", "east end",
     "chinatown", "little italy", "financial district", "downtown",
@@ -130,7 +130,7 @@ class LocationParserAgent(BaseAgent):
                     )
                     return self.create_response(True, result)
 
-            # No explicit location in query — use user_address as search target
+            # No explicit location in query - use user_address as search target
             final_location = user_address or "Boston, MA"
             source = 'user_address' if user_address else 'default'
             result = self._create_location_result(
@@ -153,7 +153,7 @@ class LocationParserAgent(BaseAgent):
         text = user_input.lower()
 
         patterns = [
-            # Priority 0: "in the [Neighborhood]" — "afternoon in the North End"
+            # Priority 0: "in the [Neighborhood]" - "afternoon in the North End"
             r'\bin\s+the\s+([a-z][a-z\s]{2,30}?)(?:\s*,|\s+(?:museums|coffee|bars|restaurants|parks|shops|area|neighborhood|district|for|with|and|under|\d)|\s*$)',
 
             # Priority 1: "near/around/at/by [location with geographic indicator]"
@@ -219,12 +219,12 @@ class LocationParserAgent(BaseAgent):
     def _create_normalization_prompt(
         self, location: str, context: str, user_address: Optional[str] = None
     ) -> str:
-        # Build city context line — used only to disambiguate, never to override
+        # Build city context line - used only to disambiguate, never to override
         if user_address:
             # Extract just the city portion for the prompt
             city_hint = user_address.split(",")[0].strip()
             city_context_line = (
-                f'USER\'S CITY (tiebreaker only — use when the neighborhood is ambiguous): "{city_hint}"'
+                f'USER\'S CITY (tiebreaker only - use when the neighborhood is ambiguous): "{city_hint}"'
             )
         else:
             city_context_line = "USER'S CITY: unknown"
@@ -250,14 +250,14 @@ Cities:
   "nyc" → "New York, NY"
   "sf" → "San Francisco, CA"
 
-Neighborhoods (unambiguous — return regardless of user city):
+Neighborhoods (unambiguous - return regardless of user city):
   "back bay" → "Back Bay, Boston, MA"
   "beacon hill" → "Beacon Hill, Boston, MA"
   "soho" → "SoHo, New York, NY"
   "williamsburg" → "Williamsburg, Brooklyn, NY"
   "mission district" → "Mission District, San Francisco, CA"
 
-Neighborhoods (ambiguous — use user city):
+Neighborhoods (ambiguous - use user city):
   "north end" + user in Boston → "North End, Boston, MA"
   "north end" + user in New York → NOT_FOUND:New York, NY   (no North End neighborhood in NYC)
   "chinatown" + user in Boston → "Chinatown, Boston, MA"
@@ -272,7 +272,7 @@ RULES:
 1. Return ONLY the normalized location string, or NOT_FOUND:[City, ST], or INVALID.
 2. Never add explanations.
 3. INVALID only for completely nonsensical inputs (e.g. "good", "fun").
-4. User city is a TIEBREAKER — never override a clearly unambiguous location."""
+4. User city is a TIEBREAKER - never override a clearly unambiguous location."""
 
     # ─── Validation helpers ───────────────────────────────────────────────────
 

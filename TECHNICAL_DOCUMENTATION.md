@@ -165,7 +165,7 @@ backend/
 │   │   │   ├── discovery_agent.py      # Parallel Tavily research (up to 18 venues)
 │   │   │   ├── query_strategy.py       # Tavily search query construction
 │   │   │   ├── research_cache.py       # Redis cache wrapper (24h TTL)
-│   │   │   └── research_summary_agent.py  # Inactive — kept on disk, not in workflow
+│   │   │   └── research_summary_agent.py  # Inactive - kept on disk, not in workflow
 │   │   ├── intent/
 │   │   │   └── intent_parser.py        # NL parsing, city guardrails, vibe-to-venue mapping
 │   │   ├── location/
@@ -326,8 +326,8 @@ The frontend exposes these as a collapsible options panel in AdventuresPage with
 
 `core/rag/rag_system.py` uses ChromaDB with `text-embedding-3-small` embeddings. Two collections:
 
-- `user_adventure_history` — one document per saved adventure per user. Queried at the `get_personalization` node to surface preferred themes, locations, and ratings.
-- `dynamic_location_tips` — Tavily-sourced local tips with an `authenticity_score` used for ranking.
+- `user_adventure_history` - one document per saved adventure per user. Queried at the `get_personalization` node to surface preferred themes, locations, and ratings.
+- `dynamic_location_tips` - Tavily-sourced local tips with an `authenticity_score` used for ranking.
 
 When a user saves an adventure via `/api/saved-adventures`, it is also written to ChromaDB. The more adventures a user saves and rates, the more personalized subsequent generations become.
 
@@ -336,7 +336,7 @@ When a user saves an adventure via `/api/saved-adventures`, it is also written t
 `core/telemetry.py` initializes OpenTelemetry at FastAPI startup. Spans are exported via OTLP HTTP (default endpoint `http://host.docker.internal:4318/v1/traces`).
 
 Span names:
-- `miniquest.generate_adventures` — full workflow
+- `miniquest.generate_adventures` - full workflow
 - `miniquest.agent.location_parser`
 - `miniquest.agent.venue_scout`
 - `miniquest.agent.tavily_research`
@@ -457,24 +457,24 @@ Token categories: page backgrounds, card surfaces, borders, nav, input fields, s
 The main generation interface. Key sub-components rendered inline:
 
 **Chat input area:**
-- `VibeChipPanel` — 12 quick-select mood chips (Party, Date Night, Drinks, Foodie, Brunch, Chill, Artsy, Active, Birthday, Hidden Gems, Rainy Day, Shopping). Each fires a preset query string.
-- `SurpriseButton` (🎲) — picks randomly from 8 preset prompts and fires immediately
-- Group mode button (👥) — opens `GroupModeModal`
-- `GenerationOptionsPanel` — collapsible, shows stops slider (1-6) and diversity mode selector (Standard / High / Fresh)
+- `VibeChipPanel` - 12 quick-select mood chips (Party, Date Night, Drinks, Foodie, Brunch, Chill, Artsy, Active, Birthday, Hidden Gems, Rainy Day, Shopping). Each fires a preset query string.
+- `SurpriseButton` (🎲) - picks randomly from 8 preset prompts and fires immediately
+- Group mode button (👥) - opens `GroupModeModal`
+- `GenerationOptionsPanel` - collapsible, shows stops slider (1-6) and diversity mode selector (Standard / High / Fresh)
 - Send button
 
 **Chat panel:**
-- `ChatSidebar` — slide-in from left or right (follows layout mode), shows conversation list with load and delete. Opened via a button in the chat header.
-- `ProgressTracker` — per-agent progress during generation
-- `OutOfScopeMessage` — rendered for 5 scope rejection types: `unsupported_city`, `multi_day_trip`, `international_travel`, `accommodation_planning`, `trip_budget_detected`
+- `ChatSidebar` - slide-in from left or right (follows layout mode), shows conversation list with load and delete. Opened via a button in the chat header.
+- `ProgressTracker` - per-agent progress during generation
+- `OutOfScopeMessage` - rendered for 5 scope rejection types: `unsupported_city`, `multi_day_trip`, `international_travel`, `accommodation_planning`, `trip_budget_detected`
 
 **Layout:**
 - Toggle button to swap chat and adventures panels left/right. Mode persisted to `localStorage` as `miniquest_layout_mode`.
 - On mobile: `MobileTabBar` at the bottom switches between Chat and Adventures. Automatically switches to Adventures tab when results arrive.
 
 **Modals:**
-- `OnboardingModal` — shown on first login (checks `localStorage` for `miniquest_onboarded`). 3-step survey asking about time of day preference, vibe, and companion. Fires an initial generation from the collected answers.
-- `GroupModeModal` — up to 6 people, each with a name and preference string. Builds a combined query and fires generation.
+- `OnboardingModal` - shown on first login (checks `localStorage` for `miniquest_onboarded`). 3-step survey asking about time of day preference, vibe, and companion. Fires an initial generation from the collected answers.
+- `GroupModeModal` - up to 6 people, each with a name and preference string. Builds a combined query and fires generation.
 
 **Address validation** enforces Boston and NYC only. Detected city auto-updates the default location string as the user types their query.
 
@@ -496,7 +496,7 @@ Gated behind `VITE_OBSERVABILITY_ENABLED=true`. Queries a Prometheus-compatible 
 - Total workflow runs (all-time)
 - Average end-to-end latency
 - Error count
-- Per-agent latency bars — toggleable between all-time average and last 2-hour average
+- Per-agent latency bars - toggleable between all-time average and last 2-hour average
 - Throughput sparkline (5-minute rolling rate over the past hour)
 - Per-agent call counts
 
@@ -561,8 +561,8 @@ miniquest-mobile/
 
 Expo Router with two route groups:
 
-- `(auth)` — login and register screens for unauthenticated users
-- `(tabs)` — tab bar with Home and Saved for authenticated users
+- `(auth)` - login and register screens for unauthenticated users
+- `(tabs)` - tab bar with Home and Saved for authenticated users
 
 `app/_layout.tsx` wraps everything in `AuthProvider` and runs the route guard:
 
@@ -632,7 +632,7 @@ Screen and card backgrounds use `expo-linear-gradient`. Card surfaces use `expo-
 ```
 Indexes: unique on `email`, index on `username`.
 
-**user_queries** (lightweight metadata only — no full adventure data)
+**user_queries** (lightweight metadata only - no full adventure data)
 ```json
 {
     "_id": "ObjectId",
@@ -684,9 +684,9 @@ Indexes: primary on `(user_id, saved_at)`, plus completed status, rating, locati
 
 ### 6.2 ChromaDB collections
 
-**user_adventure_history** — one document per saved adventure per user. Embedded with `text-embedding-3-small`. Queried at generation time to personalize venue selection.
+**user_adventure_history** - one document per saved adventure per user. Embedded with `text-embedding-3-small`. Queried at generation time to personalize venue selection.
 
-**dynamic_location_tips** — Tavily-sourced local tips with an `authenticity_score` metadata field used for ranking.
+**dynamic_location_tips** - Tavily-sourced local tips with an `authenticity_score` metadata field used for ranking.
 
 ### 6.3 Redis cache
 
@@ -724,7 +724,7 @@ All protected endpoints require `Authorization: Bearer <token>`.
 { "access_token": "eyJ...", "token_type": "bearer", "user": { ... } }
 ```
 
-**GET /api/auth/me** (protected) — returns current user object.
+**GET /api/auth/me** (protected) - returns current user object.
 
 ### 7.2 Adventures
 
@@ -762,7 +762,7 @@ When `enable_progress` is true, the endpoint emits SSE progress updates:
 
 Progress statuses: `in_progress`, `complete`, `error`, `clarification_needed`, `adventure_ready`.
 
-**GET /api/adventures/history** (protected) — paginated query history.
+**GET /api/adventures/history** (protected) - paginated query history.
 
 ### 7.3 Saved Adventures
 
@@ -788,13 +788,13 @@ All protected.
 
 ### 7.5 Share
 
-**POST /api/share** — creates a link expiring in 30 days
+**POST /api/share** - creates a link expiring in 30 days
 ```json
 // Request: { "adventure_data": { ... } }
 // Response: { "share_id": "abc123", "share_url": "https://...web.app/shared/abc123" }
 ```
 
-**GET /api/share/{share_id}** — public. Returns 404 if not found, 410 if expired.
+**GET /api/share/{share_id}** - public. Returns 404 if not found, 410 if expired.
 
 ### 7.6 Social
 
@@ -996,17 +996,17 @@ VITE_OBSERVABILITY_ENABLED=false
 
 ### 10.4 Common issues
 
-**CORS error** — verify `frontend/.env` has the correct `VITE_API_URL` and the backend's CORS config includes `http://localhost:3000`.
+**CORS error** - verify `frontend/.env` has the correct `VITE_API_URL` and the backend's CORS config includes `http://localhost:3000`.
 
-**JWT invalid** — clear `localStorage` in the browser and log in again.
+**JWT invalid** - clear `localStorage` in the browser and log in again.
 
-**Tavily rate limit** — check `/api/performance/cache/stats`. A cold machine will make more Tavily calls than usual.
+**Tavily rate limit** - check `/api/performance/cache/stats`. A cold machine will make more Tavily calls than usual.
 
-**MongoDB connection failed** — verify `MONGODB_URL` and check that your IP is whitelisted in MongoDB Atlas Network Access.
+**MongoDB connection failed** - verify `MONGODB_URL` and check that your IP is whitelisted in MongoDB Atlas Network Access.
 
-**Firebase deploy fails** — confirm you ran `firebase init` from inside `frontend/`, not the project root.
+**Firebase deploy fails** - confirm you ran `firebase init` from inside `frontend/`, not the project root.
 
-**Secret Manager BOM on Windows** — use `System.IO.File::WriteAllText` with `UTF8Encoding $false`. See section 9.5.
+**Secret Manager BOM on Windows** - use `System.IO.File::WriteAllText` with `UTF8Encoding $false`. See section 9.5.
 
 ### 10.5 Testing
 

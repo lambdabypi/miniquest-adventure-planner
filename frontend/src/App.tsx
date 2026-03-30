@@ -68,7 +68,7 @@ const LoadingScreen: React.FC = () => {
   );
 };
 
-// ── AppShell — reads theme INSIDE ThemeProvider ───────────────
+// ── AppShell - reads theme INSIDE ThemeProvider ───────────────
 
 const AppShell: React.FC = () => {
   const { isDark } = useTheme();

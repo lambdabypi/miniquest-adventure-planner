@@ -1,6 +1,6 @@
 // ============================================================
 // frontend/src/components/SurpriseButton.tsx  (NEW)
-// One-click full plan — no input needed
+// One-click full plan - no input needed
 // ============================================================
 import React from 'react';
 

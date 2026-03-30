@@ -182,7 +182,7 @@ progress_updates: List[Dict]
 
       </google-codelab-step>
     
-      <google-codelab-step label="Backend — Agents" duration="15">
+      <google-codelab-step label="Backend - Agents" duration="15">
         <h2 is-upgraded>LocationParser</h2>
 <p><code>location_parser.py</code> uses pattern matching to extract explicit location names from the query first, then normalizes via GPT-4o-mini to handle cities, landmarks, parks, and neighborhoods. The <code>user_address</code> field is preserved in state as the routing origin but does not override a location name found in the query text. Defaults to <code>Boston, MA</code> if nothing is found.</p>
 <h2 is-upgraded>IntentParser</h2>
@@ -196,7 +196,7 @@ progress_updates: List[Dict]
 <p>Extracted fields: <code>preferences</code>, <code>activities</code>, <code>themes</code>, <code>meal_context</code>, <code>time_of_day</code>, <code>group_size</code>, <code>special_occasion</code>.</p>
 <h2 is-upgraded>VenueScout</h2>
 <p><code>venue_scout.py</code> uses three discovery paths in priority order:</p>
-<p><strong>Path 1 — Google Places</strong> (when <code>GOOGLE_MAPS_KEY</code> is set)</p>
+<p><strong>Path 1 - Google Places</strong> (when <code>GOOGLE_MAPS_KEY</code> is set)</p>
 <ul>
 <li>Geocodes the city/address to lat/lng</li>
 <li>Runs parallel nearby searches per preference using <code>asyncio.gather</code> (up to 6 preferences)</li>
@@ -204,12 +204,12 @@ progress_updates: List[Dict]
 <li>Deduplicates, selects a diverse set of up to 12 venues</li>
 <li>Batch-fetches official websites for all venues via <code>_fetch_websites_for_venues</code></li>
 </ul>
-<p><strong>Path 2 — Tavily</strong> (<code>tavily_scout.py</code>, when Google Maps is unavailable)</p>
+<p><strong>Path 2 - Tavily</strong> (<code>tavily_scout.py</code>, when Google Maps is unavailable)</p>
 <ul>
 <li><code>TavilyVenueScout</code> builds search queries per preference and runs up to 6 concurrent Tavily searches</li>
 <li><code>diversity_mode</code> controls query variation: <code>standard</code> = deterministic, <code>high</code> = random modifiers appended, <code>fresh</code> = also rotates source domains</li>
 </ul>
-<p><strong>Path 3 — GPT-4o knowledge base</strong> (last resort fallback)</p>
+<p><strong>Path 3 - GPT-4o knowledge base</strong> (last resort fallback)</p>
 <h2 is-upgraded>TavilyResearch</h2>
 <p><code>discovery_agent.py</code> caps the venue pool at <code>min(stops * 3, 18)</code>. For each venue it calls Tavily Search then Tavily Extract, pulling current hours, prices, reviews, and notable details. Runs with 8-way concurrency via <code>asyncio.TaskGroup</code>.</p>
 <p>Before each call it checks Redis via <code>research_cache.py</code>:</p>
@@ -240,14 +240,14 @@ for coro in asyncio.as_completed(tasks):
 <h2 is-upgraded>RAG Personalization</h2>
 <p><code>core/rag/rag_system.py</code> uses ChromaDB with <code>text-embedding-3-small</code>. Two collections:</p>
 <ul>
-<li><code>user_adventure_history</code> — one document per saved adventure per user, queried at <code>get_personalization</code> to surface preferred themes, locations, and ratings</li>
-<li><code>dynamic_location_tips</code> — Tavily-sourced local tips with an <code>authenticity_score</code> for ranking</li>
+<li><code>user_adventure_history</code> - one document per saved adventure per user, queried at <code>get_personalization</code> to surface preferred themes, locations, and ratings</li>
+<li><code>dynamic_location_tips</code> - Tavily-sourced local tips with an <code>authenticity_score</code> for ranking</li>
 </ul>
 <p>When a user saves an adventure via <code>/api/saved-adventures</code>, it is also written to ChromaDB.</p>
 <h2 is-upgraded>Telemetry</h2>
 <p><code>core/telemetry.py</code> initializes OpenTelemetry at FastAPI startup. Span names:</p>
 <ul>
-<li><code>miniquest.generate_adventures</code> — full workflow</li>
+<li><code>miniquest.generate_adventures</code> - full workflow</li>
 <li><code>miniquest.agent.location_parser</code></li>
 <li><code>miniquest.agent.venue_scout</code></li>
 <li><code>miniquest.agent.tavily_research</code></li>
@@ -259,7 +259,7 @@ for coro in asyncio.as_completed(tasks):
 
       </google-codelab-step>
     
-      <google-codelab-step label="Backend — API Routes" duration="7">
+      <google-codelab-step label="Backend - API Routes" duration="7">
         <h2 is-upgraded>Authentication <code>/api/auth</code></h2>
 <p><strong>POST /api/auth/register</strong></p>
 <pre><code language="language-json" class="language-json">// Request
@@ -275,7 +275,7 @@ for coro in asyncio.as_completed(tasks):
 // Response
 { &#34;access_token&#34;: &#34;eyJ...&#34;, &#34;token_type&#34;: &#34;bearer&#34;, &#34;user&#34;: { ... } }
 </code></pre>
-<p><strong>GET /api/auth/me</strong> — protected, returns current user.</p>
+<p><strong>GET /api/auth/me</strong> - protected, returns current user.</p>
 <h2 is-upgraded>Adventures <code>/api/adventures</code></h2>
 <p><strong>POST /api/adventures</strong> (protected)</p>
 <pre><code language="language-json" class="language-json">// Request
@@ -342,8 +342,8 @@ for coro in asyncio.as_completed(tasks):
 <p><strong>Chat</strong> (<code>/api/chat</code>): create, list, get, delete conversations.</p>
 <p><strong>Share</strong> (<code>/api/share</code>):</p>
 <ul>
-<li><code>POST /api/share</code> — creates a public link expiring in 30 days</li>
-<li><code>GET /api/share/{share_id}</code> — public, no auth. Returns 404 if not found, 410 if expired.</li>
+<li><code>POST /api/share</code> - creates a public link expiring in 30 days</li>
+<li><code>GET /api/share/{share_id}</code> - public, no auth. Returns 404 if not found, 410 if expired.</li>
 </ul>
 <p><strong>Social</strong> (<code>/api/social</code>): feed (limit/offset), create post (max 500 chars), toggle like, add comment, delete own post.</p>
 <h2 is-upgraded>Analytics and System</h2>
@@ -426,8 +426,8 @@ for coro in asyncio.as_completed(tasks):
 </code></pre>
 <p><code>social_posts</code> and <code>shared_itineraries</code> are also active. <code>shared_itineraries</code> has a TTL index on <code>expires_at</code> so links expire automatically.</p>
 <h2 is-upgraded>ChromaDB Collections</h2>
-<p><strong>user_adventure_history</strong> — one document per saved adventure per user. Embedded with <code>text-embedding-3-small</code>. Queried at generation time to personalize venue selection.</p>
-<p><strong>dynamic_location_tips</strong> — Tavily-sourced local tips with an <code>authenticity_score</code> field used for ranking.</p>
+<p><strong>user_adventure_history</strong> - one document per saved adventure per user. Embedded with <code>text-embedding-3-small</code>. Queried at generation time to personalize venue selection.</p>
+<p><strong>dynamic_location_tips</strong> - Tavily-sourced local tips with an <code>authenticity_score</code> field used for ranking.</p>
 <h2 is-upgraded>Redis Cache</h2>
 <pre><code>Key:   venue:{name}:{location}:{date}
 Value: JSON research result
@@ -465,21 +465,21 @@ const tk = t(isDark);
 <p>The main generation interface. Chat panel and adventures panel are side by side on desktop. On mobile, <code>MobileTabBar</code> switches between them, and the adventures tab is activated automatically when results arrive.</p>
 <p><strong>Chat input controls:</strong></p>
 <ul>
-<li><strong>VibeChipPanel</strong> — 12 quick-select mood chips (Party, Date Night, Drinks, Foodie, Brunch, Chill, Artsy, Active, Birthday, Hidden Gems, Rainy Day, Shopping). Desktop shows 6, mobile shows 4, with an expand toggle for the rest.</li>
-<li><strong>SurpriseButton</strong> (🎲) — picks randomly from 8 preset prompts and fires immediately.</li>
-<li><strong>Group mode button</strong> (👥) — opens <code>GroupModeModal</code> for up to 6 people with individual preference strings.</li>
-<li><strong>GenerationOptionsPanel</strong> — collapsible, stops slider (1–6) and diversity mode selector (Standard / High / Fresh).</li>
+<li><strong>VibeChipPanel</strong> - 12 quick-select mood chips (Party, Date Night, Drinks, Foodie, Brunch, Chill, Artsy, Active, Birthday, Hidden Gems, Rainy Day, Shopping). Desktop shows 6, mobile shows 4, with an expand toggle for the rest.</li>
+<li><strong>SurpriseButton</strong> (🎲) - picks randomly from 8 preset prompts and fires immediately.</li>
+<li><strong>Group mode button</strong> (👥) - opens <code>GroupModeModal</code> for up to 6 people with individual preference strings.</li>
+<li><strong>GenerationOptionsPanel</strong> - collapsible, stops slider (1–6) and diversity mode selector (Standard / High / Fresh).</li>
 </ul>
 <p><strong>Chat panel extras:</strong></p>
 <ul>
-<li><strong>ChatSidebar</strong> — slide-in conversation history panel (follows layout mode: left or right). Load or delete any past conversation.</li>
-<li><strong>ProgressTracker</strong> — per-agent progress during generation with agent-specific messages.</li>
-<li><strong>OutOfScopeMessage</strong> — typed rejection UI for 5 scope issues: <code>unsupported_city</code>, <code>multi_day_trip</code>, <code>international_travel</code>, <code>accommodation_planning</code>, <code>trip_budget_detected</code>.</li>
+<li><strong>ChatSidebar</strong> - slide-in conversation history panel (follows layout mode: left or right). Load or delete any past conversation.</li>
+<li><strong>ProgressTracker</strong> - per-agent progress during generation with agent-specific messages.</li>
+<li><strong>OutOfScopeMessage</strong> - typed rejection UI for 5 scope issues: <code>unsupported_city</code>, <code>multi_day_trip</code>, <code>international_travel</code>, <code>accommodation_planning</code>, <code>trip_budget_detected</code>.</li>
 </ul>
 <p><strong>Modals:</strong></p>
 <ul>
-<li><strong>OnboardingModal</strong> — shown on first login (checks <code>localStorage</code> for <code>miniquest_onboarded</code>). 3-step preference survey (time of day, vibe, companion). Fires an initial generation from the result.</li>
-<li><strong>GroupModeModal</strong> — up to 6 people with name and preference string. Builds a combined query and fires generation.</li>
+<li><strong>OnboardingModal</strong> - shown on first login (checks <code>localStorage</code> for <code>miniquest_onboarded</code>). 3-step preference survey (time of day, vibe, companion). Fires an initial generation from the result.</li>
+<li><strong>GroupModeModal</strong> - up to 6 people with name and preference string. Builds a combined query and fires generation.</li>
 </ul>
 <p><strong>Layout:</strong> a toggle button swaps the chat and adventures panels left/right. Mode is persisted to <code>localStorage</code> as <code>miniquest_layout_mode</code>.</p>
 <h2 is-upgraded>AnalyticsPage</h2>
@@ -493,7 +493,7 @@ const tk = t(isDark);
 <ul>
 <li>Total workflow runs (all-time)</li>
 <li>Average end-to-end latency and error count</li>
-<li>Per-agent latency bars — toggle between all-time average and last 2-hour average</li>
+<li>Per-agent latency bars - toggle between all-time average and last 2-hour average</li>
 <li>Throughput sparkline (5-minute rolling rate over the past hour)</li>
 <li>Per-agent call counts</li>
 </ul>
@@ -727,11 +727,11 @@ VITE_API_URL=http://localhost:8000
 VITE_OBSERVABILITY_ENABLED=false
 </code></pre>
 <h2 is-upgraded>Common Issues</h2>
-<p>Negative : <strong>CORS error</strong> — verify <code>VITE_API_URL</code> in <code>frontend/.env</code> and confirm the backend CORS config includes <code>http://localhost:3000</code>.</p>
-<p>Negative : <strong>JWT invalid</strong> — clear <code>localStorage</code> in the browser and log in again.</p>
-<p>Negative : <strong>MongoDB connection failed</strong> — verify <code>MONGODB_URL</code> and check that your IP is whitelisted in MongoDB Atlas Network Access.</p>
-<p>Negative : <strong>Firebase deploy fails</strong> — confirm <code>firebase init</code> was run from inside <code>frontend/</code>, not the project root.</p>
-<p>Negative : <strong>Secret Manager BOM on Windows</strong> — use <code>System.IO.File::WriteAllText</code> with <code>UTF8Encoding $false</code>. See the Deployment section.</p>
+<p>Negative : <strong>CORS error</strong> - verify <code>VITE_API_URL</code> in <code>frontend/.env</code> and confirm the backend CORS config includes <code>http://localhost:3000</code>.</p>
+<p>Negative : <strong>JWT invalid</strong> - clear <code>localStorage</code> in the browser and log in again.</p>
+<p>Negative : <strong>MongoDB connection failed</strong> - verify <code>MONGODB_URL</code> and check that your IP is whitelisted in MongoDB Atlas Network Access.</p>
+<p>Negative : <strong>Firebase deploy fails</strong> - confirm <code>firebase init</code> was run from inside <code>frontend/</code>, not the project root.</p>
+<p>Negative : <strong>Secret Manager BOM on Windows</strong> - use <code>System.IO.File::WriteAllText</code> with <code>UTF8Encoding $false</code>. See the Deployment section.</p>
 <h2 is-upgraded>Running Tests</h2>
 <pre><code language="language-bash" class="language-bash">cd backend
 
@@ -749,11 +749,11 @@ python tests/quick_test.py
       </google-codelab-step>
     
       <google-codelab-step label="Key Takeaways" duration="2">
-        <p>Positive : <strong>6-agent pipeline</strong> — LocationParser, IntentParser, VenueScout, TavilyResearch, RoutingAgent, AdventureCreator. Each is independently testable and optimizable.</p>
-<p>Positive : <strong>Three-path venue discovery</strong> — Google Places is the primary path with proximity-ranked, geocoded results. Tavily and GPT-4o are progressively cheaper fallbacks.</p>
-<p>Positive : <strong>Progressive streaming</strong> — adventures are emitted one by one via SSE as each finishes, so the user sees results immediately rather than waiting for all three.</p>
-<p>Positive : <strong>Fully deployed on GCP</strong> — Cloud Run backend, Firebase Hosting frontend, all secrets in Secret Manager. Deployment is a single PowerShell command.</p>
-<p>Positive : <strong>RAG personalization</strong> — ChromaDB embeddings learn from every saved and rated adventure, improving recommendations over time.</p>
+        <p>Positive : <strong>6-agent pipeline</strong> - LocationParser, IntentParser, VenueScout, TavilyResearch, RoutingAgent, AdventureCreator. Each is independently testable and optimizable.</p>
+<p>Positive : <strong>Three-path venue discovery</strong> - Google Places is the primary path with proximity-ranked, geocoded results. Tavily and GPT-4o are progressively cheaper fallbacks.</p>
+<p>Positive : <strong>Progressive streaming</strong> - adventures are emitted one by one via SSE as each finishes, so the user sees results immediately rather than waiting for all three.</p>
+<p>Positive : <strong>Fully deployed on GCP</strong> - Cloud Run backend, Firebase Hosting frontend, all secrets in Secret Manager. Deployment is a single PowerShell command.</p>
+<p>Positive : <strong>RAG personalization</strong> - ChromaDB embeddings learn from every saved and rated adventure, improving recommendations over time.</p>
 <h2 is-upgraded>By the Numbers</h2>
 <ul>
 <li><strong>6 active agents</strong> in the pipeline</li>

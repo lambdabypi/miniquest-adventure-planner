@@ -40,7 +40,7 @@ async def create_share(
             "expires_at": expires,
         })
 
-        # Build URL — reads from env so it works locally and on GCP
+        # Build URL - reads from env so it works locally and on GCP
         import os
         base = os.getenv("FRONTEND_URL", "http://localhost:3000")
         share_url = f"{base}/shared/{share_id}"
@@ -56,7 +56,7 @@ async def create_share(
         logger.error(f"Create share error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# ── View shared itinerary (PUBLIC — no auth required) ─────────
+# ── View shared itinerary (PUBLIC - no auth required) ─────────
 
 @router.get("/{share_id}", response_model=PublicItineraryResponse)
 async def get_shared(
@@ -72,7 +72,7 @@ async def get_shared(
         if doc.get("expires_at") and doc["expires_at"] < datetime.utcnow():
             raise HTTPException(status_code=410, detail="Share link has expired")
 
-        # Single atomic increment — returns doc AFTER update
+        # Single atomic increment - returns doc AFTER update
         updated = await col.find_one_and_update(
             {"share_id": share_id},
             {"$inc": {"view_count": 1}},

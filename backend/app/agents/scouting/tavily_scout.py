@@ -65,10 +65,10 @@ class TavilyVenueScout:
     Discovers real, current venues via Tavily web search.
 
     diversity_mode controls how queries are varied:
-      standard — same deterministic queries every time
-      high     — appends a random modifier to each query so Tavily
+      standard - same deterministic queries every time
+      high     - appends a random modifier to each query so Tavily
                  hits different source pages and surfaces different venues
-      fresh    — like high, but also excludes the top-ranked sources from
+      fresh    - like high, but also excludes the top-ranked sources from
                  the previous call (rotates domains per session)
     """
 

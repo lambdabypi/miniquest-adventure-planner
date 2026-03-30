@@ -49,7 +49,7 @@ class EnhancedRoutingAgent:
                     route_data["all_stops"] = optimized
                     logger.info(f"✅ Waypoints optimized via Directions API")
                 else:
-                    logger.warning("⚠️ Directions API optimization failed — using original order")
+                    logger.warning("⚠️ Directions API optimization failed - using original order")
 
             routing_options = self._generate_complete_routing_options(route_data, user_preferences)
 

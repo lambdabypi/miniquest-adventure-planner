@@ -17,7 +17,7 @@ Each request runs through a pipeline of six specialized AI agents coordinated by
 5. **RoutingAgent** resolves street-level addresses in parallel using Google Places, builds Google Maps deep links, and injects per-step transit directions. Uses typo-tolerant venue name matching with a name-similarity guard to prevent wrong-business substitutions.
 6. **AdventureCreator** generates three themed itineraries from the researched and routed venues using GPT-4o. Adventures are created concurrently via `asyncio.as_completed` and streamed to the frontend as each one finishes.
 
-The full pipeline completes in roughly 4 seconds on a warm cache. The ResearchSummary agent (`research_summary_agent.py`) still exists on disk but was removed from the active workflow — its function is handled directly by TavilyResearch and AdventureCreator.
+The full pipeline completes in roughly 4 seconds on a warm cache. The ResearchSummary agent (`research_summary_agent.py`) still exists on disk but was removed from the active workflow - its function is handled directly by TavilyResearch and AdventureCreator.
 
 ---
 ## Technical Documentation
@@ -304,7 +304,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 CHROMADB_PATH=./chromadb
 EMBEDDING_MODEL=text-embedding-3-small
 
-# Frontend (Vite) — set in frontend/.env
+# Frontend (Vite) - set in frontend/.env
 VITE_API_URL=https://miniquest-backend-633153384860.us-east1.run.app
 VITE_OBSERVABILITY_ENABLED=false   # set to true to enable /observability
 ```

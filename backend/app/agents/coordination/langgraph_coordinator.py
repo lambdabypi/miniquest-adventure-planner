@@ -131,7 +131,7 @@ class LangGraphCoordinator:
     def _should_continue_after_location(self, state: AdventureState) -> str:
         error = state.get("error")
         if isinstance(error, dict) and error.get("type") == "clarification_needed":
-            logger.info("🛑 Stopping after location parse — clarification needed")
+            logger.info("🛑 Stopping after location parse - clarification needed")
             return "stop"
         return "continue"
 
@@ -359,7 +359,7 @@ class LangGraphCoordinator:
                             f"{route_details.get('total_distance_km', 0):.1f} km"
                         )
                     else:
-                        logger.warning("   ⚠️ Google optimization failed — using fallback")
+                        logger.warning("   ⚠️ Google optimization failed - using fallback")
                         url = self._build_basic_route_url(origin, adventure_locations)
                         if url:
                             adventure["map_url"] = url
@@ -431,7 +431,7 @@ class LangGraphCoordinator:
 
     def _find_nearest_branch(self, venue_name: str, resolved_address: str, origin: str) -> Optional[str]:
         """
-        Synchronous Google Places lookup — called via run_in_executor.
+        Synchronous Google Places lookup - called via run_in_executor.
         Only swaps the address when the nearest Places result actually matches
         the venue we searched for (name similarity >= 0.6), preventing wrong-
         business substitutions (e.g. Flour Bakery → unrelated street address).
@@ -464,7 +464,7 @@ class LangGraphCoordinator:
             nearest_name    = nearest.get("name", "")
 
             # ✅ Guard: only accept the swap if the returned name actually matches
-            # what we searched for — prevents wrong-business substitutions
+            # what we searched for - prevents wrong-business substitutions
             name_similarity = SequenceMatcher(
                 None,
                 venue_name.lower().strip(),
@@ -474,7 +474,7 @@ class LangGraphCoordinator:
             if name_similarity < 0.6:
                 logger.info(
                     f"   🚫 Branch swap rejected: '{nearest_name}' (sim={name_similarity:.2f}) "
-                    f"doesn't match '{venue_name}' — keeping '{resolved_address}'"
+                    f"doesn't match '{venue_name}' - keeping '{resolved_address}'"
                 )
                 return resolved_address
 
@@ -894,7 +894,7 @@ class LangGraphCoordinator:
                             "progress": 0.14,
                         })
                     else:
-                        # Generic failure — fall back to user_address
+                        # Generic failure - fall back to user_address
                         state["target_location"] = state.get("user_address", "Boston, MA")
                         span.set_attribute("agent.outcome", "fallback")
 
@@ -932,7 +932,7 @@ class LangGraphCoordinator:
                 self._emit_progress({
                     "step": "personalization", "agent": "RAG",
                     "status": "complete",
-                    "message": "No past history — generating fresh recommendations",
+                    "message": "No past history - generating fresh recommendations",
                     "progress": 0.21
                 })
                 state["user_personalization"] = None
@@ -955,14 +955,14 @@ class LangGraphCoordinator:
                     self._emit_progress({
                         "step": "personalization", "agent": "RAG",
                         "status": "complete",
-                        "message": f"Found {personalization['total_adventures']} past adventures — personalising results",
+                        "message": f"Found {personalization['total_adventures']} past adventures - personalising results",
                         "progress": 0.21
                     })
                 else:
                     self._emit_progress({
                         "step": "personalization", "agent": "RAG",
                         "status": "complete",
-                        "message": "First time here — no history yet",
+                        "message": "First time here - no history yet",
                         "progress": 0.21
                     })
             except Exception as e:
@@ -1080,6 +1080,12 @@ class LangGraphCoordinator:
                     "location":           location,
                     "user_query":         state.get("user_input", ""),
                     "generation_options": state.get("generation_options", {}),
+                    # ✅ proximity_mode = True when location came from user_address
+                    # (i.e. the user said "near me" / "nearby" with no explicit place)
+                    "proximity_mode": (
+                        state.get("location_parsing_info", {}).get("location_source")
+                        == "user_address"
+                    ),
                 })
 
                 if result["success"]:
@@ -1193,7 +1199,7 @@ class LangGraphCoordinator:
         return state
 
     async def _enhance_routing_node(self, state: AdventureState) -> AdventureState:
-        """Node 5/6 — async with parallel branch lookups"""
+        """Node 5/6 - async with parallel branch lookups"""
         start_time = time.time()
         tracer = get_tracer()
 
@@ -1245,7 +1251,7 @@ class LangGraphCoordinator:
         return state
 
     async def _create_adventures_node(self, state: AdventureState) -> AdventureState:
-        """Node 6/6 — emits each adventure via SSE as soon as it's ready"""
+        """Node 6/6 - emits each adventure via SSE as soon as it's ready"""
         start_time = time.time()
         tracer = get_tracer()
 

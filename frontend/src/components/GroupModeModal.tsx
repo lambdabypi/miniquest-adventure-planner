@@ -60,7 +60,7 @@ const GroupModeModal: React.FC<Props> = ({ onGenerate, onClose, location }) => {
 					<button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: tk.textMuted }}>✕</button>
 				</div>
 				<p style={{ fontSize: '0.82rem', color: tk.textMuted, marginBottom: 16 }}>
-					Enter each person's preferences — MiniQuest will find an adventure everyone enjoys.
+					Enter each person's preferences - MiniQuest will find an adventure everyone enjoys.
 				</p>
 
 				<div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 320, overflowY: 'auto', marginBottom: 16 }}>

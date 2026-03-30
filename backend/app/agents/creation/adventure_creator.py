@@ -1,5 +1,5 @@
 # backend/app/agents/creation/adventure_creator.py
-"""ASYNC Adventure creation agent — one adventure per call for progressive streaming"""
+"""ASYNC Adventure creation agent - one adventure per call for progressive streaming"""
 
 from openai import AsyncOpenAI
 import json
@@ -188,15 +188,15 @@ class AdventureCreatorAgent(BaseAgent):
         names_list = "\n".join(f"  {i+1}. {n}" for i, n in enumerate(all_names))
 
         exclude_block = (
-            f"\n🚫 ALREADY USED — do NOT include: {', '.join(exclude_venues)}"
+            f"\n🚫 ALREADY USED - do NOT include: {', '.join(exclude_venues)}"
             if exclude_venues else ""
         )
 
         diversity_mode = generation_options.get("diversity_mode", "standard")
         diversity_note = {
             "standard": "",
-            "high":     "\n🎲 DIVERSITY MODE: HIGH — make this adventure feel different in theme and vibe.",
-            "fresh":    "\n✨ DIVERSITY MODE: FRESH — maximise uniqueness; avoid common tourist spots.",
+            "high":     "\n🎲 DIVERSITY MODE: HIGH - make this adventure feel different in theme and vibe.",
+            "fresh":    "\n✨ DIVERSITY MODE: FRESH - maximise uniqueness; avoid common tourist spots.",
         }.get(diversity_mode, "")
 
         stops_rule = (
@@ -212,7 +212,7 @@ TARGET LOCATION: {target_location}
 USER REQUESTED: {preferences.get('preferences', [])}
 ADVENTURE NUMBER: {adventure_number} of 3
 
-🎯 ALL AVAILABLE VENUES — USE ONLY THESE EXACT NAMES:
+🎯 ALL AVAILABLE VENUES - USE ONLY THESE EXACT NAMES:
 {names_list}
 
 💡 PREFERRED VENUES FOR THIS ADVENTURE (use these if possible):
@@ -224,7 +224,7 @@ VENUE DETAILS:
 ⚠️ CRITICAL RULES:
 1. ONLY use venue names from the numbered list above.
 2. Use EXACT names in "venues_used" (copy verbatim from the numbered list).
-3. In "activity" text, write the venue name naturally — NO brackets, NO quotes around it.
+3. In "activity" text, write the venue name naturally - NO brackets, NO quotes around it.
    ✅ CORRECT:  "Visit Starbucks Coffee Company for a morning coffee"
    ❌ WRONG:    "Visit [Starbucks Coffee Company] for a morning coffee"
 4. NEVER invent venues: no "a Boston Pub", "local restaurant", "nearby cafe".
@@ -356,7 +356,7 @@ FINAL CHECK:
                     elif r.get("venue_summary"):
                         r["research_summary"] = r["venue_summary"]
                     else:
-                        r["research_summary"] = f"{r.get('name', venue_name)} — live research data available."
+                        r["research_summary"] = f"{r.get('name', venue_name)} - live research data available."
                 return r
         return None
 

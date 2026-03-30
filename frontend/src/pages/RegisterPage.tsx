@@ -110,7 +110,7 @@ const RegisterPage: React.FC = () => {
 			padding: '40px 20px', position: 'relative', overflow: 'hidden',
 			fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
 		}}>
-			{/* Parallax blob — top left */}
+			{/* Parallax blob - top left */}
 			<div style={{
 				position: 'fixed', borderRadius: '50%', filter: 'blur(100px)',
 				pointerEvents: 'none', zIndex: 0,
@@ -119,7 +119,7 @@ const RegisterPage: React.FC = () => {
 				transform: `translateY(${scrollY * 0.1}px)`,
 				transition: 'background 0.5s',
 			}} />
-			{/* Parallax blob — bottom right */}
+			{/* Parallax blob - bottom right */}
 			<div style={{
 				position: 'fixed', borderRadius: '50%', filter: 'blur(100px)',
 				pointerEvents: 'none', zIndex: 0,

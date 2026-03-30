@@ -63,9 +63,7 @@ const VibeChipPanel: React.FC<{
 				fontSize: '0.68rem', fontWeight: 600,
 				color: isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)',
 				marginBottom: 5, letterSpacing: '0.04em', paddingLeft: 2,
-			}}>
-				QUICK VIBES
-			</div>
+			}}>QUICK VIBES</div>
 			<div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
 				{shown.map(chip => (
 					<button
@@ -137,26 +135,20 @@ interface OptionsPanelProps {
 const GenerationOptionsPanel: React.FC<OptionsPanelProps> = ({ options, onChange, isDark, disabled }) => {
 	const tk = t(isDark);
 	const [open, setOpen] = useState(false);
-
 	const border = isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0';
 	const bg = isDark ? 'rgba(255,255,255,0.04)' : '#f8fafc';
-
 	const modeLabel: Record<GenerationOptions['diversity_mode'], string> = {
-		standard: '🔁 Standard',
-		high: '🎲 High',
-		fresh: '✨ Fresh',
+		standard: '🔁 Standard', high: '🎲 High', fresh: '✨ Fresh',
 	};
 	const modeDesc: Record<GenerationOptions['diversity_mode'], string> = {
 		standard: 'Consistent results for the same query.',
 		high: 'Random modifiers added — surfaces different venues.',
 		fresh: 'Rotates sources + modifiers — maximally different each time.',
 	};
-
 	return (
 		<div style={{ marginBottom: 8 }}>
 			<button
-				onClick={() => setOpen(p => !p)}
-				disabled={disabled}
+				onClick={() => setOpen(p => !p)} disabled={disabled}
 				style={{
 					display: 'flex', alignItems: 'center', justifyContent: 'space-between',
 					width: '100%', padding: '6px 10px', borderRadius: 8,
@@ -170,74 +162,42 @@ const GenerationOptionsPanel: React.FC<OptionsPanelProps> = ({ options, onChange
 				</span>
 				<span style={{ fontSize: '0.7rem', color: tk.textMuted }}>{open ? '▲' : '▼'}</span>
 			</button>
-
 			{open && (
-				<div style={{
-					marginTop: 6, padding: '12px 14px', borderRadius: 8,
-					background: bg, border: `1px solid ${border}`,
-					display: 'flex', flexDirection: 'column', gap: 12,
-				}}>
-					{/* Stops slider */}
+				<div style={{ marginTop: 6, padding: '12px 14px', borderRadius: 8, background: bg, border: `1px solid ${border}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
 					<div>
 						<div style={{ fontSize: '0.7rem', fontWeight: 600, color: tk.textSecondary, marginBottom: 6 }}>
 							Stops per adventure: <strong style={{ color: tk.textPrimary }}>{options.stops_per_adventure}</strong>
 						</div>
-						<input
-							type="range" min={1} max={6} step={1}
-							value={options.stops_per_adventure}
+						<input type="range" min={1} max={6} step={1} value={options.stops_per_adventure}
 							onChange={e => onChange({ ...options, stops_per_adventure: Number(e.target.value) })}
 							style={{ width: '100%', accentColor: '#667eea' }}
 						/>
 						<div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: tk.textMuted }}>
-							<span>1 — quick</span>
-							<span>3 — default</span>
-							<span>6 — full day</span>
+							<span>1 — quick</span><span>3 — default</span><span>6 — full day</span>
 						</div>
 					</div>
-
-					{/* Diversity mode */}
 					<div>
-						<div style={{ fontSize: '0.7rem', fontWeight: 600, color: tk.textSecondary, marginBottom: 6 }}>
-							Venue diversity
-						</div>
+						<div style={{ fontSize: '0.7rem', fontWeight: 600, color: tk.textSecondary, marginBottom: 6 }}>Venue diversity</div>
 						<div style={{ display: 'flex', gap: 6 }}>
 							{(['standard', 'high', 'fresh'] as const).map(mode => (
-								<button
-									key={mode}
-									onClick={() => onChange({ ...options, diversity_mode: mode })}
+								<button key={mode} onClick={() => onChange({ ...options, diversity_mode: mode })}
 									style={{
 										flex: 1, padding: '6px 4px', borderRadius: 6,
 										border: `1px solid ${options.diversity_mode === mode ? '#667eea' : border}`,
-										background: options.diversity_mode === mode
-											? (isDark ? 'rgba(102,126,234,0.2)' : '#ede9fe')
-											: 'transparent',
-										color: options.diversity_mode === mode
-											? (isDark ? '#a78bfa' : '#5b21b6')
-											: tk.textMuted,
-										fontSize: '0.68rem', fontWeight: 600, cursor: 'pointer',
-										transition: 'all 0.15s',
+										background: options.diversity_mode === mode ? (isDark ? 'rgba(102,126,234,0.2)' : '#ede9fe') : 'transparent',
+										color: options.diversity_mode === mode ? (isDark ? '#a78bfa' : '#5b21b6') : tk.textMuted,
+										fontSize: '0.68rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
 									}}
-								>
-									{modeLabel[mode]}
-								</button>
+								>{modeLabel[mode]}</button>
 							))}
 						</div>
 						<div style={{ fontSize: '0.62rem', color: tk.textMuted, marginTop: 4, lineHeight: 1.4 }}>
 							{modeDesc[options.diversity_mode]}
 						</div>
 					</div>
-
-					{/* Reset */}
-					<button
-						onClick={() => onChange(DEFAULT_GENERATION_OPTIONS)}
-						style={{
-							alignSelf: 'flex-start', padding: '4px 10px', borderRadius: 6,
-							background: 'transparent', border: `1px solid ${border}`,
-							color: tk.textMuted, fontSize: '0.68rem', cursor: 'pointer',
-						}}
-					>
-						↺ Reset to defaults
-					</button>
+					<button onClick={() => onChange(DEFAULT_GENERATION_OPTIONS)}
+						style={{ alignSelf: 'flex-start', padding: '4px 10px', borderRadius: 6, background: 'transparent', border: `1px solid ${border}`, color: tk.textMuted, fontSize: '0.68rem', cursor: 'pointer' }}
+					>↺ Reset to defaults</button>
 				</div>
 			)}
 		</div>
@@ -265,8 +225,8 @@ interface ChatPanelProps {
 	isDark: boolean;
 	isMobile: boolean;
 	openSidebarRef: React.MutableRefObject<(() => void) | null>;
-	generationOptions: GenerationOptions;           // ✅ NEW
-	setGenerationOptions: (o: GenerationOptions) => void;  // ✅ NEW
+	generationOptions: GenerationOptions;
+	setGenerationOptions: (o: GenerationOptions) => void;
 	setInput: (v: string) => void;
 	setShowLocationEdit: (v: boolean) => void;
 	setCustomAddress: (v: string) => void;
@@ -366,10 +326,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 				display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0,
 			}}>
 				{chatMessages.map(msg => (
-					<div key={msg.id} style={{
-						alignSelf: msg.type === 'user' ? 'flex-end' : 'flex-start',
-						maxWidth: isMobile ? '90%' : '85%',
-					}}>
+					<div key={msg.id} style={{ alignSelf: msg.type === 'user' ? 'flex-end' : 'flex-start', maxWidth: isMobile ? '90%' : '85%' }}>
 						<div style={{
 							padding: '10px 14px',
 							borderRadius: msg.type === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
@@ -377,15 +334,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 							color: msg.type === 'user' ? 'white' : asstBubbleColor,
 							fontSize: isMobile ? '0.85rem' : '0.9rem', lineHeight: '1.4', whiteSpace: 'pre-line',
 						}}>{msg.content}</div>
-						<div style={{
-							fontSize: '0.65rem', color: tk.textMuted, marginTop: 4,
-							textAlign: msg.type === 'user' ? 'right' : 'left',
-						}}>
+						<div style={{ fontSize: '0.65rem', color: tk.textMuted, marginTop: 4, textAlign: msg.type === 'user' ? 'right' : 'left' }}>
 							{msg.timestamp.toLocaleTimeString()}
 						</div>
 					</div>
 				))}
-
 				{loading && (
 					<div style={{
 						alignSelf: 'flex-start',
@@ -395,8 +348,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 						fontSize: '0.85rem', color: isDark ? '#7dd3fc' : '#0369a1',
 					}}>
 						<div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-							<div className="spinner" />
-							<strong>Processing...</strong>
+							<div className="spinner" /><strong>Processing...</strong>
 						</div>
 						<div style={{ fontSize: '0.75rem', color: tk.textMuted }}>
 							6 agents working{!isMobile && ' • Check right panel for progress'}
@@ -435,11 +387,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 			)}
 
 			{/* Input area */}
-			<div style={{
-				padding: isMobile ? '10px 12px' : '12px 15px',
-				borderTop: `1px solid ${borderColor}`,
-				background: tk.cardBg, flexShrink: 0,
-			}}>
+			<div style={{ padding: isMobile ? '10px 12px' : '12px 15px', borderTop: `1px solid ${borderColor}`, background: tk.cardBg, flexShrink: 0 }}>
 				{/* Location badge / edit */}
 				{!showLocationEdit ? (
 					<div style={{ marginBottom: 8 }}>
@@ -447,27 +395,19 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 							padding: '7px 10px', borderRadius: 8, marginBottom: 6,
 							background: isManualAddress
 								? (isDark ? 'rgba(245,158,11,0.1)' : 'linear-gradient(135deg,#fef3c7,#fde68a)')
-								: location.includes('Boston')
-									? (isDark ? 'rgba(59,130,246,0.1)' : 'linear-gradient(135deg,#dbeafe,#bfdbfe)')
-									: (isDark ? 'rgba(245,158,11,0.1)' : 'linear-gradient(135deg,#fef3c7,#fde68a)'),
+								: (isDark ? 'rgba(59,130,246,0.1)' : 'linear-gradient(135deg,#dbeafe,#bfdbfe)'),
 							border: isManualAddress
 								? `2px solid ${isDark ? 'rgba(245,158,11,0.4)' : '#f59e0b'}`
-								: location.includes('Boston')
-									? `1px solid ${isDark ? 'rgba(147,197,253,0.3)' : '#93c5fd'}`
-									: `1px solid ${isDark ? 'rgba(252,211,77,0.3)' : '#fcd34d'}`,
+								: `1px solid ${isDark ? 'rgba(147,197,253,0.3)' : '#93c5fd'}`,
 						}}>
 							<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-								<span style={{ fontSize: '1rem' }}>
-									{isManualAddress ? '📍' : location.includes('Boston') ? '🏛️' : '🗽'}
-								</span>
+								<span style={{ fontSize: '1rem' }}>{isManualAddress ? '📍' : '🤖'}</span>
 								<div style={{ flex: 1, minWidth: 0 }}>
 									<div style={{
 										fontSize: '0.66rem', fontWeight: 600, marginBottom: 1,
 										color: isManualAddress
 											? (isDark ? '#fcd34d' : '#92400e')
-											: location.includes('Boston')
-												? (isDark ? '#93c5fd' : '#1e40af')
-												: (isDark ? '#fcd34d' : '#92400e'),
+											: (isDark ? '#93c5fd' : '#1e40af'),
 									}}>
 										{isManualAddress ? '📍 Manual' : '🤖 Smart Detection'}
 									</div>
@@ -491,15 +431,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 						{!isMobile && (
 							<div style={{ fontSize: '0.68rem', color: tk.textMuted, fontStyle: 'italic', padding: '0 4px', marginBottom: 6 }}>
 								{isManualAddress ? (
-									<>Using your address for routing.{' '}
-										<button
-											onClick={handleResetToAuto}
-											style={{
-												background: 'none', border: 'none', color: '#3b82f6',
-												cursor: 'pointer', textDecoration: 'underline',
-												fontSize: '0.68rem', padding: 0,
-											}}
-										>Switch to auto-detect</button>
+									<>Using your address as the route origin.{' '}
+										<button onClick={handleResetToAuto} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.68rem', padding: 0 }}>
+											Switch to auto-detect
+										</button>
 									</>
 								) : "💡 I'll detect the city from your query"}
 							</div>
@@ -513,7 +448,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 							borderRadius: 8, padding: 10, marginBottom: 6,
 						}}>
 							<div style={{ fontSize: '0.78rem', fontWeight: 600, color: isDark ? '#7dd3fc' : '#0369a1', marginBottom: 6 }}>
-								📍 Set Custom Address
+								📍 Set Location
+							</div>
+							<div style={{ fontSize: '0.7rem', color: tk.textMuted, marginBottom: 6 }}>
+								Any US city or address — e.g. "Chicago, IL" or "123 Main St, Austin, TX"
 							</div>
 							<div style={{ display: 'flex', gap: 5 }}>
 								<input
@@ -522,7 +460,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 									value={customAddress}
 									onChange={e => setCustomAddress(e.target.value)}
 									onKeyPress={e => e.key === 'Enter' && handleManualAddressSet()}
-									placeholder="e.g., 123 Main St, Boston, MA"
+									placeholder="e.g., Chicago, IL"
 									autoFocus
 									style={{
 										flex: 1, padding: '7px 10px', border: '2px solid #3b82f6',
@@ -540,41 +478,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 									}}
 								>✓</button>
 								<button onClick={() => { setShowLocationEdit(false); setCustomAddress(''); }}
-									style={{
-										padding: '7px 10px', background: '#ef4444',
-										color: 'white', border: 'none', borderRadius: 6,
-										fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
-									}}
+									style={{ padding: '7px 10px', background: '#ef4444', color: 'white', border: 'none', borderRadius: 6, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}
 								>✕</button>
 							</div>
 						</div>
 					</div>
 				)}
 
-				{/* ── Generation options ── */}
-				<GenerationOptionsPanel
-					options={generationOptions}
-					onChange={setGenerationOptions}
-					isDark={isDark}
-					disabled={loading}
-				/>
+				<GenerationOptionsPanel options={generationOptions} onChange={setGenerationOptions} isDark={isDark} disabled={loading} />
+				<VibeChipPanel onSelect={handleVibeSelect} isDark={isDark} isMobile={isMobile} disabled={loading} />
 
-				{/* ── Vibe chips ── */}
-				<VibeChipPanel
-					onSelect={handleVibeSelect}
-					isDark={isDark}
-					isMobile={isMobile}
-					disabled={loading}
-				/>
-
-				{/* Message input row */}
 				<div style={{ display: 'flex', gap: 5 }}>
 					<input
-						type="text"
-						value={input}
+						type="text" value={input}
 						onChange={e => setInput(e.target.value)}
 						onKeyPress={e => e.key === 'Enter' && handleSend()}
-						placeholder="e.g., 'party night out in Boston'"
+						placeholder="e.g., 'coffee shops near me' or 'party in Austin'"
 						disabled={loading}
 						style={{
 							flex: 1, minWidth: 0, padding: '10px 10px',
@@ -586,10 +505,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 						onBlur={e => { e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.12)' : '#e2e8f0'; }}
 					/>
 					<SurpriseButton onSurprise={handleSuggestionClick} loading={loading} isDark={isDark} />
-					<button
-						onClick={onOpenGroupMode}
-						disabled={loading}
-						title="Group mode"
+					<button onClick={onOpenGroupMode} disabled={loading} title="Group mode"
 						style={{
 							background: loading ? (isDark ? '#374151' : '#cbd5e0') : 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)',
 							color: loading ? (isDark ? '#6b7280' : '#94a3b8') : 'white',
@@ -601,15 +517,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 						onMouseEnter={e => { if (!loading) { e.currentTarget.style.opacity = '0.85'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
 						onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)'; }}
 					>👥</button>
-					<button
-						onClick={handleSend}
-						disabled={loading || !input.trim()}
-						title="Send"
+					<button onClick={handleSend} disabled={loading || !input.trim()} title="Send"
 						style={{
 							padding: '10px 13px',
-							background: loading || !input.trim()
-								? (isDark ? '#374151' : '#cbd5e0')
-								: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+							background: loading || !input.trim() ? (isDark ? '#374151' : '#cbd5e0') : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
 							color: loading || !input.trim() ? (isDark ? '#6b7280' : '#94a3b8') : 'white',
 							border: 'none', borderRadius: 8,
 							cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
@@ -649,7 +560,6 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 	const tk = t(isDark);
 	return (
 		<div style={{ overflowY: 'auto', padding: isMobile ? '12px' : '20px', height: '100%' }}>
-			{/* Welcome bar */}
 			<div style={{
 				display: 'flex', justifyContent: 'space-between', alignItems: 'center',
 				marginBottom: isMobile ? '12px' : '20px',
@@ -661,13 +571,10 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			}}>
 				<div>
 					<div style={{ fontSize: '0.82rem', color: tk.textMuted, marginBottom: '2px' }}>Welcome back</div>
-					<div style={{ fontSize: isMobile ? '1rem' : '1.1rem', fontWeight: 600, color: tk.textPrimary }}>
-						{user?.username}
-					</div>
+					<div style={{ fontSize: isMobile ? '1rem' : '1.1rem', fontWeight: 600, color: tk.textPrimary }}>{user?.username}</div>
 				</div>
 				{!isMobile && (
-					<button
-						onClick={toggleLayout}
+					<button onClick={toggleLayout}
 						style={{
 							background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
 							color: 'white', border: 'none', padding: '8px 16px',
@@ -685,44 +592,20 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 				)}
 			</div>
 
-			{loading && (
-				<ProgressTracker
-					currentProgress={currentProgress}
-					progressHistory={progressUpdates}
-					isVisible={loading}
-				/>
-			)}
+			{loading && <ProgressTracker currentProgress={currentProgress} progressHistory={progressUpdates} isVisible={loading} />}
 
 			{unrelatedQuery && !loading && (
-				<div style={{
-					background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-					color: 'white', borderRadius: '12px',
-					padding: isMobile ? '20px' : '30px', marginBottom: '20px', textAlign: 'center',
-				}}>
+				<div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', borderRadius: '12px', padding: isMobile ? '20px' : '30px', marginBottom: '20px', textAlign: 'center' }}>
 					<div style={{ fontSize: isMobile ? '2rem' : '3rem', marginBottom: '12px' }}>🤖</div>
-					<h2 style={{ fontSize: isMobile ? '1.2rem' : '1.5rem', marginBottom: '12px', fontWeight: 600 }}>
-						Not About Adventures!
-					</h2>
-					<p style={{ fontSize: isMobile ? '0.9rem' : '1rem', marginBottom: '20px', opacity: 0.95, lineHeight: '1.6' }}>
-						{clarificationMessage}
-					</p>
+					<h2 style={{ fontSize: isMobile ? '1.2rem' : '1.5rem', marginBottom: '12px', fontWeight: 600 }}>Not About Adventures!</h2>
+					<p style={{ fontSize: isMobile ? '0.9rem' : '1rem', marginBottom: '20px', opacity: 0.95, lineHeight: '1.6' }}>{clarificationMessage}</p>
 					{(suggestions?.length ?? 0) > 0 && (
-						<div style={{
-							background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)',
-							padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.3)',
-						}}>
-							<h3 style={{ fontSize: '1rem', marginBottom: '12px', fontWeight: 600 }}>
-								💡 Try asking about places like:
-							</h3>
+						<div style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.3)' }}>
+							<h3 style={{ fontSize: '1rem', marginBottom: '12px', fontWeight: 600 }}>💡 Try asking about places like:</h3>
 							<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 								{suggestions.map((s, i) => (
 									<button key={i} onClick={() => handleSuggestionClick(s)}
-										style={{
-											background: 'rgba(255,255,255,0.9)', color: '#1e293b',
-											border: 'none', padding: '10px 14px', borderRadius: '8px',
-											fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.2s',
-											textAlign: 'left', fontWeight: 500,
-										}}
+										style={{ background: 'rgba(255,255,255,0.9)', color: '#1e293b', border: 'none', padding: '10px 14px', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left', fontWeight: 500 }}
 										onMouseEnter={e => { e.currentTarget.style.background = 'white'; }}
 										onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.9)'; }}
 									>→ {s}</button>
@@ -745,28 +628,16 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			)}
 
 			{clarificationNeeded && !outOfScope && !unrelatedQuery && !loading && (
-				<div style={{
-					background: isDark ? 'rgba(245,158,11,0.1)' : '#fffbeb',
-					border: `1px solid ${isDark ? 'rgba(245,158,11,0.3)' : '#fbbf24'}`,
-					borderRadius: '12px', padding: '16px', marginBottom: '16px',
-				}}>
+				<div style={{ background: isDark ? 'rgba(245,158,11,0.1)' : '#fffbeb', border: `1px solid ${isDark ? 'rgba(245,158,11,0.3)' : '#fbbf24'}`, borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
 					<div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '10px', color: isDark ? '#fcd34d' : '#92400e' }}>
 						🤔 {clarificationMessage}
 					</div>
 					{(suggestions?.length ?? 0) > 0 && (
 						<div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-							<div style={{ fontSize: '0.82rem', color: isDark ? '#fcd34d' : '#92400e', fontWeight: 600, marginBottom: '4px' }}>
-								💡 Try these instead:
-							</div>
+							<div style={{ fontSize: '0.82rem', color: isDark ? '#fcd34d' : '#92400e', fontWeight: 600, marginBottom: '4px' }}>💡 Try these instead:</div>
 							{suggestions.map((s, i) => (
 								<button key={i} onClick={() => handleSuggestionClick(s)}
-									style={{
-										background: isDark ? 'rgba(255,255,255,0.06)' : 'white',
-										border: `1px solid ${isDark ? 'rgba(245,158,11,0.3)' : '#fbbf24'}`,
-										borderRadius: '8px', padding: '9px 12px',
-										textAlign: 'left', cursor: 'pointer',
-										fontSize: '0.88rem', color: tk.textPrimary, transition: 'all 0.2s',
-									}}
+									style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'white', border: `1px solid ${isDark ? 'rgba(245,158,11,0.3)' : '#fbbf24'}`, borderRadius: '8px', padding: '9px 12px', textAlign: 'left', cursor: 'pointer', fontSize: '0.88rem', color: tk.textPrimary, transition: 'all 0.2s' }}
 									onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'rgba(245,158,11,0.1)' : '#fef3c7'; }}
 									onMouseLeave={e => { e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.06)' : 'white'; }}
 								>→ {s}</button>
@@ -778,24 +649,14 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 
 			{adventures.length > 0 && !outOfScope && !unrelatedQuery && (
 				<>
-					<div style={{
-						marginBottom: '12px', padding: '10px 16px',
-						background: isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)',
-						border: `1px solid ${isDark ? 'rgba(16,185,129,0.25)' : 'rgba(16,185,129,0.2)'}`,
-						borderRadius: '10px',
-					}}>
+					<div style={{ marginBottom: '12px', padding: '10px 16px', background: isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)', border: `1px solid ${isDark ? 'rgba(16,185,129,0.25)' : 'rgba(16,185,129,0.2)'}`, borderRadius: '10px' }}>
 						<div style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: isDark ? '#6ee7b7' : '#15803d', fontWeight: 600 }}>
 							📊 {adventures.length} Adventures • {researchStats.totalInsights} Live Insights • {Math.round(researchStats.avgConfidence * 100)}% Confidence
 						</div>
 					</div>
 					<div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 						{adventures.map((adventure, idx) => (
-							<EnhancedAdventureCard
-								key={idx}
-								adventure={adventure}
-								index={idx}
-								onSave={(id) => handleAdventureSaved(id, adventure.title)}
-							/>
+							<EnhancedAdventureCard key={idx} adventure={adventure} index={idx} onSave={(id) => handleAdventureSaved(id, adventure.title)} />
 						))}
 					</div>
 				</>
@@ -804,12 +665,8 @@ const AdventuresPanel: React.FC<AdventuresPanelProps> = ({
 			{!loading && adventures.length === 0 && !outOfScope && !clarificationNeeded && !unrelatedQuery && (
 				<div style={{ textAlign: 'center', padding: isMobile ? '40px 16px' : '60px 20px' }}>
 					<div style={{ fontSize: '3rem', marginBottom: '15px' }}>🗺️</div>
-					<div style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '8px', color: tk.textSecondary }}>
-						No adventures yet
-					</div>
-					<div style={{ fontSize: '0.9rem', color: tk.textMuted }}>
-						Tell me what you'd like to explore, or tap a vibe above!
-					</div>
+					<div style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '8px', color: tk.textSecondary }}>No adventures yet</div>
+					<div style={{ fontSize: '0.9rem', color: tk.textMuted }}>Tell me what you'd like to explore, or tap a vibe above!</div>
 				</div>
 			)}
 		</div>
@@ -829,9 +686,7 @@ const MobileTabBar: React.FC<{
 		<div style={{ display: 'flex', borderTop: `1px solid ${borderColor}`, background: tk.cardBg, flexShrink: 0 }}>
 			{(['chat', 'adventures'] as MobileTab[]).map(tab => {
 				const isActive = activeTab === tab;
-				const label = tab === 'chat'
-					? '💬 Chat'
-					: `🗺️ Adventures${adventureCount > 0 ? ` (${adventureCount})` : ''}`;
+				const label = tab === 'chat' ? '💬 Chat' : `🗺️ Adventures${adventureCount > 0 ? ` (${adventureCount})` : ''}`;
 				return (
 					<button key={tab} onClick={() => setActiveTab(tab)}
 						style={{
@@ -866,11 +721,11 @@ const AdventuresPage: React.FC = () => {
 	const [mobileTab, setMobileTab] = useState<MobileTab>('chat');
 	const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 	const [input, setInput] = useState('');
+	// ✅ location is now a free-form string — no longer locked to Boston/NYC
 	const [location, setLocation] = useState('Boston, MA');
-	const [detectedCity, setDetectedCity] = useState<'boston' | 'new-york'>('boston');
+	const [isManualAddress, setIsManualAddress] = useState(false);
 	const [showLocationEdit, setShowLocationEdit] = useState(false);
 	const [customAddress, setCustomAddress] = useState('');
-	const [isManualAddress, setIsManualAddress] = useState(false);
 	const [activeSuggestions, setActiveSuggestions] = useState<string[]>([]);
 	const [queryId, setQueryId] = useState<string | null>(null);
 	const [showSaveNotification, setShowSaveNotification] = useState(false);
@@ -882,8 +737,6 @@ const AdventuresPage: React.FC = () => {
 	);
 	const [showGroupMode, setShowGroupMode] = useState(false);
 	const [showOnboarding, setShowOnboarding] = useState(!localStorage.getItem('miniquest_onboarded'));
-
-	// ✅ Generation options state
 	const [generationOptions, setGenerationOptions] = useState<GenerationOptions>(DEFAULT_GENERATION_OPTIONS);
 
 	const chatEndRef = useRef<HTMLDivElement>(null);
@@ -891,7 +744,7 @@ const AdventuresPage: React.FC = () => {
 
 	const {
 		adventures, loading, clarificationNeeded, clarificationMessage, suggestions,
-		outOfScope, scopeIssue, recommendedServices, unrelatedQuery, locationNotFound, // ✅
+		outOfScope, scopeIssue, recommendedServices, unrelatedQuery, locationNotFound,
 		metadata, progressUpdates, currentProgress, researchStats,
 		generateAdventuresWithStreaming, clearAdventures,
 	} = useAdventures();
@@ -905,28 +758,20 @@ const AdventuresPage: React.FC = () => {
 		if (isMobile && adventures.length > 0) setMobileTab('adventures');
 	}, [adventures.length, isMobile]);
 
-	const detectCityFromQuery = useCallback((query: string): 'boston' | 'new-york' => {
-		const q = query.toLowerCase();
-		const nyP = ['new york', 'ny', 'nyc', 'manhattan', 'brooklyn', 'queens', 'bronx', 'staten island'];
-		const boP = ['boston', 'cambridge', 'back bay', 'beacon hill', 'north end', 'south end', 'fenway', 'seaport'];
-		if (nyP.some(p => q.includes(p)) && !boP.some(p => q.includes(p))) return 'new-york';
-		if (boP.some(p => q.includes(p)) && !nyP.some(p => q.includes(p))) return 'boston';
-		return detectedCity;
-	}, [detectedCity]);
-
-	const updateLocationForCity = useCallback((city: 'boston' | 'new-york') => {
-		if (isManualAddress) return;
-		setDetectedCity(city);
-		setLocation(city === 'boston' ? 'Boston, MA' : 'New York, NY');
-	}, [isManualAddress]);
-
-	const validateAddress = (address: string) => {
-		const a = address.toLowerCase().trim();
-		const boP = ['boston, ma', 'boston ma', 'boston,ma', 'cambridge, ma', 'cambridge ma'];
-		const nyP = ['new york, ny', 'new york ny', 'nyc', 'brooklyn, ny', 'manhattan, ny', 'queens, ny'];
-		if (boP.some(p => a.includes(p))) return { valid: true, city: 'boston' as const };
-		if (nyP.some(p => a.includes(p))) return { valid: true, city: 'new-york' as const };
-		return { valid: false, error: 'Address must be in Boston, MA or New York, NY area' };
+	// ✅ Validate US address — rejects obviously international inputs only.
+	// City-level scope enforcement is handled by the backend.
+	const validateAddress = (address: string): { valid: boolean; error?: string } => {
+		const a = address.trim();
+		if (a.length < 3) return { valid: false, error: 'Please enter a valid US city or address.' };
+		const intlKeywords = [
+			'london', 'paris', 'tokyo', 'berlin', 'sydney', 'toronto',
+			'dubai', 'amsterdam', 'rome', 'barcelona', 'beijing', 'shanghai',
+			'moscow', 'seoul', 'bangkok', 'mumbai', 'delhi', 'cairo',
+		];
+		if (intlKeywords.some(k => a.toLowerCase().includes(k))) {
+			return { valid: false, error: 'MiniQuest supports US locations only.' };
+		}
+		return { valid: true };
 	};
 
 	const handleManualAddressSet = () => {
@@ -935,18 +780,17 @@ const AdventuresPage: React.FC = () => {
 		if (!v.valid) {
 			setChatMessages(prev => [...prev, {
 				id: Date.now().toString(), type: 'assistant',
-				content: `❌ ${v.error}\n\nPlease enter an address in:\n• Boston, MA\n• New York, NY`,
+				content: `❌ ${v.error}`,
 				timestamp: new Date(),
 			}]);
 			return;
 		}
 		setLocation(customAddress);
-		setDetectedCity(v.city!);
 		setIsManualAddress(true);
 		setShowLocationEdit(false);
 		setChatMessages(prev => [...prev, {
 			id: Date.now().toString(), type: 'assistant',
-			content: `✅ Using your custom address in ${v.city === 'boston' ? 'Boston' : 'New York'}: "${customAddress}"`,
+			content: `✅ Location set to "${customAddress}". I'll use this as your route origin.`,
 			timestamp: new Date(),
 		}]);
 	};
@@ -954,7 +798,7 @@ const AdventuresPage: React.FC = () => {
 	const handleResetToAuto = () => {
 		setIsManualAddress(false);
 		setCustomAddress('');
-		setLocation(detectedCity === 'boston' ? 'Boston, MA' : 'New York, NY');
+		setLocation('Boston, MA');
 		setChatMessages(prev => [...prev, {
 			id: Date.now().toString(), type: 'assistant',
 			content: '🤖 Switched back to smart city detection.',
@@ -999,7 +843,7 @@ const AdventuresPage: React.FC = () => {
 	}, [outOfScope, unrelatedQuery, loading, clarificationMessage, suggestions, isGenerating]);
 
 	useEffect(() => {
-		if (clarificationNeeded && !outOfScope && !unrelatedQuery && !loading && isGenerating) {
+		if (clarificationNeeded && !outOfScope && !unrelatedQuery && !locationNotFound && !loading && isGenerating) {
 			const id = Date.now().toString();
 			if (lastGenerationId !== id) {
 				setLastGenerationId(id);
@@ -1008,7 +852,7 @@ const AdventuresPage: React.FC = () => {
 				setIsGenerating(false);
 			}
 		}
-	}, [clarificationNeeded, outOfScope, unrelatedQuery, loading, clarificationMessage, suggestions, isGenerating]);
+	}, [clarificationNeeded, outOfScope, unrelatedQuery, locationNotFound, loading, clarificationMessage, suggestions, isGenerating]);
 
 	useEffect(() => {
 		if (locationNotFound && !loading && isGenerating) {
@@ -1016,8 +860,7 @@ const AdventuresPage: React.FC = () => {
 			if (lastGenerationId !== id) {
 				setLastGenerationId(id);
 				setChatMessages(prev => [...prev, {
-					id,
-					type: 'assistant',
+					id, type: 'assistant',
 					content: `📍 ${clarificationMessage || "I couldn't find that neighborhood."}`,
 					timestamp: new Date(),
 				}]);
@@ -1059,7 +902,7 @@ const AdventuresPage: React.FC = () => {
 		setIsGenerating(false); setActiveSuggestions([]); setLastGenerationId(null); clearAdventures();
 		setChatMessages([{
 			id: `welcome_${Date.now()}`, type: 'assistant',
-			content: `Hi ${user?.username}! 👋\n\nDiscover amazing places in Boston and New York City.\n\n🎯 Tap a vibe chip below, or type what you're in the mood for!\n\nExamples:\n• "party night out in Boston"\n• "romantic date night in NYC"\n• "hidden gem coffee shops Boston"\n\nLet's explore! 🗺️✨`,
+			content: `Hi ${user?.username}! 👋\n\nDiscover amazing places across the US — Boston, NYC, Chicago, Austin, and more.\n\n🎯 Tap a vibe chip, or type what you're in the mood for!\n\nExamples:\n• "party night out in Chicago"\n• "coffee shops near me"\n• "hidden gems in Austin, TX"\n\nLet's explore! 🗺️✨`,
 			timestamp: new Date(),
 		}]);
 		setCurrentConversationId(null); setQueryId(null);
@@ -1070,14 +913,16 @@ const AdventuresPage: React.FC = () => {
 		if (id === currentConversationId) handleNewChat();
 	};
 
-	// ✅ UPDATED: passes generationOptions through to the hook
+	// ✅ _sendQuery — when manual address is set, always use it as-is.
+	// When auto-detect is on, pass location as-is too and let the backend
+	// LocationParser extract the city from the query text. The frontend no
+	// longer hard-codes Boston/NYC inference.
 	const _sendQuery = useCallback((query: string, fillInput = false) => {
 		if (loading) return;
-		const loc = isManualAddress ? location : (() => {
-			const city = detectCityFromQuery(query);
-			updateLocationForCity(city);
-			return city === 'boston' ? 'Boston, MA' : 'New York, NY';
-		})();
+		// Always use the current location string — manual or auto.
+		// Backend LocationParser will extract an explicit city/neighborhood
+		// from the query and use user_address only for routing origin.
+		const loc = location;
 		if (fillInput) setInput(query);
 		setChatMessages(prev => [...prev, {
 			id: Date.now().toString(), type: 'user', content: query, timestamp: new Date(),
@@ -1086,11 +931,7 @@ const AdventuresPage: React.FC = () => {
 		setIsGenerating(true);
 		generateAdventuresWithStreaming(query, loc, generationOptions);
 		setInput('');
-	}, [
-		loading, isManualAddress, location,
-		detectCityFromQuery, updateLocationForCity,
-		generateAdventuresWithStreaming, generationOptions,
-	]);
+	}, [loading, location, generateAdventuresWithStreaming, generationOptions]);
 
 	const handleSend = useCallback(() => { if (!input.trim() || loading) return; _sendQuery(input.trim()); }, [input, loading, _sendQuery]);
 	const handleSuggestionClick = useCallback((s: string) => _sendQuery(s), [_sendQuery]);
@@ -1109,7 +950,7 @@ const AdventuresPage: React.FC = () => {
 		if (chatMessages.length === 0) {
 			setChatMessages([{
 				id: `initial_${Date.now()}`, type: 'assistant',
-				content: `Hi ${user?.username}! 👋\n\nDiscover amazing places in Boston and New York City.\n\n🎯 Tap a vibe chip below, or type what you're in the mood for!\n\nExamples:\n• "party night out in Boston"\n• "romantic date night in NYC"\n• "hidden gem coffee shops"\n\nLet's explore! 🗺️✨`,
+				content: `Hi ${user?.username}! 👋\n\nDiscover amazing places across the US — Boston, NYC, Chicago, Austin, and more.\n\n🎯 Tap a vibe chip, or type what you're in the mood for!\n\nExamples:\n• "party night out in Chicago"\n• "coffee shops near me"\n• "hidden gems in Austin, TX"\n\nLet's explore! 🗺️✨`,
 				timestamp: new Date(),
 			}]);
 		}
@@ -1118,7 +959,8 @@ const AdventuresPage: React.FC = () => {
 	const panelProps = {
 		user, layoutMode, adventures, loading, researchStats,
 		outOfScope: !!outOfScope, scopeIssue: scopeIssue ?? null,
-		clarificationNeeded: !!clarificationNeeded && !locationNotFound, unrelatedQuery: !!unrelatedQuery,
+		clarificationNeeded: !!clarificationNeeded && !locationNotFound,
+		unrelatedQuery: !!unrelatedQuery,
 		clarificationMessage, suggestions: suggestions ?? [],
 		recommendedServices: recommendedServices ?? [], metadata,
 		progressUpdates, currentProgress, toggleLayout,
@@ -1129,9 +971,7 @@ const AdventuresPage: React.FC = () => {
 		layoutMode, conversations, currentConversationId, chatMessages, loading,
 		activeSuggestions, input, location, showLocationEdit, customAddress,
 		isManualAddress, locationInputRef, chatEndRef, user, isDark, isMobile,
-		openSidebarRef,
-		generationOptions,           // ✅ passed down
-		setGenerationOptions,        // ✅ passed down
+		openSidebarRef, generationOptions, setGenerationOptions,
 		setInput, setShowLocationEdit, setCustomAddress,
 		handleSend, handleVibeSelect, handleSuggestionClick,
 		handleLoadConversation, handleNewChat, handleDeleteConversation,
@@ -1157,19 +997,14 @@ const AdventuresPage: React.FC = () => {
 						<div style={{ fontWeight: 600, marginBottom: '2px', fontSize: isMobile ? '0.9rem' : '1rem' }}>Adventure Saved!</div>
 						<div style={{ fontSize: '0.82rem', opacity: 0.9 }}>"{savedAdventureName}" saved</div>
 					</div>
-					<button
-						onClick={() => setShowSaveNotification(false)}
+					<button onClick={() => setShowSaveNotification(false)}
 						style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', padding: '5px 9px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem' }}
 					>✕</button>
 				</div>
 			)}
 
 			{!isMobile && (
-				<div style={{
-					flex: 1, display: 'grid',
-					gridTemplateColumns: layoutMode === 'chat-left' ? '370px 1fr' : '1fr 370px',
-					overflow: 'hidden',
-				}}>
+				<div style={{ flex: 1, display: 'grid', gridTemplateColumns: layoutMode === 'chat-left' ? '370px 1fr' : '1fr 370px', overflow: 'hidden' }}>
 					{layoutMode === 'chat-left'
 						? <><ChatPanel {...chatProps} /><AdventuresPanel {...panelProps} /></>
 						: <><AdventuresPanel {...panelProps} /><ChatPanel {...chatProps} /></>
@@ -1187,25 +1022,15 @@ const AdventuresPage: React.FC = () => {
 							<AdventuresPanel {...panelProps} />
 						</div>
 					</div>
-					<MobileTabBar
-						activeTab={mobileTab} setActiveTab={setMobileTab}
-						loading={loading} adventureCount={adventures.length} isDark={isDark}
-					/>
+					<MobileTabBar activeTab={mobileTab} setActiveTab={setMobileTab} loading={loading} adventureCount={adventures.length} isDark={isDark} />
 				</>
 			)}
 
 			{showOnboarding && (
-				<OnboardingModal
-					username={user?.username || ''}
-					onComplete={(pref) => { setShowOnboarding(false); handleSuggestionClick(pref); }}
-				/>
+				<OnboardingModal username={user?.username || ''} onComplete={(pref) => { setShowOnboarding(false); handleSuggestionClick(pref); }} />
 			)}
 			{showGroupMode && (
-				<GroupModeModal
-					location={location}
-					onGenerate={handleSuggestionClick}
-					onClose={() => setShowGroupMode(false)}
-				/>
+				<GroupModeModal location={location} onGenerate={handleSuggestionClick} onClose={() => setShowGroupMode(false)} />
 			)}
 
 			<style>{`

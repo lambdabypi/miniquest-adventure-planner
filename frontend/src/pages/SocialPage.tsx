@@ -251,7 +251,7 @@ const SocialPage: React.FC = () => {
 								}}>🗺️ {post.adventure_title}</div>
 							)}
 
-							{/* Content — clickable links + preserved newlines */}
+							{/* Content - clickable links + preserved newlines */}
 							<PostContent text={post.content} textColor={tk.textPrimary} />
 
 							{/* Tags */}
@@ -305,7 +305,7 @@ const SocialPage: React.FC = () => {
 								<div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${borderColor}` }}>
 									{post.comments.length === 0 && (
 										<div style={{ fontSize: '0.8rem', color: tk.textMuted, marginBottom: 10 }}>
-											No comments yet — be the first!
+											No comments yet - be the first!
 										</div>
 									)}
 									{post.comments.map(c => (

@@ -86,7 +86,7 @@ const SharedAdventurePage: React.FC = () => {
 					)}
 				</div>
 
-				{/* Adventure card — read-only: no save, no remix */}
+				{/* Adventure card - read-only: no save, no remix */}
 				<EnhancedAdventureCard
 					adventure={data.adventure_data}
 					index={0}

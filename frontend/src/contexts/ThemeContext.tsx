@@ -36,7 +36,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 export const useTheme = () => useContext(ThemeContext);
 
-// Theme token helper — use this everywhere instead of hardcoded colors
+// Theme token helper - use this everywhere instead of hardcoded colors
 export const t = (isDark: boolean) => ({
 	// Backgrounds
 	pageBg: isDark

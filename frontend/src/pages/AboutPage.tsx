@@ -5,15 +5,15 @@ import { useTheme, t } from '../contexts/ThemeContext';
 
 const AGENTS = [
 	{ icon: '📍', name: 'LocationParser', desc: 'Resolves your location to coordinates and a canonical city name. Supports any US city. Defaults to your address if no location is found in the query.' },
-	{ icon: '🤔', name: 'IntentParser', desc: 'Reads your request and extracts themes, activities, meal context, group size, and time-of-day — including vibe words like "chill", "party", or "date night".' },
+	{ icon: '🤔', name: 'IntentParser', desc: 'Reads your request and extracts themes, activities, meal context, group size, and time-of-day - including vibe words like "chill", "party", or "date night".' },
 	{ icon: '🔍', name: 'VenueScout', desc: 'Discovers venues via Google Places (primary), Tavily live discovery (fallback), or GPT-4o knowledge base (last resort). Batch-fetches websites for all results.' },
-	{ icon: '🔬', name: 'TavilyResearch', desc: 'Runs up to 18 parallel live web searches — pulling current hours, prices, reviews, and standout details. Results are Redis-cached for 24 hours.' },
+	{ icon: '🔬', name: 'TavilyResearch', desc: 'Runs up to 18 parallel live web searches - pulling current hours, prices, reviews, and standout details. Results are Redis-cached for 24 hours.' },
 	{ icon: '🗺️', name: 'RoutingAgent', desc: 'Resolves street-level addresses, builds Google Maps deep links, and injects per-step transit directions. Live MBTA integration for Boston itineraries.' },
-	{ icon: '✨', name: 'AdventureCreator', desc: 'Assembles 3 themed, narrative itineraries from researched and routed venues — streamed to you one by one as each finishes.' },
+	{ icon: '✨', name: 'AdventureCreator', desc: 'Assembles 3 themed, narrative itineraries from researched and routed venues - streamed to you one by one as each finishes.' },
 ];
 
 const STEPS = [
-	{ n: '01', title: 'Describe your vibe', desc: 'Type anything — "rainy afternoon in Brooklyn" or just tap a vibe chip.' },
+	{ n: '01', title: 'Describe your vibe', desc: 'Type anything - "rainy afternoon in Brooklyn" or just tap a vibe chip.' },
 	{ n: '02', title: '6 agents go to work', desc: 'Location, intent, venues, live research, routing, and creation run in sequence.' },
 	{ n: '03', title: 'Watch it happen', desc: 'A real-time progress tracker shows each agent as it completes.' },
 	{ n: '04', title: 'Pick your adventure', desc: 'Choose from 3 curated itineraries, each with a map link, transit directions, and insider details.' },
@@ -109,7 +109,7 @@ const AboutPage: React.FC = () => {
 						<span style={{ background: 'linear-gradient(90deg, #a78bfa, #60a5fa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}> Adventures.</span>
 					</h1>
 					<p style={{ fontSize: '1.05rem', color: tk.textSecondary, lineHeight: 1.8 }}>
-						MiniQuest turns a single sentence into a complete, themed day plan — sequenced stops,
+						MiniQuest turns a single sentence into a complete, themed day plan - sequenced stops,
 						a live-researched route, transit directions, and a budget estimate. Not a list of places.
 						A full adventure, ready to walk out the door.
 					</p>
@@ -263,7 +263,7 @@ const AboutPage: React.FC = () => {
 						onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(124,58,237,0.55)'; }}
 						onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 24px rgba(124,58,237,0.45)'; }}
 					>
-						Get Started — Free
+						Get Started - Free
 					</button>
 				</div>
 

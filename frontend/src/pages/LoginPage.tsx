@@ -95,7 +95,7 @@ const LoginPage: React.FC = () => {
 				{/* Session expired */}
 				{sessionExpiredMessage && (
 					<div style={{ borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: '0.88rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: '#fcd34d', animation: 'slideDown 0.3s ease' }}>
-						<div style={{ flex: 1 }}><strong>Session expired</strong> — {sessionExpiredMessage}</div>
+						<div style={{ flex: 1 }}><strong>Session expired</strong> - {sessionExpiredMessage}</div>
 						<button onClick={() => setSessionExpiredMessage('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.2rem' }}>×</button>
 					</div>
 				)}

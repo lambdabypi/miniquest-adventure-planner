@@ -77,7 +77,7 @@ class IntentParserAgent(BaseAgent):
     def __init__(self):
         super().__init__("IntentParser")
         self.client = AsyncOpenAI()
-        self.log_success("IntentParser initialized — US-wide city support")
+        self.log_success("IntentParser initialized - US-wide city support")
 
     async def process(self, input_data: Dict) -> Dict:
         user_input    = input_data.get("user_input", "")
@@ -269,12 +269,12 @@ class IntentParserAgent(BaseAgent):
                 time_label = self._derive_time_of_day(request_time)
                 time_context = (
                     f'REQUEST TIME: {dt.strftime("%I:%M %p")} local time '
-                    f'({time_label}) — use this to set time_of_day precisely.'
+                    f'({time_label}) - use this to set time_of_day precisely.'
                 )
             except (ValueError, TypeError):
                 time_context = "REQUEST TIME: unknown"
         else:
-            time_context = "REQUEST TIME: not provided — infer time_of_day from the query text if possible, otherwise use \"any\"."
+            time_context = "REQUEST TIME: not provided - infer time_of_day from the query text if possible, otherwise use \"any\"."
 
         return f"""You are an intelligent intent parser for MiniQuest - a LOCAL ADVENTURE planning app.
 
@@ -300,7 +300,7 @@ Detection: "week", "days", "weekend trip", budget > $500, "hotel", "accommodatio
 Response: {{"out_of_scope": true, "scope_issue": "multi_day_trip|accommodation_planning|trip_budget_detected|unsupported_city", "clarification_message": "...", "suggestions": [...]}}
 
 NOTE: International locations (Paris, London, Tokyo, etc.) are out of scope.
-US cities of ALL sizes are IN scope — Boston, NYC, Chicago, LA, Austin, Nashville, etc.
+US cities of ALL sizes are IN scope - Boston, NYC, Chicago, LA, Austin, Nashville, etc.
 
 ═══════════════════════════════════════════════════════════════
 CATEGORY 3: NEEDS CLARIFICATION
@@ -325,14 +325,14 @@ VIBE / MOOD WORDS → translate to real venue types in preferences[]:
   "rainy day"                           → museums, coffee shops, bookstores, cinemas
   IMPORTANT: Do NOT put the vibe word itself in preferences[]. Use venue types ONLY.
 
-BUDGET PARSING — accept any of these forms:
+BUDGET PARSING - accept any of these forms:
   - Dollar amount: "$40", "40 dollars", "under $50" → numeric value
   - Label: "free", "cheap", "budget", "moderate", "splurge", "fancy", "luxury"
   - Default if not mentioned: 75.0
 
-GROUP SIZE — extract if mentioned: "just me" → 1, "couple" → 2, "group of 5" → 5
+GROUP SIZE - extract if mentioned: "just me" → 1, "couple" → 2, "group of 5" → 5
 
-TIME OF DAY — rules (in priority order):
+TIME OF DAY - rules (in priority order):
   1. If the user explicitly states a time ("this morning", "tonight", "at 3pm") → use that
   2. If REQUEST TIME is provided above → use that time_label exactly
   3. Otherwise → "any"
@@ -359,9 +359,9 @@ Response:
 ═══════════════════════════════════════════════════════════════
 RULES:
 1. CHECK UNRELATED first → OUT OF SCOPE second → CLARIFICATION third → IN SCOPE last
-2. Any US city/town is valid — do NOT flag US cities as out of scope
+2. Any US city/town is valid - do NOT flag US cities as out of scope
 3. Only international locations (non-US) are out of scope for city reasons
-4. "party", "going out", "birthday" are IN SCOPE — map to nightlife venues
+4. "party", "going out", "birthday" are IN SCOPE - map to nightlife venues
 5. group_size defaults to 1, meal_context defaults to "none"
 6. For time_of_day: explicit user wording beats REQUEST TIME beats "any"
 
@@ -389,7 +389,7 @@ CRITICAL: Return ONLY valid JSON. No explanation, no preamble."""
             if city in text:
                 return {
                     "valid": False, "detected_city": city.title(),
-                    "message": f"MiniQuest currently operates within the US only. We don't support {city.title()} yet — try TripAdvisor for international adventures!",
+                    "message": f"MiniQuest currently operates within the US only. We don't support {city.title()} yet - try TripAdvisor for international adventures!",
                     "suggestions": self._default_suggestions(),
                 }
         for continent in continents:

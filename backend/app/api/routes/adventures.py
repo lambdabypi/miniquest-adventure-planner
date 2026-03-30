@@ -625,8 +625,8 @@ async def get_about_info():
             "Live venue research via Tavily (up to 18 parallel searches)",
             "Google Maps routing with per-step transit directions",
             "MBTA live transit integration for Boston",
-            "RAG personalization — learns from your saved adventures",
-            "Real-time streaming — adventures appear as each one finishes",
+            "RAG personalization - learns from your saved adventures",
+            "Real-time streaming - adventures appear as each one finishes",
         ],
         "recommended_for_trips": {
             "multi_day": ["TripAdvisor", "Google Travel", "Roadtrippers"],
