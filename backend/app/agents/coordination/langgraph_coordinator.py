@@ -100,23 +100,26 @@ class LangGraphCoordinator:
     def _build_workflow(self) -> StateGraph:
         workflow = StateGraph(AdventureState)
 
-        workflow.add_node("parse_location",      self._parse_location_node)
-        workflow.add_node("get_personalization",  self._get_personalization_node)
-        workflow.add_node("parse_intent",        self._parse_intent_node)
-        workflow.add_node("scout_venues",        self._scout_venues_node)
-        workflow.add_node("research_venues",     self._research_venues_node)
-        workflow.add_node("enhance_routing",     self._enhance_routing_node)
-        workflow.add_node("create_adventures",   self._create_adventures_node)
+        workflow.add_node("parse_location",     self._parse_location_node)
+        workflow.add_node("get_personalization", self._get_personalization_node)
+        workflow.add_node("parse_intent",       self._parse_intent_node)
+        workflow.add_node("scout_venues",       self._scout_venues_node)
+        workflow.add_node("research_venues",    self._research_venues_node)
+        workflow.add_node("enhance_routing",    self._enhance_routing_node)
+        workflow.add_node("create_adventures",  self._create_adventures_node)
 
-        workflow.add_edge("parse_location",      "get_personalization")
+        # ✅ Stop early if LocationParser set a clarification (e.g. NOT_FOUND neighborhood)
+        workflow.add_conditional_edges(
+            "parse_location",
+            self._should_continue_after_location,
+            {"continue": "get_personalization", "stop": END}
+        )
         workflow.add_edge("get_personalization", "parse_intent")
-
         workflow.add_conditional_edges(
             "parse_intent",
             self._should_continue_after_intent,
             {"continue": "scout_venues", "stop": END}
         )
-
         workflow.add_edge("scout_venues",    "research_venues")
         workflow.add_edge("research_venues", "enhance_routing")
         workflow.add_edge("enhance_routing", "create_adventures")
@@ -124,6 +127,13 @@ class LangGraphCoordinator:
 
         workflow.set_entry_point("parse_location")
         return workflow.compile()
+
+    def _should_continue_after_location(self, state: AdventureState) -> str:
+        error = state.get("error")
+        if isinstance(error, dict) and error.get("type") == "clarification_needed":
+            logger.info("🛑 Stopping after location parse — clarification needed")
+            return "stop"
+        return "continue"
 
     def _should_continue_after_intent(self, state: AdventureState) -> str:
         error = state.get("error")
@@ -397,13 +407,26 @@ class LangGraphCoordinator:
         self.logger.debug(f"⏱️ {operation}: {elapsed:.2f}s")
 
     def _extract_city_name(self, location: str) -> str:
+        """
+        Return a routable city string from a location that may be:
+          - "Boston, MA"                → "Boston, MA"
+          - "North End, Boston, MA"     → "Boston, MA"   ✅ was returning "North End"
+          - "SoHo, New York, NY"        → "New York, NY"
+          - "123 Main St, Boston, MA"   → "Boston, MA"
+        """
         if not location:
             return "Boston, MA"
-        parts = [p.strip() for p in location.split(',')]
-        if len(parts) == 2 and not any(c.isdigit() for c in parts[0]):
-            return location
+        parts = [p.strip() for p in location.split(",")]
+
+        # 3-part string: could be "Neighborhood, City, ST" or "Street, City, ST"
+        # In both cases the city is parts[-2] + parts[-1]
         if len(parts) >= 3:
             return f"{parts[-2]}, {parts[-1]}"
+
+        # 2-part: already "City, ST"
+        if len(parts) == 2 and not any(c.isdigit() for c in parts[0]):
+            return location
+
         return location
 
     def _find_nearest_branch(self, venue_name: str, resolved_address: str, origin: str) -> Optional[str]:
@@ -838,6 +861,7 @@ class LangGraphCoordinator:
                     "user_input": state["user_input"],
                     "user_address": state.get("user_address")
                 })
+
                 if result["success"]:
                     state["target_location"] = result["data"]["target_location"]
                     state["location_parsing_info"] = result["data"]
@@ -846,13 +870,34 @@ class LangGraphCoordinator:
                     self._emit_progress({
                         "step": "parse_location", "agent": "LocationParser",
                         "status": "complete",
-                        "message": f"📍 City confirmed: {state['target_location']}",
+                        "message": f"📍 Searching in: {state['target_location']}",
                         "progress": 0.14,
                         "details": {"location": state["target_location"]}
                     })
+
                 else:
-                    state["target_location"] = state.get("user_address", "Boston, MA")
-                    span.set_attribute("agent.outcome", "fallback")
+                    # ✅ LocationParser returned needs_clarification (e.g. NOT_FOUND neighborhood).
+                    # Surface this to the user instead of silently falling back.
+                    error_data = result.get("data", {})
+                    if error_data.get("needs_clarification"):
+                        state["error"] = {
+                            "type": "clarification_needed",
+                            "location_not_found": True,          # ✅ distinct flag for frontend
+                            "clarification_message": error_data.get("clarification_message"),
+                            "suggestions": error_data.get("suggestions", []),
+                        }
+                        span.set_attribute("agent.outcome", "clarification_needed")
+                        self._emit_progress({
+                            "step": "parse_location", "agent": "LocationParser",
+                            "status": "clarification_needed",
+                            "message": error_data.get("clarification_message", "Location not found"),
+                            "progress": 0.14,
+                        })
+                    else:
+                        # Generic failure — fall back to user_address
+                        state["target_location"] = state.get("user_address", "Boston, MA")
+                        span.set_attribute("agent.outcome", "fallback")
+
             except Exception as e:
                 state["target_location"] = state.get("user_address", "Boston, MA")
                 span.set_attribute("agent.outcome", "error")

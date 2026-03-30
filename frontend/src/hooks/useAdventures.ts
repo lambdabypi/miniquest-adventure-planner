@@ -39,6 +39,7 @@ export const useAdventures = () => {
 	const [metadata, setMetadata] = useState<AdventureMetadata | undefined>();
 	const [progressUpdates, setProgressUpdates] = useState<ProgressUpdate[]>([]);
 	const [currentProgress, setCurrentProgress] = useState<ProgressUpdate | null>(null);
+	const [locationNotFound, setLocationNotFound] = useState(false);
 	const [researchStats, setResearchStats] = useState<ResearchStats>(() => {
 		try {
 			const cached = localStorage.getItem('miniquest_last_research_stats');
@@ -71,6 +72,7 @@ export const useAdventures = () => {
 		setResearchStats({ totalInsights: 0, avgConfidence: 0 });
 		localStorage.removeItem('miniquest_last_adventures');
 		localStorage.removeItem('miniquest_last_research_stats');
+		setLocationNotFound(false);
 	}, []);
 
 	// ✅ UPDATED: accepts optional generation options
@@ -165,8 +167,6 @@ export const useAdventures = () => {
 						// Final done event
 						if (data.done) {
 							if (data.success) {
-								// If adventures streamed progressively, streamedAdventures
-								// already has them — just update stats from final payload
 								const finalAdventures = data.adventures?.length > 0
 									? data.adventures as Adventure[]
 									: streamedAdventures;
@@ -177,6 +177,10 @@ export const useAdventures = () => {
 								} else {
 									setError('No adventures could be generated');
 								}
+							} else if (data.metadata?.location_not_found) {   // ✅ data.metadata, not response.metadata
+								setLocationNotFound(true);
+								setClarificationMessage(data.metadata.clarification_message || '');
+								setSuggestions(data.metadata.suggestions || []);
 							} else if (data.metadata?.clarification_needed) {
 								handleClarificationNeeded(data.metadata);
 							} else if (data.error) {
@@ -256,6 +260,11 @@ export const useAdventures = () => {
 			setClarificationMessage(meta.clarification_message || '');
 			setSuggestions(meta.suggestions || []);
 			setRecommendedServices(meta.recommended_services || []);
+		} else if (meta.location_not_found) {
+			// ✅ Distinct path — renders as chat bubble, not a panel block
+			setLocationNotFound(true);
+			setClarificationMessage(meta.clarification_message || '');
+			setSuggestions(meta.suggestions || []);
 		} else {
 			setClarificationNeeded(true);
 			setClarificationMessage(meta.clarification_message || '');
@@ -267,7 +276,8 @@ export const useAdventures = () => {
 		adventures, loading, error,
 		clarificationNeeded, clarificationMessage, suggestions,
 		outOfScope, scopeIssue, recommendedServices,
-		unrelatedQuery, metadata,
+		unrelatedQuery, locationNotFound,              // ✅ new
+		metadata,
 		progressUpdates, currentProgress, researchStats,
 		generateAdventures, generateAdventuresWithStreaming, clearAdventures,
 	};

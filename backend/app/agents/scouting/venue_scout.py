@@ -180,7 +180,8 @@ class VenueScoutAgent(BaseAgent):
         generation_options: Dict,
     ) -> Dict:
         try:
-            # Geocode the city/address to get a lat/lng origin
+            # Geocode the location string — works for both "Boston, MA" and
+            # "North End, Boston, MA" since Google geocodes neighbourhoods directly.
             geocode = self.gmaps.geocode(location)
             if not geocode:
                 logger.warning("Geocoding failed — falling back to Tavily/GPT")
@@ -190,13 +191,24 @@ class VenueScoutAgent(BaseAgent):
             lng = geocode[0]["geometry"]["location"]["lng"]
             self.log_processing("Geocoded origin", f"{lat:.4f}, {lng:.4f}")
 
+            # ✅ Use a tight radius when a neighbourhood is requested so that
+            # Google Places doesn't wander into adjacent districts.
+            neighborhood = self._extract_neighborhood_from_location(location)
+            search_radius = 800 if neighborhood else 3000
+            if neighborhood:
+                self.log_processing(
+                    "Neighborhood mode",
+                    f"'{neighborhood}' detected — radius capped at {search_radius}m"
+                )
+
             loop = asyncio.get_event_loop()
 
             async def search_pref(pref: str) -> List[Dict]:
                 return await loop.run_in_executor(
                     None,
                     functools.partial(
-                        self._search_places_for_preference, lat, lng, pref, location
+                        self._search_places_for_preference,
+                        lat, lng, pref, location, search_radius,
                     ),
                 )
 
@@ -204,17 +216,7 @@ class VenueScoutAgent(BaseAgent):
             all_venues = [v for sublist in results for v in sublist]
 
             unique  = self._deduplicate_venues(all_venues)
-
-            # ✅ Filter to requested neighborhood if one is present in location
-            neighborhood = self._extract_neighborhood_from_location(location)
-            if neighborhood:
-                unique = self._filter_by_neighborhood(unique, neighborhood)
-                self.log_processing(
-                    "Neighborhood filter applied",
-                    f"'{neighborhood}' — {len(unique)} venues remain"
-                )
-
-            diverse  = self._select_diverse_venues(unique, target_count=12)
+            diverse = self._select_diverse_venues(unique, target_count=12)
             enhanced = [self._enhance_venue(v, location) for v in diverse]
 
             self.log_success(f"Google Places discovery: {len(enhanced)} venues")
@@ -233,7 +235,8 @@ class VenueScoutAgent(BaseAgent):
             return await self._fallback(preferences, location, user_query, {})
 
     def _search_places_for_preference(
-        self, lat: float, lng: float, preference: str, location: str
+        self, lat: float, lng: float, preference: str, location: str,
+        radius: int = 3000,
     ) -> List[Dict]:
         """Run a synchronous Google Places search for one preference."""
         pref_lower = preference.lower().strip()
@@ -249,7 +252,7 @@ class VenueScoutAgent(BaseAgent):
                 results = self.gmaps.places(
                     query=text_query,
                     location=(lat, lng),
-                    radius=3000,
+                    radius=radius,
                 )
                 for place in results.get("results", [])[:8]:
                     v = self._convert_place(place, location, preference)
@@ -264,7 +267,7 @@ class VenueScoutAgent(BaseAgent):
             try:
                 results = self.gmaps.places_nearby(
                     location=(lat, lng),
-                    radius=3000,
+                    radius=radius,
                     type=place_type,
                     open_now=False,
                 )

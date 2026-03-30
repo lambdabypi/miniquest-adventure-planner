@@ -891,8 +891,8 @@ const AdventuresPage: React.FC = () => {
 
 	const {
 		adventures, loading, clarificationNeeded, clarificationMessage, suggestions,
-		outOfScope, scopeIssue, recommendedServices, unrelatedQuery, metadata,
-		progressUpdates, currentProgress, researchStats,
+		outOfScope, scopeIssue, recommendedServices, unrelatedQuery, locationNotFound, // ✅
+		metadata, progressUpdates, currentProgress, researchStats,
 		generateAdventuresWithStreaming, clearAdventures,
 	} = useAdventures();
 
@@ -1011,6 +1011,23 @@ const AdventuresPage: React.FC = () => {
 	}, [clarificationNeeded, outOfScope, unrelatedQuery, loading, clarificationMessage, suggestions, isGenerating]);
 
 	useEffect(() => {
+		if (locationNotFound && !loading && isGenerating) {
+			const id = `locnotfound_${Date.now()}`;
+			if (lastGenerationId !== id) {
+				setLastGenerationId(id);
+				setChatMessages(prev => [...prev, {
+					id,
+					type: 'assistant',
+					content: `📍 ${clarificationMessage || "I couldn't find that neighborhood."}`,
+					timestamp: new Date(),
+				}]);
+				setActiveSuggestions(suggestions ?? []);
+				setIsGenerating(false);
+			}
+		}
+	}, [locationNotFound, loading, clarificationMessage, suggestions, isGenerating]);
+
+	useEffect(() => {
 		if (adventures.length > 0 && !loading && isGenerating) {
 			const id = `success_alldone_${Date.now()}`;
 			if (lastGenerationId !== id) {
@@ -1101,7 +1118,7 @@ const AdventuresPage: React.FC = () => {
 	const panelProps = {
 		user, layoutMode, adventures, loading, researchStats,
 		outOfScope: !!outOfScope, scopeIssue: scopeIssue ?? null,
-		clarificationNeeded: !!clarificationNeeded, unrelatedQuery: !!unrelatedQuery,
+		clarificationNeeded: !!clarificationNeeded && !locationNotFound, unrelatedQuery: !!unrelatedQuery,
 		clarificationMessage, suggestions: suggestions ?? [],
 		recommendedServices: recommendedServices ?? [], metadata,
 		progressUpdates, currentProgress, toggleLayout,

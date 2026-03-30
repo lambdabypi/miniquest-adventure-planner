@@ -128,14 +128,23 @@ async def create_adventures_stream(
                         "recommended_services": _get_recommended_services(error_data.get("scope_issue", "multi_day_trip"))
                     })
                 else:
-                    error_metadata.update({
-                        "clarification_message": error_data.get("clarification_message") or
-                            "Please provide more details about what you'd like to explore.",
-                        "suggestions": error_data.get("suggestions") or [
-                            "Museums and coffee shops in Boston",
-                            "Parks and restaurants in New York",
-                        ]
-                    })
+                    # ✅ Check for location_not_found specifically before the generic fallback
+                    if error_data.get("location_not_found"):
+                        error_metadata.update({
+                            "location_not_found": True,
+                            "clarification_message": error_data.get("clarification_message") or
+                                "I couldn't find that neighborhood.",
+                            "suggestions": error_data.get("suggestions") or [],
+                        })
+                    else:
+                        error_metadata.update({
+                            "clarification_message": error_data.get("clarification_message") or
+                                "Please provide more details about what you'd like to explore.",
+                            "suggestions": error_data.get("suggestions") or [
+                                "Museums and coffee shops in Boston",
+                                "Parks and restaurants in New York",
+                            ]
+                        })
                 yield f"data: {json.dumps({'done': True, 'success': False, 'adventures': [], 'metadata': error_metadata, 'message': error_metadata.get('clarification_message', 'Clarification needed')})}\n\n".encode("utf-8")
                 return
 
@@ -390,6 +399,18 @@ async def create_adventures(
                         "progress_log": progress_log if enable_progress else []
                     },
                     message="Request outside MiniQuest's scope"
+                )
+            if error_data.get("location_not_found"):
+                return AdventureResponse(
+                    success=False, adventures=[],
+                    metadata={
+                        "clarification_needed": True,
+                        "location_not_found": True,
+                        "clarification_message": error_data.get("clarification_message"),
+                        "suggestions": error_data.get("suggestions", []),
+                        "progress_log": progress_log if enable_progress else []
+                    },
+                    message="Neighborhood not found in user's city"
                 )
             return AdventureResponse(
                 success=False, adventures=[],

@@ -63,6 +63,8 @@ export interface AdventureMetadata {
 	recommended_services?: RecommendedService[];
 	detected_city?: string;
 
+	location_not_found?: boolean;   // ✅ neighborhood doesn't exist in user's city
+
 	clarification_needed?: boolean;
 	clarification_message?: string;
 	suggestions?: string[];
