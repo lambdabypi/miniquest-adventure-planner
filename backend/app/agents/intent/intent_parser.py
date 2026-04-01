@@ -19,6 +19,8 @@ class IntentParserAgent(BaseAgent):
         "parties":        ["bars", "nightlife", "cocktail bars", "rooftop bars", "dance clubs"],
         "nightlife":      ["bars", "nightlife", "cocktail bars", "dance clubs", "lounges"],
         "clubbing":       ["nightclubs", "dance clubs", "bars", "nightlife"],
+        "clubs":          ["nightclubs", "dance clubs", "bars", "nightlife"],
+        "club":           ["nightclubs", "dance clubs", "bars", "nightlife"],
         "bar hopping":    ["bars", "pubs", "breweries", "cocktail bars"],
         "drinks":         ["bars", "cocktail bars", "breweries", "wine bars"],
         "going out":      ["bars", "nightlife", "cocktail bars", "rooftop bars"],
@@ -312,7 +314,7 @@ CATEGORY 4: IN SCOPE ✅
 
 VIBE / MOOD WORDS → translate to real venue types in preferences[]:
   "party" / "going out" / "night out"   → bars, nightlife, cocktail bars, rooftop bars, nightclubs, dance clubs, bars
-  "clubbing"                            → nightclubs, dance clubs, bars
+  "clubbing" / "clubs" / "club"         → nightclubs, dance clubs, bars, nightlife
   "drinks" / "bar hopping"              → bars, breweries, cocktail bars, wine bars
   "date night" / "romantic"             → restaurants, wine bars, rooftop bars
   "chill" / "relaxing"                  → coffee shops, parks, bookstores

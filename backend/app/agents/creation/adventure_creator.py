@@ -61,13 +61,41 @@ class AdventureCreatorAgent(BaseAgent):
     ) -> List[Dict]:
         stops    = max(1, min(6, int(generation_options.get("stops_per_adventure", 3))))
         profiles = self._build_venue_profiles(researched_venues, enhanced_locations, target_location, stops)
+
+        # ✅ Pre-assign preferred venue slices per adventure BEFORE launching concurrent tasks.
+        # This ensures each adventure gets a distinct primary venue set regardless of execution order.
+        # asyncio.as_completed means used_sets would be empty for all tasks at launch time,
+        # making the soft exclude_venues prompt instruction the only guard — which the LLM ignores
+        # when the pool is small. Hard-filtering the profile list fed to each adventure fixes this.
+        n = len(profiles)
+        per_adventure_profiles: List[List[Dict]] = []
+        for i in range(ADVENTURE_COUNT):
+            start = i * stops
+            end   = start + stops
+            if end > n:
+                start = max(0, n - stops)
+                end   = n
+            # Preferred = the slice assigned to this adventure
+            preferred_names = [p["name"] for p in profiles[start:end]]
+            # Hard-exclude venues already assigned to earlier adventures
+            already_assigned = {
+                name
+                for j in range(i)
+                for name in [p["name"] for p in profiles[j * stops: min(j * stops + stops, n)]]
+            }
+            # Build a filtered profile list: preferred slice first, then remaining non-assigned venues
+            preferred_profiles  = [p for p in profiles if p["name"] in set(preferred_names)]
+            remaining_profiles  = [p for p in profiles if p["name"] not in already_assigned and p["name"] not in set(preferred_names)]
+            per_adventure_profiles.append(preferred_profiles + remaining_profiles)
+
         used_sets: List[List[str]] = []
         adventures: List[Dict] = []
 
         tasks = [
             self._create_single_adventure(
                 idx=i,
-                venue_profiles=profiles,
+                venue_profiles=per_adventure_profiles[i],
+                all_profiles=profiles,
                 preferences=preferences,
                 target_location=target_location,
                 generation_options=generation_options,
@@ -98,7 +126,8 @@ class AdventureCreatorAgent(BaseAgent):
     async def _create_single_adventure(
         self,
         idx: int,
-        venue_profiles: List[Dict],
+        venue_profiles: List[Dict],       # ✅ pre-filtered slice for this adventure
+        all_profiles: List[Dict],         # ✅ full pool (kept for fallback logging only)
         preferences: Dict,
         target_location: str,
         generation_options: Dict,
@@ -106,16 +135,12 @@ class AdventureCreatorAgent(BaseAgent):
         researched_venues: List[Dict],
     ) -> Optional[Dict]:
         stops = max(1, min(6, int(generation_options.get("stops_per_adventure", 3))))
-        names = [v["name"] for v in venue_profiles]
-        n     = len(names)
 
-        start = idx * stops
-        end   = start + stops
-        if end > n:
-            start = max(0, n - stops)
-            end   = n
-        preferred_slice = names[start:end]
-        already_used    = [v for s in used_sets for v in s]
+        # Preferred = first `stops` entries in the already-filtered profile list
+        preferred_slice = [v["name"] for v in venue_profiles[:stops]]
+        # exclude_venues stays as soft backup (belt-and-suspenders) but the hard
+        # filter from per_adventure_profiles is the primary enforcement
+        already_used = [v for s in used_sets for v in s]
 
         prompt = self._build_single_adventure_prompt(
             venue_profiles=venue_profiles,
@@ -281,7 +306,6 @@ FINAL CHECK:
                     or research.get("yelp_url")
                 )
 
-                # Description fallback: LLM result → editorial_summary → synthesised
                 description_clean = research.get("description_clean")
                 if not description_clean:
                     description_clean = research.get("editorial_summary")
@@ -311,7 +335,6 @@ FINAL CHECK:
                     "tavily_url":          research.get("tavily_url"),
                     "website":             research.get("website"),
                     "yelp_url":            research.get("yelp_url"),
-                    # ✅ structured + LLM fields
                     "hours_clean":         research.get("hours_clean"),
                     "price_tier":          research.get("price_tier"),
                     "description_clean":   description_clean,

@@ -31,6 +31,8 @@ DISCOVERY_QUERIES: Dict[str, List[str]] = {
     "nightlife":      ["{city} best nightlife bars clubs {year}", "{city} top bars nightlife scene {year}"],
     "nightclubs":     ["{city} best nightclubs dance venues {year}"],
     "rooftop bars":   ["{city} rooftop bars {year}"],
+    "clubs":          ["{city} best nightclubs clubs {year}", "{city} top dance clubs nightlife {year}"],
+    "club":           ["{city} best nightclubs clubs {year}"],
     "wine bars":      ["{city} best wine bars {year}"],
     "breweries":      ["{city} best breweries taprooms {year}"],
     "restaurants":    ["{city} best restaurants {year}", "{city} top local restaurants hidden gems {year}"],
