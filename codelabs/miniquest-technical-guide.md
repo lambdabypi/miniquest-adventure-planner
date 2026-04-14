@@ -13,7 +13,7 @@ Duration: 5
 
 ### What is MiniQuest?
 
-MiniQuest is a production-ready AI-powered local adventure planner. You describe what you are in the mood for, and it generates three complete single-day itineraries backed by real-time research. It currently operates in **Boston, MA** and **New York City, NY**.
+MiniQuest is a production-ready AI-powered local adventure planner. You describe what you are in the mood for, and it generates three complete single-day itineraries backed by real-time research. It currently operates **across the United States**.
 
 It is not a recommendation list. Each itinerary includes ordered venues, travel routes, live hours and prices, per-step transit directions, and a narrative connecting the stops. Results improve over time through RAG-based personalization built on your history.
 

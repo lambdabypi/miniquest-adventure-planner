@@ -1,78 +1,83 @@
-
 <!doctype html>
 
 <html>
+
 <head>
   <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
   <meta name="theme-color" content="#4F7DC9">
   <meta charset="UTF-8">
   <title>MiniQuest: Complete Technical Documentation</title>
-  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet"
+    href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
   <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
   <link rel="stylesheet" href="https://storage.googleapis.com/claat-public/codelab-elements.css">
   <style>
     .success {
       color: #1e8e3e;
     }
+
     .error {
       color: red;
     }
   </style>
 </head>
+
 <body>
   <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
-  <google-codelab codelab-gaid="0"
-                  id="miniquest-technical-complete"
-                  title="MiniQuest: Complete Technical Documentation"
-                  environment="web"
-                  feedback-link="">
-    
-      <google-codelab-step label="Overview" duration="5">
-        <h2 is-upgraded>What is MiniQuest?</h2>
-<p>MiniQuest is a production-ready AI-powered local adventure planner. You describe what you are in the mood for, and it generates three complete single-day itineraries backed by real-time research. It currently operates in <strong>Boston, MA</strong> and <strong>New York City, NY</strong>.</p>
-<p>It is not a recommendation list. Each itinerary includes ordered venues, travel routes, live hours and prices, per-step transit directions, and a narrative connecting the stops. Results improve over time through RAG-based personalization built on your history.</p>
-<h2 is-upgraded>Key Capabilities</h2>
-<ul>
-<li>Natural language intent parsing with meal, time-of-day, group-size, and vibe-word awareness</li>
-<li>Three-path venue discovery: Google Places (primary), Tavily (fallback), GPT-4o knowledge (last resort)</li>
-<li>Real-time venue research across up to 18 venues in parallel</li>
-<li>RAG-based personalization using ChromaDB and OpenAI embeddings</li>
-<li>Google Maps route optimization with per-step transit directions</li>
-<li>Live MBTA transit integration for Boston itineraries</li>
-<li>Redis research caching with 90%+ hit rate on warm cache</li>
-<li>Configurable generation: stops per adventure (1–6) and diversity mode (standard / high / fresh)</li>
-<li>Progressive streaming: each adventure emitted to the frontend as soon as it is ready</li>
-<li>Full user auth, saved adventures, sharing, social feed, and analytics</li>
-</ul>
-<h2 is-upgraded>Technology Stack</h2>
-<p><strong>Backend:</strong></p>
-<ul>
-<li>Python 3.11, FastAPI, LangGraph</li>
-<li>OpenAI GPT-4o and GPT-4o-mini</li>
-<li>Tavily API (search and extract)</li>
-<li>MongoDB Atlas, ChromaDB, Redis</li>
-<li>Google Maps API, MBTA V3 API</li>
-</ul>
-<p><strong>Frontend:</strong></p>
-<ul>
-<li>React 18 with TypeScript, Vite</li>
-<li>Glassmorphism design, dark/light theme system</li>
-<li>React Native 0.83, Expo SDK 55 (mobile)</li>
-</ul>
-<p><strong>Infrastructure:</strong></p>
-<ul>
-<li>GCP Cloud Run (backend, us-east1)</li>
-<li>Firebase Hosting (frontend)</li>
-<li>GCP Artifact Registry, Cloud Build, Secret Manager</li>
-<li>MongoDB Atlas, Redis</li>
-</ul>
+  <google-codelab codelab-gaid="0" id="miniquest-technical-complete" title="MiniQuest: Complete Technical Documentation"
+    environment="web" feedback-link="">
+
+    <google-codelab-step label="Overview" duration="5">
+      <h2 is-upgraded>What is MiniQuest?</h2>
+      <p>MiniQuest is a production-ready AI-powered local adventure planner. You describe what you are in the mood for,
+        and it generates three complete single-day itineraries backed by real-time research. It currently operates
+        <strong>across the United States</strong>.
+      </p>
+      <p>It is not a recommendation list. Each itinerary includes ordered venues, travel routes, live hours and prices,
+        per-step transit directions, and a narrative connecting the stops. Results improve over time through RAG-based
+        personalization built on your history.</p>
+      <h2 is-upgraded>Key Capabilities</h2>
+      <ul>
+        <li>Natural language intent parsing with meal, time-of-day, group-size, and vibe-word awareness</li>
+        <li>Three-path venue discovery: Google Places (primary), Tavily (fallback), GPT-4o knowledge (last resort)</li>
+        <li>Real-time venue research across up to 18 venues in parallel</li>
+        <li>RAG-based personalization using ChromaDB and OpenAI embeddings</li>
+        <li>Google Maps route optimization with per-step transit directions</li>
+        <li>Live MBTA transit integration for Boston itineraries</li>
+        <li>Redis research caching with 90%+ hit rate on warm cache</li>
+        <li>Configurable generation: stops per adventure (1–6) and diversity mode (standard / high / fresh)</li>
+        <li>Progressive streaming: each adventure emitted to the frontend as soon as it is ready</li>
+        <li>Full user auth, saved adventures, sharing, social feed, and analytics</li>
+      </ul>
+      <h2 is-upgraded>Technology Stack</h2>
+      <p><strong>Backend:</strong></p>
+      <ul>
+        <li>Python 3.11, FastAPI, LangGraph</li>
+        <li>OpenAI GPT-4o and GPT-4o-mini</li>
+        <li>Tavily API (search and extract)</li>
+        <li>MongoDB Atlas, ChromaDB, Redis</li>
+        <li>Google Maps API, MBTA V3 API</li>
+      </ul>
+      <p><strong>Frontend:</strong></p>
+      <ul>
+        <li>React 18 with TypeScript, Vite</li>
+        <li>Glassmorphism design, dark/light theme system</li>
+        <li>React Native 0.83, Expo SDK 55 (mobile)</li>
+      </ul>
+      <p><strong>Infrastructure:</strong></p>
+      <ul>
+        <li>GCP Cloud Run (backend, us-east1)</li>
+        <li>Firebase Hosting (frontend)</li>
+        <li>GCP Artifact Registry, Cloud Build, Secret Manager</li>
+        <li>MongoDB Atlas, Redis</li>
+      </ul>
 
 
-      </google-codelab-step>
-    
-      <google-codelab-step label="System Architecture" duration="8">
-        <h2 is-upgraded>High-Level Overview</h2>
-<pre><code>Browser / Mobile App
+    </google-codelab-step>
+
+    <google-codelab-step label="System Architecture" duration="8">
+      <h2 is-upgraded>High-Level Overview</h2>
+      <pre><code>Browser / Mobile App
         |
         | HTTPS
         v
@@ -90,60 +95,137 @@
                ChromaDB      Tavily API    OpenAI API
                (RAG)         (research)    (LLM)
 </code></pre>
-<h2 is-upgraded>The 6-Agent Pipeline</h2>
-<p>The workflow is a LangGraph <code>StateGraph</code>. Each node receives the full accumulated <code>AdventureState</code> and returns a partial update. After IntentParser, a conditional edge short-circuits the pipeline to <code>END</code> for out-of-scope or clarification-needed errors.</p>
-<table>
-<tr><td colspan="1" rowspan="1"><p>Step</p>
-</td><td colspan="1" rowspan="1"><p>Node</p>
-</td><td colspan="1" rowspan="1"><p>Agent</p>
-</td><td colspan="1" rowspan="1"><p>Progress</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>1</p>
-</td><td colspan="1" rowspan="1"><p><code>parse_location</code></p>
-</td><td colspan="1" rowspan="1"><p>LocationParser</p>
-</td><td colspan="1" rowspan="1"><p>14%</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>1.5</p>
-</td><td colspan="1" rowspan="1"><p><code>get_personalization</code></p>
-</td><td colspan="1" rowspan="1"><p>RAG System</p>
-</td><td colspan="1" rowspan="1"><p>29%</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>2</p>
-</td><td colspan="1" rowspan="1"><p><code>parse_intent</code></p>
-</td><td colspan="1" rowspan="1"><p>IntentParser</p>
-</td><td colspan="1" rowspan="1"><p>28%</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>3</p>
-</td><td colspan="1" rowspan="1"><p><code>scout_venues</code></p>
-</td><td colspan="1" rowspan="1"><p>VenueScout</p>
-</td><td colspan="1" rowspan="1"><p>43%</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>4</p>
-</td><td colspan="1" rowspan="1"><p><code>research_venues</code></p>
-</td><td colspan="1" rowspan="1"><p>TavilyResearch</p>
-</td><td colspan="1" rowspan="1"><p>71%</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>5</p>
-</td><td colspan="1" rowspan="1"><p><code>enhance_routing</code></p>
-</td><td colspan="1" rowspan="1"><p>RoutingAgent</p>
-</td><td colspan="1" rowspan="1"><p>85%</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>6</p>
-</td><td colspan="1" rowspan="1"><p><code>create_adventures</code></p>
-</td><td colspan="1" rowspan="1"><p>AdventureCreator</p>
-</td><td colspan="1" rowspan="1"><p>100%</p>
-</td></tr>
-</table>
-<p>Positive : <code>research_summary_agent.py</code> still exists on disk but its node was removed from the active graph, saving 3–15 seconds per generation. Its work is absorbed by TavilyResearch and AdventureCreator directly.</p>
-<h2 is-upgraded>Edge Map</h2>
-<pre><code>parse_location → get_personalization → parse_intent
+      <h2 is-upgraded>The 6-Agent Pipeline</h2>
+      <p>The workflow is a LangGraph <code>StateGraph</code>. Each node receives the full accumulated
+        <code>AdventureState</code> and returns a partial update. After IntentParser, a conditional edge short-circuits
+        the pipeline to <code>END</code> for out-of-scope or clarification-needed errors.
+      </p>
+      <table>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Step</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Node</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Agent</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Progress</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>1</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p><code>parse_location</code></p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>LocationParser</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>14%</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>1.5</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p><code>get_personalization</code></p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>RAG System</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>29%</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>2</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p><code>parse_intent</code></p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>IntentParser</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>28%</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>3</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p><code>scout_venues</code></p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>VenueScout</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>43%</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>4</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p><code>research_venues</code></p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>TavilyResearch</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>71%</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>5</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p><code>enhance_routing</code></p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>RoutingAgent</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>85%</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>6</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p><code>create_adventures</code></p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>AdventureCreator</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>100%</p>
+          </td>
+        </tr>
+      </table>
+      <p>Positive : <code>research_summary_agent.py</code> still exists on disk but its node was removed from the active
+        graph, saving 3–15 seconds per generation. Its work is absorbed by TavilyResearch and AdventureCreator directly.
+      </p>
+      <h2 is-upgraded>Edge Map</h2>
+      <pre><code>parse_location → get_personalization → parse_intent
 parse_intent → scout_venues  (in scope)
 parse_intent → END           (out of scope / clarification needed)
 scout_venues → research_venues → enhance_routing → create_adventures → END
 </code></pre>
-<h2 is-upgraded>Workflow State</h2>
-<p>Defined in <code>workflow_state.py</code> as <code>AdventureState(TypedDict, total=False)</code>:</p>
-<pre><code language="language-python" class="language-python">user_input: str
+      <h2 is-upgraded>Workflow State</h2>
+      <p>Defined in <code>workflow_state.py</code> as <code>AdventureState(TypedDict, total=False)</code>:</p>
+      <pre><code language="language-python" class="language-python">user_input: str
 user_address: Optional[str]
 user_id: Optional[str]
 generation_options: Optional[Dict]   # stops_per_adventure, diversity_mode, exclude_venues
@@ -162,123 +244,174 @@ metadata: Dict
 error: Optional[Dict]
 progress_updates: List[Dict]
 </code></pre>
-<h2 is-upgraded>Performance</h2>
-<table>
-<tr><td colspan="1" rowspan="1"><p>Scenario</p>
-</td><td colspan="1" rowspan="1"><p>Time</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>Cold cache, full pipeline</p>
-</td><td colspan="1" rowspan="1"><p>~20s</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>Warm cache (90%+ hit rate)</p>
-</td><td colspan="1" rowspan="1"><p>~4s</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>Fully cached</p>
-</td><td colspan="1" rowspan="1"><p>~1.5s</p>
-</td></tr>
-</table>
-<p>TavilyResearch accounts for most cold-cache time. It runs up to 18 parallel searches using <code>asyncio.TaskGroup</code>. AdventureCreator creates all three itineraries concurrently using <code>asyncio.as_completed</code>, streaming each one to the frontend as it finishes.</p>
+      <h2 is-upgraded>Performance</h2>
+      <table>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Scenario</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Time</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Cold cache, full pipeline</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>~20s</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Warm cache (90%+ hit rate)</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>~4s</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Fully cached</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>~1.5s</p>
+          </td>
+        </tr>
+      </table>
+      <p>TavilyResearch accounts for most cold-cache time. It runs up to 18 parallel searches using
+        <code>asyncio.TaskGroup</code>. AdventureCreator creates all three itineraries concurrently using
+        <code>asyncio.as_completed</code>, streaming each one to the frontend as it finishes.
+      </p>
 
 
-      </google-codelab-step>
-    
-      <google-codelab-step label="Backend - Agents" duration="15">
-        <h2 is-upgraded>LocationParser</h2>
-<p><code>location_parser.py</code> uses pattern matching to extract explicit location names from the query first, then normalizes via GPT-4o-mini to handle cities, landmarks, parks, and neighborhoods. The <code>user_address</code> field is preserved in state as the routing origin but does not override a location name found in the query text. Defaults to <code>Boston, MA</code> if nothing is found.</p>
-<h2 is-upgraded>IntentParser</h2>
-<p><code>intent_parser.py</code> enforces the Boston/NYC city constraint before any parsing. Out-of-scope queries (unsupported cities, international travel, multi-day trips, accommodation, trip budgets) are caught here and short-circuit the pipeline.</p>
-<p>A <code>VIBE_TO_VENUES</code> mapping translates casual language to concrete venue categories before the GPT-4o-mini call:</p>
-<pre><code>&#34;chill&#34;       → coffee shops, parks, bookstores, cafes
+    </google-codelab-step>
+
+    <google-codelab-step label="Backend - Agents" duration="15">
+      <h2 is-upgraded>LocationParser</h2>
+      <p><code>location_parser.py</code> uses pattern matching to extract explicit location names from the query first,
+        then normalizes via GPT-4o-mini to handle cities, landmarks, parks, and neighborhoods. The
+        <code>user_address</code> field is preserved in state as the routing origin but does not override a location
+        name found in the query text. Defaults to <code>Boston, MA</code> if nothing is found.
+      </p>
+      <h2 is-upgraded>IntentParser</h2>
+      <p><code>intent_parser.py</code> enforces the Boston/NYC city constraint before any parsing. Out-of-scope queries
+        (unsupported cities, international travel, multi-day trips, accommodation, trip budgets) are caught here and
+        short-circuit the pipeline.</p>
+      <p>A <code>VIBE_TO_VENUES</code> mapping translates casual language to concrete venue categories before the
+        GPT-4o-mini call:</p>
+      <pre><code>&#34;chill&#34;       → coffee shops, parks, bookstores, cafes
 &#34;party&#34;       → bars, nightlife, cocktail bars, rooftop bars, dance clubs
 &#34;date night&#34;  → wine bars, restaurants, cocktail bars, romantic venues
 &#34;birthday&#34;    → bars, rooftop bars, nightlife, cocktail bars
 </code></pre>
-<p>Extracted fields: <code>preferences</code>, <code>activities</code>, <code>themes</code>, <code>meal_context</code>, <code>time_of_day</code>, <code>group_size</code>, <code>special_occasion</code>.</p>
-<h2 is-upgraded>VenueScout</h2>
-<p><code>venue_scout.py</code> uses three discovery paths in priority order:</p>
-<p><strong>Path 1 - Google Places</strong> (when <code>GOOGLE_MAPS_KEY</code> is set)</p>
-<ul>
-<li>Geocodes the city/address to lat/lng</li>
-<li>Runs parallel nearby searches per preference using <code>asyncio.gather</code> (up to 6 preferences)</li>
-<li>Uses <code>PREF_TO_PLACE_TYPE</code> for type searches and <code>PREF_TO_SEARCH_QUERY</code> for text searches on specific categories like &#34;rooftop bars&#34; or &#34;brunch spots&#34;</li>
-<li>Deduplicates, selects a diverse set of up to 12 venues</li>
-<li>Batch-fetches official websites for all venues via <code>_fetch_websites_for_venues</code></li>
-</ul>
-<p><strong>Path 2 - Tavily</strong> (<code>tavily_scout.py</code>, when Google Maps is unavailable)</p>
-<ul>
-<li><code>TavilyVenueScout</code> builds search queries per preference and runs up to 6 concurrent Tavily searches</li>
-<li><code>diversity_mode</code> controls query variation: <code>standard</code> = deterministic, <code>high</code> = random modifiers appended, <code>fresh</code> = also rotates source domains</li>
-</ul>
-<p><strong>Path 3 - GPT-4o knowledge base</strong> (last resort fallback)</p>
-<h2 is-upgraded>TavilyResearch</h2>
-<p><code>discovery_agent.py</code> caps the venue pool at <code>min(stops * 3, 18)</code>. For each venue it calls Tavily Search then Tavily Extract, pulling current hours, prices, reviews, and notable details. Runs with 8-way concurrency via <code>asyncio.TaskGroup</code>.</p>
-<p>Before each call it checks Redis via <code>research_cache.py</code>:</p>
-<pre><code>Key:   venue:{name}:{location}:{date}
+      <p>Extracted fields: <code>preferences</code>, <code>activities</code>, <code>themes</code>,
+        <code>meal_context</code>, <code>time_of_day</code>, <code>group_size</code>, <code>special_occasion</code>.
+      </p>
+      <h2 is-upgraded>VenueScout</h2>
+      <p><code>venue_scout.py</code> uses three discovery paths in priority order:</p>
+      <p><strong>Path 1 - Google Places</strong> (when <code>GOOGLE_MAPS_KEY</code> is set)</p>
+      <ul>
+        <li>Geocodes the city/address to lat/lng</li>
+        <li>Runs parallel nearby searches per preference using <code>asyncio.gather</code> (up to 6 preferences)</li>
+        <li>Uses <code>PREF_TO_PLACE_TYPE</code> for type searches and <code>PREF_TO_SEARCH_QUERY</code> for text
+          searches on specific categories like &#34;rooftop bars&#34; or &#34;brunch spots&#34;</li>
+        <li>Deduplicates, selects a diverse set of up to 12 venues</li>
+        <li>Batch-fetches official websites for all venues via <code>_fetch_websites_for_venues</code></li>
+      </ul>
+      <p><strong>Path 2 - Tavily</strong> (<code>tavily_scout.py</code>, when Google Maps is unavailable)</p>
+      <ul>
+        <li><code>TavilyVenueScout</code> builds search queries per preference and runs up to 6 concurrent Tavily
+          searches</li>
+        <li><code>diversity_mode</code> controls query variation: <code>standard</code> = deterministic,
+          <code>high</code> = random modifiers appended, <code>fresh</code> = also rotates source domains
+        </li>
+      </ul>
+      <p><strong>Path 3 - GPT-4o knowledge base</strong> (last resort fallback)</p>
+      <h2 is-upgraded>TavilyResearch</h2>
+      <p><code>discovery_agent.py</code> caps the venue pool at <code>min(stops * 3, 18)</code>. For each venue it calls
+        Tavily Search then Tavily Extract, pulling current hours, prices, reviews, and notable details. Runs with 8-way
+        concurrency via <code>asyncio.TaskGroup</code>.</p>
+      <p>Before each call it checks Redis via <code>research_cache.py</code>:</p>
+      <pre><code>Key:   venue:{name}:{location}:{date}
 Value: JSON research result
 TTL:   86400 seconds (24 hours)
 </code></pre>
-<h2 is-upgraded>RoutingAgent</h2>
-<p><code>enhanced_routing_agent.py</code> and <code>google_maps_enhancer.py</code> resolve each venue to a street-level address using parallel Google Places lookups. Closed businesses detected during lookup are rejected. A name-similarity guard (SequenceMatcher, threshold 0.6) prevents swapping an address from the wrong business.</p>
-<p>Google Maps URLs are built with origin, waypoints (up to 9), and destination. For Boston itineraries, live MBTA transit directions are injected per step.</p>
-<h2 is-upgraded>AdventureCreator</h2>
-<p><code>adventure_creator.py</code> creates 3 adventures concurrently using <code>asyncio.as_completed</code> and streams each one to the frontend as it finishes via an <code>on_adventure_ready</code> callback:</p>
-<pre><code language="language-python" class="language-python">tasks = [self._create_single_adventure(i, ...) for i in range(3)]
+      <h2 is-upgraded>RoutingAgent</h2>
+      <p><code>enhanced_routing_agent.py</code> and <code>google_maps_enhancer.py</code> resolve each venue to a
+        street-level address using parallel Google Places lookups. Closed businesses detected during lookup are
+        rejected. A name-similarity guard (SequenceMatcher, threshold 0.6) prevents swapping an address from the wrong
+        business.</p>
+      <p>Google Maps URLs are built with origin, waypoints (up to 9), and destination. For Boston itineraries, live MBTA
+        transit directions are injected per step.</p>
+      <h2 is-upgraded>AdventureCreator</h2>
+      <p><code>adventure_creator.py</code> creates 3 adventures concurrently using <code>asyncio.as_completed</code> and
+        streams each one to the frontend as it finishes via an <code>on_adventure_ready</code> callback:</p>
+      <pre><code language="language-python" class="language-python">tasks = [self._create_single_adventure(i, ...) for i in range(3)]
 for coro in asyncio.as_completed(tasks):
     adventure = await coro
     if on_adventure_ready:
         await on_adventure_ready(adventure, len(adventures))
 </code></pre>
-<p>The prompt honours <code>stops_per_adventure</code> (1–6), <code>diversity_mode</code>, and <code>exclude_venues</code> from <code>generation_options</code>. Each adventure uses a different subset of the venue pool with distinct themes.</p>
-<h2 is-upgraded>Generation Options</h2>
-<p><code>GenerationOptions</code> is defined in <code>api_models.py</code> and flows through the full stack:</p>
-<pre><code language="language-python" class="language-python">class GenerationOptions(BaseModel):
+      <p>The prompt honours <code>stops_per_adventure</code> (1–6), <code>diversity_mode</code>, and
+        <code>exclude_venues</code> from <code>generation_options</code>. Each adventure uses a different subset of the
+        venue pool with distinct themes.
+      </p>
+      <h2 is-upgraded>Generation Options</h2>
+      <p><code>GenerationOptions</code> is defined in <code>api_models.py</code> and flows through the full stack:</p>
+      <pre><code language="language-python" class="language-python">class GenerationOptions(BaseModel):
     stops_per_adventure: int = Field(default=3, ge=1, le=6)
     diversity_mode: str = &#34;standard&#34;   # standard | high | fresh
     exclude_venues: List[str] = []
 </code></pre>
-<p>The frontend exposes this as a collapsible options panel with a stops slider and three diversity mode buttons.</p>
-<h2 is-upgraded>RAG Personalization</h2>
-<p><code>core/rag/rag_system.py</code> uses ChromaDB with <code>text-embedding-3-small</code>. Two collections:</p>
-<ul>
-<li><code>user_adventure_history</code> - one document per saved adventure per user, queried at <code>get_personalization</code> to surface preferred themes, locations, and ratings</li>
-<li><code>dynamic_location_tips</code> - Tavily-sourced local tips with an <code>authenticity_score</code> for ranking</li>
-</ul>
-<p>When a user saves an adventure via <code>/api/saved-adventures</code>, it is also written to ChromaDB.</p>
-<h2 is-upgraded>Telemetry</h2>
-<p><code>core/telemetry.py</code> initializes OpenTelemetry at FastAPI startup. Span names:</p>
-<ul>
-<li><code>miniquest.generate_adventures</code> - full workflow</li>
-<li><code>miniquest.agent.location_parser</code></li>
-<li><code>miniquest.agent.venue_scout</code></li>
-<li><code>miniquest.agent.tavily_research</code></li>
-<li><code>miniquest.agent.routing</code></li>
-<li><code>miniquest.agent.adventure_creator</code></li>
-</ul>
-<p>Set <code>OBSERVABILITY_ENABLED=false</code> to disable cleanly (substitutes a no-op tracer).</p>
+      <p>The frontend exposes this as a collapsible options panel with a stops slider and three diversity mode buttons.
+      </p>
+      <h2 is-upgraded>RAG Personalization</h2>
+      <p><code>core/rag/rag_system.py</code> uses ChromaDB with <code>text-embedding-3-small</code>. Two collections:
+      </p>
+      <ul>
+        <li><code>user_adventure_history</code> - one document per saved adventure per user, queried at
+          <code>get_personalization</code> to surface preferred themes, locations, and ratings
+        </li>
+        <li><code>dynamic_location_tips</code> - Tavily-sourced local tips with an <code>authenticity_score</code> for
+          ranking</li>
+      </ul>
+      <p>When a user saves an adventure via <code>/api/saved-adventures</code>, it is also written to ChromaDB.</p>
+      <h2 is-upgraded>Telemetry</h2>
+      <p><code>core/telemetry.py</code> initializes OpenTelemetry at FastAPI startup. Span names:</p>
+      <ul>
+        <li><code>miniquest.generate_adventures</code> - full workflow</li>
+        <li><code>miniquest.agent.location_parser</code></li>
+        <li><code>miniquest.agent.venue_scout</code></li>
+        <li><code>miniquest.agent.tavily_research</code></li>
+        <li><code>miniquest.agent.routing</code></li>
+        <li><code>miniquest.agent.adventure_creator</code></li>
+      </ul>
+      <p>Set <code>OBSERVABILITY_ENABLED=false</code> to disable cleanly (substitutes a no-op tracer).</p>
 
 
-      </google-codelab-step>
-    
-      <google-codelab-step label="Backend - API Routes" duration="7">
-        <h2 is-upgraded>Authentication <code>/api/auth</code></h2>
-<p><strong>POST /api/auth/register</strong></p>
-<pre><code language="language-json" class="language-json">// Request
+    </google-codelab-step>
+
+    <google-codelab-step label="Backend - API Routes" duration="7">
+      <h2 is-upgraded>Authentication <code>/api/auth</code></h2>
+      <p><strong>POST /api/auth/register</strong></p>
+      <pre><code language="language-json" class="language-json">// Request
 { &#34;email&#34;: &#34;...&#34;, &#34;username&#34;: &#34;...&#34;, &#34;full_name&#34;: &#34;...&#34;, &#34;password&#34;: &#34;...&#34; }
 
 // Response
 { &#34;access_token&#34;: &#34;eyJ...&#34;, &#34;token_type&#34;: &#34;bearer&#34;, &#34;user&#34;: { &#34;id&#34;: &#34;...&#34;, &#34;email&#34;: &#34;...&#34;, &#34;username&#34;: &#34;...&#34; } }
 </code></pre>
-<p><strong>POST /api/auth/login</strong></p>
-<pre><code language="language-json" class="language-json">// Request
+      <p><strong>POST /api/auth/login</strong></p>
+      <pre><code language="language-json" class="language-json">// Request
 { &#34;email&#34;: &#34;...&#34;, &#34;password&#34;: &#34;...&#34; }
 
 // Response
 { &#34;access_token&#34;: &#34;eyJ...&#34;, &#34;token_type&#34;: &#34;bearer&#34;, &#34;user&#34;: { ... } }
 </code></pre>
-<p><strong>GET /api/auth/me</strong> - protected, returns current user.</p>
-<h2 is-upgraded>Adventures <code>/api/adventures</code></h2>
-<p><strong>POST /api/adventures</strong> (protected)</p>
-<pre><code language="language-json" class="language-json">// Request
+      <p><strong>GET /api/auth/me</strong> - protected, returns current user.</p>
+      <h2 is-upgraded>Adventures <code>/api/adventures</code></h2>
+      <p><strong>POST /api/adventures</strong> (protected)</p>
+      <pre><code language="language-json" class="language-json">// Request
 {
   &#34;user_input&#34;: &#34;coffee shops and museums in Boston&#34;,
   &#34;user_address&#34;: &#34;123 Newbury St, Boston, MA&#34;,
@@ -302,82 +435,169 @@ for coro in asyncio.as_completed(tasks):
   }
 }
 </code></pre>
-<p>When <code>enable_progress</code> is true, SSE progress updates are emitted:</p>
-<pre><code language="language-json" class="language-json">{ &#34;step&#34;: &#34;scout_venues&#34;, &#34;agent&#34;: &#34;VenueScout&#34;, &#34;status&#34;: &#34;in_progress&#34;, &#34;progress&#34;: 0.43, &#34;message&#34;: &#34;Found 14 venues via Google Places&#34; }
+      <p>When <code>enable_progress</code> is true, SSE progress updates are emitted:</p>
+      <pre><code language="language-json" class="language-json">{ &#34;step&#34;: &#34;scout_venues&#34;, &#34;agent&#34;: &#34;VenueScout&#34;, &#34;status&#34;: &#34;in_progress&#34;, &#34;progress&#34;: 0.43, &#34;message&#34;: &#34;Found 14 venues via Google Places&#34; }
 </code></pre>
-<p>Progress statuses: <code>in_progress</code>, <code>complete</code>, <code>error</code>, <code>clarification_needed</code>, <code>adventure_ready</code>.</p>
-<h2 is-upgraded>Saved Adventures <code>/api/saved-adventures</code></h2>
-<p>All protected.</p>
-<table>
-<tr><td colspan="1" rowspan="1"><p>Method</p>
-</td><td colspan="1" rowspan="1"><p>Path</p>
-</td><td colspan="1" rowspan="1"><p>Description</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>POST</p>
-</td><td colspan="1" rowspan="1"><p>/api/saved-adventures</p>
-</td><td colspan="1" rowspan="1"><p>Save an adventure</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>GET</p>
-</td><td colspan="1" rowspan="1"><p>/api/saved-adventures</p>
-</td><td colspan="1" rowspan="1"><p>List saved (<code>limit</code>, <code>completed</code> params)</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>GET</p>
-</td><td colspan="1" rowspan="1"><p>/api/saved-adventures/{id}</p>
-</td><td colspan="1" rowspan="1"><p>Get one</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>PUT</p>
-</td><td colspan="1" rowspan="1"><p>/api/saved-adventures/{id}</p>
-</td><td colspan="1" rowspan="1"><p>Update rating, notes, tags, completed</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>DELETE</p>
-</td><td colspan="1" rowspan="1"><p>/api/saved-adventures/{id}</p>
-</td><td colspan="1" rowspan="1"><p>Delete</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>GET</p>
-</td><td colspan="1" rowspan="1"><p>/api/saved-adventures/personalization/insights</p>
-</td><td colspan="1" rowspan="1"><p>Personalization insights</p>
-</td></tr>
-</table>
-<h2 is-upgraded>Chat, Share, Social</h2>
-<p><strong>Chat</strong> (<code>/api/chat</code>): create, list, get, delete conversations.</p>
-<p><strong>Share</strong> (<code>/api/share</code>):</p>
-<ul>
-<li><code>POST /api/share</code> - creates a public link expiring in 30 days</li>
-<li><code>GET /api/share/{share_id}</code> - public, no auth. Returns 404 if not found, 410 if expired.</li>
-</ul>
-<p><strong>Social</strong> (<code>/api/social</code>): feed (limit/offset), create post (max 500 chars), toggle like, add comment, delete own post.</p>
-<h2 is-upgraded>Analytics and System</h2>
-<table>
-<tr><td colspan="1" rowspan="1"><p>Path</p>
-</td><td colspan="1" rowspan="1"><p>Description</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>GET /api/analytics/summary</p>
-</td><td colspan="1" rowspan="1"><p>User analytics</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>GET /api/performance/cache/stats</p>
-</td><td colspan="1" rowspan="1"><p>Redis cache stats</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>GET /api/performance/info</p>
-</td><td colspan="1" rowspan="1"><p>System performance info</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>GET /health</p>
-</td><td colspan="1" rowspan="1"><p>Health check (no auth)</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>GET /api/status</p>
-</td><td colspan="1" rowspan="1"><p>Component status</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>GET /docs</p>
-</td><td colspan="1" rowspan="1"><p>Swagger UI</p>
-</td></tr>
-</table>
+      <p>Progress statuses: <code>in_progress</code>, <code>complete</code>, <code>error</code>,
+        <code>clarification_needed</code>, <code>adventure_ready</code>.
+      </p>
+      <h2 is-upgraded>Saved Adventures <code>/api/saved-adventures</code></h2>
+      <p>All protected.</p>
+      <table>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Method</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Path</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Description</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>POST</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>/api/saved-adventures</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Save an adventure</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>GET</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>/api/saved-adventures</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>List saved (<code>limit</code>, <code>completed</code> params)</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>GET</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>/api/saved-adventures/{id}</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Get one</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>PUT</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>/api/saved-adventures/{id}</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Update rating, notes, tags, completed</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>DELETE</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>/api/saved-adventures/{id}</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Delete</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>GET</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>/api/saved-adventures/personalization/insights</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Personalization insights</p>
+          </td>
+        </tr>
+      </table>
+      <h2 is-upgraded>Chat, Share, Social</h2>
+      <p><strong>Chat</strong> (<code>/api/chat</code>): create, list, get, delete conversations.</p>
+      <p><strong>Share</strong> (<code>/api/share</code>):</p>
+      <ul>
+        <li><code>POST /api/share</code> - creates a public link expiring in 30 days</li>
+        <li><code>GET /api/share/{share_id}</code> - public, no auth. Returns 404 if not found, 410 if expired.</li>
+      </ul>
+      <p><strong>Social</strong> (<code>/api/social</code>): feed (limit/offset), create post (max 500 chars), toggle
+        like, add comment, delete own post.</p>
+      <h2 is-upgraded>Analytics and System</h2>
+      <table>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Path</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Description</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>GET /api/analytics/summary</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>User analytics</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>GET /api/performance/cache/stats</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Redis cache stats</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>GET /api/performance/info</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>System performance info</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>GET /health</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Health check (no auth)</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>GET /api/status</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Component status</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>GET /docs</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Swagger UI</p>
+          </td>
+        </tr>
+      </table>
 
 
-      </google-codelab-step>
-    
-      <google-codelab-step label="Database Schema" duration="6">
-        <h2 is-upgraded>MongoDB Collections</h2>
-<p><strong>users</strong></p>
-<pre><code language="language-json" class="language-json">{
+    </google-codelab-step>
+
+    <google-codelab-step label="Database Schema" duration="6">
+      <h2 is-upgraded>MongoDB Collections</h2>
+      <p><strong>users</strong></p>
+      <pre><code language="language-json" class="language-json">{
   &#34;_id&#34;: &#34;ObjectId&#34;,
   &#34;email&#34;: &#34;user@example.com&#34;,
   &#34;username&#34;: &#34;johndoe&#34;,
@@ -388,8 +608,8 @@ for coro in asyncio.as_completed(tasks):
   &#34;preferences&#34;: { &#34;default_location&#34;: &#34;Boston, MA&#34; }
 }
 </code></pre>
-<p><strong>user_queries</strong> (lightweight metadata only)</p>
-<pre><code language="language-json" class="language-json">{
+      <p><strong>user_queries</strong> (lightweight metadata only)</p>
+      <pre><code language="language-json" class="language-json">{
   &#34;user_id&#34;: &#34;ObjectId&#34;,
   &#34;user_input&#34;: &#34;coffee shops and bookstores in Boston&#34;,
   &#34;adventures_count&#34;: 3,
@@ -402,9 +622,10 @@ for coro in asyncio.as_completed(tasks):
   &#34;created_at&#34;: &#34;ISODate&#34;
 }
 </code></pre>
-<p>Positive : Full adventure data is excluded from <code>user_queries</code>. It is only stored when the user explicitly saves, reducing storage by ~97%.</p>
-<p><strong>saved_adventures</strong></p>
-<pre><code language="language-json" class="language-json">{
+      <p>Positive : Full adventure data is excluded from <code>user_queries</code>. It is only stored when the user
+        explicitly saves, reducing storage by ~97%.</p>
+      <p><strong>saved_adventures</strong></p>
+      <pre><code language="language-json" class="language-json">{
   &#34;user_id&#34;: &#34;ObjectId&#34;,
   &#34;adventure_data&#34;: {},
   &#34;rating&#34;: 5,
@@ -414,8 +635,8 @@ for coro in asyncio.as_completed(tasks):
   &#34;saved_at&#34;: &#34;ISODate&#34;
 }
 </code></pre>
-<p><strong>chat_conversations</strong></p>
-<pre><code language="language-json" class="language-json">{
+      <p><strong>chat_conversations</strong></p>
+      <pre><code language="language-json" class="language-json">{
   &#34;user_id&#34;: &#34;ObjectId&#34;,
   &#34;title&#34;: &#34;Coffee tour in Boston&#34;,
   &#34;messages&#34;: [],
@@ -424,23 +645,27 @@ for coro in asyncio.as_completed(tasks):
   &#34;updated_at&#34;: &#34;ISODate&#34;
 }
 </code></pre>
-<p><code>social_posts</code> and <code>shared_itineraries</code> are also active. <code>shared_itineraries</code> has a TTL index on <code>expires_at</code> so links expire automatically.</p>
-<h2 is-upgraded>ChromaDB Collections</h2>
-<p><strong>user_adventure_history</strong> - one document per saved adventure per user. Embedded with <code>text-embedding-3-small</code>. Queried at generation time to personalize venue selection.</p>
-<p><strong>dynamic_location_tips</strong> - Tavily-sourced local tips with an <code>authenticity_score</code> field used for ranking.</p>
-<h2 is-upgraded>Redis Cache</h2>
-<pre><code>Key:   venue:{name}:{location}:{date}
+      <p><code>social_posts</code> and <code>shared_itineraries</code> are also active. <code>shared_itineraries</code>
+        has a TTL index on <code>expires_at</code> so links expire automatically.</p>
+      <h2 is-upgraded>ChromaDB Collections</h2>
+      <p><strong>user_adventure_history</strong> - one document per saved adventure per user. Embedded with
+        <code>text-embedding-3-small</code>. Queried at generation time to personalize venue selection.
+      </p>
+      <p><strong>dynamic_location_tips</strong> - Tavily-sourced local tips with an <code>authenticity_score</code>
+        field used for ranking.</p>
+      <h2 is-upgraded>Redis Cache</h2>
+      <pre><code>Key:   venue:{name}:{location}:{date}
 Value: JSON research result
 TTL:   86400 seconds (24 hours)
 </code></pre>
-<p>Stats available at <code>/api/performance/cache/stats</code>.</p>
+      <p>Stats available at <code>/api/performance/cache/stats</code>.</p>
 
 
-      </google-codelab-step>
-    
-      <google-codelab-step label="Frontend" duration="10">
-        <h2 is-upgraded>Routing</h2>
-<pre><code>/                   HomePage              public
+    </google-codelab-step>
+
+    <google-codelab-step label="Frontend" duration="10">
+      <h2 is-upgraded>Routing</h2>
+      <pre><code>/                   HomePage              public
 /login              LoginPage             public only
 /register           RegisterPage          public only
 /about              AboutPage             public
@@ -451,71 +676,101 @@ TTL:   86400 seconds (24 hours)
 /shared/:shareId    SharedAdventurePage   public
 /observability      ObservabilityPage     VITE_OBSERVABILITY_ENABLED=true only
 </code></pre>
-<h2 is-upgraded>Theme System</h2>
-<p><code>ThemeContext.tsx</code> persists <code>dark</code> or <code>light</code> to <code>localStorage</code> and sets a <code>data-theme</code> attribute on <code>documentElement</code>. The <code>t(isDark)</code> helper returns a flat object of named color tokens used by every component instead of hardcoded values:</p>
-<pre><code language="language-typescript" class="language-typescript">import { useTheme, t } from &#39;../contexts/ThemeContext&#39;;
+      <h2 is-upgraded>Theme System</h2>
+      <p><code>ThemeContext.tsx</code> persists <code>dark</code> or <code>light</code> to <code>localStorage</code> and
+        sets a <code>data-theme</code> attribute on <code>documentElement</code>. The <code>t(isDark)</code> helper
+        returns a flat object of named color tokens used by every component instead of hardcoded values:</p>
+      <pre><code language="language-typescript" class="language-typescript">import { useTheme, t } from &#39;../contexts/ThemeContext&#39;;
 
 const { isDark } = useTheme();
 const tk = t(isDark);
 
 &lt;div style=&#123;&#123; background: tk.cardBg, color: tk.textPrimary }}&gt;
 </code></pre>
-<p>Token categories: page backgrounds, card surfaces, borders, nav, input fields, sidebar, progress track, step cards, conversation items, buttons, text (primary / secondary / muted / accent), links, blobs.</p>
-<h2 is-upgraded>AdventuresPage</h2>
-<p>The main generation interface. Chat panel and adventures panel are side by side on desktop. On mobile, <code>MobileTabBar</code> switches between them, and the adventures tab is activated automatically when results arrive.</p>
-<p><strong>Chat input controls:</strong></p>
-<ul>
-<li><strong>VibeChipPanel</strong> - 12 quick-select mood chips (Party, Date Night, Drinks, Foodie, Brunch, Chill, Artsy, Active, Birthday, Hidden Gems, Rainy Day, Shopping). Desktop shows 6, mobile shows 4, with an expand toggle for the rest.</li>
-<li><strong>SurpriseButton</strong> (🎲) - picks randomly from 8 preset prompts and fires immediately.</li>
-<li><strong>Group mode button</strong> (👥) - opens <code>GroupModeModal</code> for up to 6 people with individual preference strings.</li>
-<li><strong>GenerationOptionsPanel</strong> - collapsible, stops slider (1–6) and diversity mode selector (Standard / High / Fresh).</li>
-</ul>
-<p><strong>Chat panel extras:</strong></p>
-<ul>
-<li><strong>ChatSidebar</strong> - slide-in conversation history panel (follows layout mode: left or right). Load or delete any past conversation.</li>
-<li><strong>ProgressTracker</strong> - per-agent progress during generation with agent-specific messages.</li>
-<li><strong>OutOfScopeMessage</strong> - typed rejection UI for 5 scope issues: <code>unsupported_city</code>, <code>multi_day_trip</code>, <code>international_travel</code>, <code>accommodation_planning</code>, <code>trip_budget_detected</code>.</li>
-</ul>
-<p><strong>Modals:</strong></p>
-<ul>
-<li><strong>OnboardingModal</strong> - shown on first login (checks <code>localStorage</code> for <code>miniquest_onboarded</code>). 3-step preference survey (time of day, vibe, companion). Fires an initial generation from the result.</li>
-<li><strong>GroupModeModal</strong> - up to 6 people with name and preference string. Builds a combined query and fires generation.</li>
-</ul>
-<p><strong>Layout:</strong> a toggle button swaps the chat and adventures panels left/right. Mode is persisted to <code>localStorage</code> as <code>miniquest_layout_mode</code>.</p>
-<h2 is-upgraded>AnalyticsPage</h2>
-<p>Three tabs: overview (theme counts, top locations, ratings), performance (per-agent timing from <code>metadata.performance.timing_breakdown</code>), cache (hit rate, time saved, cache size).</p>
-<h2 is-upgraded>SocialPage</h2>
-<p>Community feed, max 30 posts. Compose box with 500-char limit and Cmd+Enter to submit. Clickable URLs and preserved newlines in post content. Like/unlike, inline comments (last 5), delete own post with confirm step.</p>
-<h2 is-upgraded>SharedAdventurePage</h2>
-<p>Public, no auth required. Fetches by <code>shareId</code>. Handles 404 (not found) and 410 (expired) with distinct error UI.</p>
-<h2 is-upgraded>ObservabilityPage</h2>
-<p>Gated behind <code>VITE_OBSERVABILITY_ENABLED=true</code>. Queries Prometheus-compatible API backed by VictoriaMetrics, proxied through Vite. Shows:</p>
-<ul>
-<li>Total workflow runs (all-time)</li>
-<li>Average end-to-end latency and error count</li>
-<li>Per-agent latency bars - toggle between all-time average and last 2-hour average</li>
-<li>Throughput sparkline (5-minute rolling rate over the past hour)</li>
-<li>Per-agent call counts</li>
-</ul>
-<p>Data retained for 12 months. Not linked in navigation unless the flag is set.</p>
-<h2 is-upgraded>AboutPage</h2>
-<p>Scroll-triggered fade/slide animations via <code>IntersectionObserver</code> (threshold 0.15). Parallax blobs move at different rates with <code>scrollY</code>. Sections: hero, 4-step how-it-works, 6-agent list, features grid (Surprise, Group Mode, Save and Rate, Share Links, Community Feed, Analytics), use cases, stats (6 agents, ~4s warm cache, 90%+ cache hit rate, 2 cities), CTA.</p>
-<h2 is-upgraded>GenerationOptions (frontend)</h2>
-<p>Defined in <code>useAdventures.ts</code>, mirrors the backend Pydantic model:</p>
-<pre><code language="language-typescript" class="language-typescript">interface GenerationOptions {
+      <p>Token categories: page backgrounds, card surfaces, borders, nav, input fields, sidebar, progress track, step
+        cards, conversation items, buttons, text (primary / secondary / muted / accent), links, blobs.</p>
+      <h2 is-upgraded>AdventuresPage</h2>
+      <p>The main generation interface. Chat panel and adventures panel are side by side on desktop. On mobile,
+        <code>MobileTabBar</code> switches between them, and the adventures tab is activated automatically when results
+        arrive.
+      </p>
+      <p><strong>Chat input controls:</strong></p>
+      <ul>
+        <li><strong>VibeChipPanel</strong> - 12 quick-select mood chips (Party, Date Night, Drinks, Foodie, Brunch,
+          Chill, Artsy, Active, Birthday, Hidden Gems, Rainy Day, Shopping). Desktop shows 6, mobile shows 4, with an
+          expand toggle for the rest.</li>
+        <li><strong>SurpriseButton</strong> (🎲) - picks randomly from 8 preset prompts and fires immediately.</li>
+        <li><strong>Group mode button</strong> (👥) - opens <code>GroupModeModal</code> for up to 6 people with
+          individual preference strings.</li>
+        <li><strong>GenerationOptionsPanel</strong> - collapsible, stops slider (1–6) and diversity mode selector
+          (Standard / High / Fresh).</li>
+      </ul>
+      <p><strong>Chat panel extras:</strong></p>
+      <ul>
+        <li><strong>ChatSidebar</strong> - slide-in conversation history panel (follows layout mode: left or right).
+          Load or delete any past conversation.</li>
+        <li><strong>ProgressTracker</strong> - per-agent progress during generation with agent-specific messages.</li>
+        <li><strong>OutOfScopeMessage</strong> - typed rejection UI for 5 scope issues: <code>unsupported_city</code>,
+          <code>multi_day_trip</code>, <code>international_travel</code>, <code>accommodation_planning</code>,
+          <code>trip_budget_detected</code>.
+        </li>
+      </ul>
+      <p><strong>Modals:</strong></p>
+      <ul>
+        <li><strong>OnboardingModal</strong> - shown on first login (checks <code>localStorage</code> for
+          <code>miniquest_onboarded</code>). 3-step preference survey (time of day, vibe, companion). Fires an initial
+          generation from the result.
+        </li>
+        <li><strong>GroupModeModal</strong> - up to 6 people with name and preference string. Builds a combined query
+          and fires generation.</li>
+      </ul>
+      <p><strong>Layout:</strong> a toggle button swaps the chat and adventures panels left/right. Mode is persisted to
+        <code>localStorage</code> as <code>miniquest_layout_mode</code>.
+      </p>
+      <h2 is-upgraded>AnalyticsPage</h2>
+      <p>Three tabs: overview (theme counts, top locations, ratings), performance (per-agent timing from
+        <code>metadata.performance.timing_breakdown</code>), cache (hit rate, time saved, cache size).
+      </p>
+      <h2 is-upgraded>SocialPage</h2>
+      <p>Community feed, max 30 posts. Compose box with 500-char limit and Cmd+Enter to submit. Clickable URLs and
+        preserved newlines in post content. Like/unlike, inline comments (last 5), delete own post with confirm step.
+      </p>
+      <h2 is-upgraded>SharedAdventurePage</h2>
+      <p>Public, no auth required. Fetches by <code>shareId</code>. Handles 404 (not found) and 410 (expired) with
+        distinct error UI.</p>
+      <h2 is-upgraded>ObservabilityPage</h2>
+      <p>Gated behind <code>VITE_OBSERVABILITY_ENABLED=true</code>. Queries Prometheus-compatible API backed by
+        VictoriaMetrics, proxied through Vite. Shows:</p>
+      <ul>
+        <li>Total workflow runs (all-time)</li>
+        <li>Average end-to-end latency and error count</li>
+        <li>Per-agent latency bars - toggle between all-time average and last 2-hour average</li>
+        <li>Throughput sparkline (5-minute rolling rate over the past hour)</li>
+        <li>Per-agent call counts</li>
+      </ul>
+      <p>Data retained for 12 months. Not linked in navigation unless the flag is set.</p>
+      <h2 is-upgraded>AboutPage</h2>
+      <p>Scroll-triggered fade/slide animations via <code>IntersectionObserver</code> (threshold 0.15). Parallax blobs
+        move at different rates with <code>scrollY</code>. Sections: hero, 4-step how-it-works, 6-agent list, features
+        grid (Surprise, Group Mode, Save and Rate, Share Links, Community Feed, Analytics), use cases, stats (6 agents,
+        ~4s warm cache, 90%+ cache hit rate, 2 cities), CTA.</p>
+      <h2 is-upgraded>GenerationOptions (frontend)</h2>
+      <p>Defined in <code>useAdventures.ts</code>, mirrors the backend Pydantic model:</p>
+      <pre><code language="language-typescript" class="language-typescript">interface GenerationOptions {
   stops_per_adventure: number;        // 1–6, default 3
   diversity_mode: &#39;standard&#39; | &#39;high&#39; | &#39;fresh&#39;;
   exclude_venues: string[];
 }
 </code></pre>
-<p>Last-generated adventures are cached in <code>localStorage</code> under <code>miniquest_last_adventures</code> and survive a page refresh.</p>
+      <p>Last-generated adventures are cached in <code>localStorage</code> under <code>miniquest_last_adventures</code>
+        and survive a page refresh.</p>
 
 
-      </google-codelab-step>
-    
-      <google-codelab-step label="Mobile App" duration="8">
-        <h2 is-upgraded>Structure</h2>
-<pre><code>miniquest-mobile/
+    </google-codelab-step>
+
+    <google-codelab-step label="Mobile App" duration="8">
+      <h2 is-upgraded>Structure</h2>
+      <pre><code>miniquest-mobile/
 ├── app/
 │   ├── _layout.tsx             # Root: AuthProvider + route guard
 │   ├── (auth)/
@@ -534,21 +789,27 @@ const tk = t(isDark);
 └── contexts/
     └── AuthContext.tsx         # login, logout, isAuthenticated, isLoading
 </code></pre>
-<h2 is-upgraded>Navigation</h2>
-<p>Expo Router with two route groups: <code>(auth)</code> for unauthenticated screens, <code>(tabs)</code> for the main tab bar. Root <code>_layout.tsx</code> runs the route guard:</p>
-<pre><code language="language-typescript" class="language-typescript">useEffect(() =&gt; {
+      <h2 is-upgraded>Navigation</h2>
+      <p>Expo Router with two route groups: <code>(auth)</code> for unauthenticated screens, <code>(tabs)</code> for the
+        main tab bar. Root <code>_layout.tsx</code> runs the route guard:</p>
+      <pre><code language="language-typescript" class="language-typescript">useEffect(() =&gt; {
   if (isLoading) return;
   const inAuth = segments[0] === &#39;(auth)&#39;;
   if (!isAuthenticated &amp;&amp; !inAuth) router.replace(&#39;/(auth)/login&#39;);
   if (isAuthenticated &amp;&amp; inAuth) router.replace(&#39;/(tabs)/home&#39;);
 }, [isAuthenticated, isLoading, segments]);
 </code></pre>
-<h2 is-upgraded>Authentication</h2>
-<p>Tokens are stored in <code>expo-secure-store</code> (device secure enclave). <code>AuthContext</code> exposes <code>login</code>, <code>logout</code>, <code>isAuthenticated</code>, <code>isLoading</code>.</p>
-<h2 is-upgraded>UI</h2>
-<p><code>expo-linear-gradient</code> for screen and card backgrounds. <code>expo-blur</code> for frosted glass card surfaces. <code>AdventureCard.tsx</code> renders title, theme, steps, duration, and cost. <code>saved.tsx</code> supports deletion via <code>Alert.alert</code> confirm dialog.</p>
-<h2 is-upgraded>Dependencies</h2>
-<pre><code language="language-json" class="language-json">{
+      <h2 is-upgraded>Authentication</h2>
+      <p>Tokens are stored in <code>expo-secure-store</code> (device secure enclave). <code>AuthContext</code> exposes
+        <code>login</code>, <code>logout</code>, <code>isAuthenticated</code>, <code>isLoading</code>.
+      </p>
+      <h2 is-upgraded>UI</h2>
+      <p><code>expo-linear-gradient</code> for screen and card backgrounds. <code>expo-blur</code> for frosted glass
+        card surfaces. <code>AdventureCard.tsx</code> renders title, theme, steps, duration, and cost.
+        <code>saved.tsx</code> supports deletion via <code>Alert.alert</code> confirm dialog.
+      </p>
+      <h2 is-upgraded>Dependencies</h2>
+      <pre><code language="language-json" class="language-json">{
   &#34;expo&#34;: &#34;~55.0.4&#34;,
   &#34;react-native&#34;: &#34;0.83.2&#34;,
   &#34;expo-router&#34;: &#34;~55.0.3&#34;,
@@ -563,66 +824,128 @@ const tk = t(isDark);
 </code></pre>
 
 
-      </google-codelab-step>
-    
-      <google-codelab-step label="Authentication" duration="4">
-        <h2 is-upgraded>Flow</h2>
-<p>Passwords are hashed with bcrypt (cost factor 12). On login, <code>jwt_manager.py</code> signs a JWT using HS256 with a 256-bit secret from GCP Secret Manager. Tokens expire after 30 minutes.</p>
-<pre><code>Token payload:
+    </google-codelab-step>
+
+    <google-codelab-step label="Authentication" duration="4">
+      <h2 is-upgraded>Flow</h2>
+      <p>Passwords are hashed with bcrypt (cost factor 12). On login, <code>jwt_manager.py</code> signs a JWT using
+        HS256 with a 256-bit secret from GCP Secret Manager. Tokens expire after 30 minutes.</p>
+      <pre><code>Token payload:
 { &#34;sub&#34;: &#34;user@example.com&#34;, &#34;user_id&#34;: &#34;507f...&#34;, &#34;exp&#34;: 1640995200 }
 </code></pre>
-<p>The frontend attaches tokens via an Axios request interceptor. A response interceptor on 401 clears the token and redirects to <code>/login</code>. The backend validates via the <code>get_current_user</code> FastAPI dependency injected into all protected routes.</p>
-<h2 is-upgraded>Security Notes</h2>
-<ul>
-<li>CORS: an explicit middleware layer runs before <code>CORSMiddleware</code> to handle OPTIONS preflight correctly. Allowed origins are configured per environment.</li>
-<li>All secrets are in GCP Secret Manager, never in the codebase.</li>
-<li>Input validation via Pydantic on all request bodies.</li>
-<li><code>testing.py</code> diagnostic routes should be restricted or removed in a public-facing deployment.</li>
-</ul>
+      <p>The frontend attaches tokens via an Axios request interceptor. A response interceptor on 401 clears the token
+        and redirects to <code>/login</code>. The backend validates via the <code>get_current_user</code> FastAPI
+        dependency injected into all protected routes.</p>
+      <h2 is-upgraded>Security Notes</h2>
+      <ul>
+        <li>CORS: an explicit middleware layer runs before <code>CORSMiddleware</code> to handle OPTIONS preflight
+          correctly. Allowed origins are configured per environment.</li>
+        <li>All secrets are in GCP Secret Manager, never in the codebase.</li>
+        <li>Input validation via Pydantic on all request bodies.</li>
+        <li><code>testing.py</code> diagnostic routes should be restricted or removed in a public-facing deployment.
+        </li>
+      </ul>
 
 
-      </google-codelab-step>
-    
-      <google-codelab-step label="Deployment" duration="10">
-        <h2 is-upgraded>Infrastructure</h2>
-<table>
-<tr><td colspan="1" rowspan="1"><p>Component</p>
-</td><td colspan="1" rowspan="1"><p>Service</p>
-</td><td colspan="1" rowspan="1"><p>Detail</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>Backend</p>
-</td><td colspan="1" rowspan="1"><p>GCP Cloud Run</p>
-</td><td colspan="1" rowspan="1"><p>us-east1, 1 vCPU, 2 GB, 1–4 instances</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>Frontend</p>
-</td><td colspan="1" rowspan="1"><p>Firebase Hosting</p>
-</td><td colspan="1" rowspan="1"><p>Global CDN</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>Container images</p>
-</td><td colspan="1" rowspan="1"><p>GCP Artifact Registry</p>
-</td><td colspan="1" rowspan="1"><p>us-east1</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>CI/CD</p>
-</td><td colspan="1" rowspan="1"><p>GCP Cloud Build</p>
-</td><td colspan="1" rowspan="1"><p><code>cloudbuild.yaml</code></p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>Secrets</p>
-</td><td colspan="1" rowspan="1"><p>GCP Secret Manager</p>
-</td><td colspan="1" rowspan="1"><p>us-east1</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>Database</p>
-</td><td colspan="1" rowspan="1"><p>MongoDB Atlas Cluster0</p>
-</td><td colspan="1" rowspan="1"><p>Cloud</p>
-</td></tr>
-<tr><td colspan="1" rowspan="1"><p>Cache</p>
-</td><td colspan="1" rowspan="1"><p>Redis</p>
-</td><td colspan="1" rowspan="1"><p>Cloud</p>
-</td></tr>
-</table>
-<p>GCP project: <code>project-572cd754-7f2b-465c-b68</code></p>
-<h2 is-upgraded>Deployment Scripts</h2>
-<p>Three PowerShell scripts in the project root. Require <code>gcloud</code> and <code>firebase</code> CLIs authenticated.</p>
-<pre><code language="language-powershell" class="language-powershell"># Full stack
+    </google-codelab-step>
+
+    <google-codelab-step label="Deployment" duration="10">
+      <h2 is-upgraded>Infrastructure</h2>
+      <table>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Component</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Service</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Detail</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Backend</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>GCP Cloud Run</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>us-east1, 1 vCPU, 2 GB, 1–4 instances</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Frontend</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Firebase Hosting</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Global CDN</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Container images</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>GCP Artifact Registry</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>us-east1</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>CI/CD</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>GCP Cloud Build</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p><code>cloudbuild.yaml</code></p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Secrets</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>GCP Secret Manager</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>us-east1</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Database</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>MongoDB Atlas Cluster0</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Cloud</p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="1" rowspan="1">
+            <p>Cache</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Redis</p>
+          </td>
+          <td colspan="1" rowspan="1">
+            <p>Cloud</p>
+          </td>
+        </tr>
+      </table>
+      <p>GCP project: <code>project-572cd754-7f2b-465c-b68</code></p>
+      <h2 is-upgraded>Deployment Scripts</h2>
+      <p>Three PowerShell scripts in the project root. Require <code>gcloud</code> and <code>firebase</code> CLIs
+        authenticated.</p>
+      <pre><code language="language-powershell" class="language-powershell"># Full stack
 .\deploy-all.ps1
 
 # Backend flags
@@ -633,9 +956,13 @@ const tk = t(isDark);
 # Frontend flags
 .\deploy-frontend.ps1 -SkipBuild          # skip npm run build
 </code></pre>
-<p>The backend script tries a local Docker push first and falls back to Cloud Build automatically. The frontend script runs <code>npm run build</code> from <code>frontend/</code> then <code>firebase deploy --only hosting</code>. Firebase init must be run from inside <code>frontend/</code>, not the project root.</p>
-<h2 is-upgraded>Manual Cloud Run Deploy</h2>
-<pre><code language="language-powershell" class="language-powershell">$PROJECT = &#34;project-572cd754-7f2b-465c-b68&#34;
+      <p>The backend script tries a local Docker push first and falls back to Cloud Build automatically. The frontend
+        script runs <code>npm run build</code> from <code>frontend/</code> then
+        <code>firebase deploy --only hosting</code>. Firebase init must be run from inside <code>frontend/</code>, not
+        the project root.
+      </p>
+      <h2 is-upgraded>Manual Cloud Run Deploy</h2>
+      <pre><code language="language-powershell" class="language-powershell">$PROJECT = &#34;project-572cd754-7f2b-465c-b68&#34;
 $IMAGE   = &#34;us-east1-docker.pkg.dev/$PROJECT/miniquest/backend:latest&#34;
 
 docker build -t miniquest-backend .
@@ -657,25 +984,27 @@ gcloud run deploy miniquest-backend `
     --set-env-vars &#34;ENVIRONMENT=production,DEBUG=false&#34; `
     --project $PROJECT
 </code></pre>
-<h2 is-upgraded>Secrets Management on Windows</h2>
-<p>Use <code>System.IO.File::WriteAllText</code> with <code>UTF8Encoding $false</code>. PowerShell&#39;s <code>Set-Content</code> introduces a BOM that Secret Manager includes in the secret value.</p>
-<pre><code language="language-powershell" class="language-powershell">$value = &#34;your-secret-value&#34;
+      <h2 is-upgraded>Secrets Management on Windows</h2>
+      <p>Use <code>System.IO.File::WriteAllText</code> with <code>UTF8Encoding $false</code>. PowerShell&#39;s
+        <code>Set-Content</code> introduces a BOM that Secret Manager includes in the secret value.
+      </p>
+      <pre><code language="language-powershell" class="language-powershell">$value = &#34;your-secret-value&#34;
 [System.IO.File]::WriteAllText(&#34;secret.txt&#34;, $value, [System.Text.UTF8Encoding]::new($false))
 gcloud secrets versions add SECRET_NAME --data-file=&#34;secret.txt&#34; --project $PROJECT
 Remove-Item secret.txt
 </code></pre>
-<h2 is-upgraded>Post-Deployment Checks</h2>
-<pre><code language="language-powershell" class="language-powershell">Invoke-WebRequest https://miniquest-backend-633153384860.us-east1.run.app/health
+      <h2 is-upgraded>Post-Deployment Checks</h2>
+      <pre><code language="language-powershell" class="language-powershell">Invoke-WebRequest https://miniquest-backend-633153384860.us-east1.run.app/health
 gcloud run services logs tail miniquest-backend --region us-east1
 gcloud run services describe miniquest-backend --region us-east1
 </code></pre>
 
 
-      </google-codelab-step>
-    
-      <google-codelab-step label="Local Development" duration="8">
-        <h2 is-upgraded>Quick Start with Docker</h2>
-<pre><code language="language-bash" class="language-bash">cp .env.example .env
+    </google-codelab-step>
+
+    <google-codelab-step label="Local Development" duration="8">
+      <h2 is-upgraded>Quick Start with Docker</h2>
+      <pre><code language="language-bash" class="language-bash">cp .env.example .env
 # Fill in OPENAI_API_KEY, TAVILY_API_KEY, MONGODB_URL, JWT_SECRET_KEY
 
 docker-compose up -d
@@ -683,27 +1012,27 @@ docker-compose up -d
 # Backend:  http://localhost:8000
 # API docs: http://localhost:8000/docs
 </code></pre>
-<h2 is-upgraded>Manual Setup</h2>
-<p><strong>Backend:</strong></p>
-<pre><code language="language-bash" class="language-bash">cd backend
+      <h2 is-upgraded>Manual Setup</h2>
+      <p><strong>Backend:</strong></p>
+      <pre><code language="language-bash" class="language-bash">cd backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 </code></pre>
-<p><strong>Frontend:</strong></p>
-<pre><code language="language-bash" class="language-bash">cd frontend
+      <p><strong>Frontend:</strong></p>
+      <pre><code language="language-bash" class="language-bash">cd frontend
 npm install
 npm run dev
 </code></pre>
-<p><strong>Mobile:</strong></p>
-<pre><code language="language-bash" class="language-bash">cd miniquest-mobile
+      <p><strong>Mobile:</strong></p>
+      <pre><code language="language-bash" class="language-bash">cd miniquest-mobile
 npm install
 npx expo start
 # &#39;a&#39; = Android emulator  &#39;i&#39; = iOS simulator  &#39;w&#39; = web
 </code></pre>
-<h2 is-upgraded>Environment Variables</h2>
-<pre><code language="language-bash" class="language-bash"># Required
+      <h2 is-upgraded>Environment Variables</h2>
+      <pre><code language="language-bash" class="language-bash"># Required
 OPENAI_API_KEY=sk-...
 TAVILY_API_KEY=tvly-...
 MONGODB_URL=mongodb+srv://...
@@ -726,14 +1055,20 @@ EMBEDDING_MODEL=text-embedding-3-small
 VITE_API_URL=http://localhost:8000
 VITE_OBSERVABILITY_ENABLED=false
 </code></pre>
-<h2 is-upgraded>Common Issues</h2>
-<p>Negative : <strong>CORS error</strong> - verify <code>VITE_API_URL</code> in <code>frontend/.env</code> and confirm the backend CORS config includes <code>http://localhost:3000</code>.</p>
-<p>Negative : <strong>JWT invalid</strong> - clear <code>localStorage</code> in the browser and log in again.</p>
-<p>Negative : <strong>MongoDB connection failed</strong> - verify <code>MONGODB_URL</code> and check that your IP is whitelisted in MongoDB Atlas Network Access.</p>
-<p>Negative : <strong>Firebase deploy fails</strong> - confirm <code>firebase init</code> was run from inside <code>frontend/</code>, not the project root.</p>
-<p>Negative : <strong>Secret Manager BOM on Windows</strong> - use <code>System.IO.File::WriteAllText</code> with <code>UTF8Encoding $false</code>. See the Deployment section.</p>
-<h2 is-upgraded>Running Tests</h2>
-<pre><code language="language-bash" class="language-bash">cd backend
+      <h2 is-upgraded>Common Issues</h2>
+      <p>Negative : <strong>CORS error</strong> - verify <code>VITE_API_URL</code> in <code>frontend/.env</code> and
+        confirm the backend CORS config includes <code>http://localhost:3000</code>.</p>
+      <p>Negative : <strong>JWT invalid</strong> - clear <code>localStorage</code> in the browser and log in again.</p>
+      <p>Negative : <strong>MongoDB connection failed</strong> - verify <code>MONGODB_URL</code> and check that your IP
+        is whitelisted in MongoDB Atlas Network Access.</p>
+      <p>Negative : <strong>Firebase deploy fails</strong> - confirm <code>firebase init</code> was run from inside
+        <code>frontend/</code>, not the project root.
+      </p>
+      <p>Negative : <strong>Secret Manager BOM on Windows</strong> - use <code>System.IO.File::WriteAllText</code> with
+        <code>UTF8Encoding $false</code>. See the Deployment section.
+      </p>
+      <h2 is-upgraded>Running Tests</h2>
+      <pre><code language="language-bash" class="language-bash">cd backend
 
 pytest
 pytest --cov=app tests/
@@ -746,48 +1081,53 @@ python tests/quick_test.py
 </code></pre>
 
 
-      </google-codelab-step>
-    
-      <google-codelab-step label="Key Takeaways" duration="2">
-        <p>Positive : <strong>6-agent pipeline</strong> - LocationParser, IntentParser, VenueScout, TavilyResearch, RoutingAgent, AdventureCreator. Each is independently testable and optimizable.</p>
-<p>Positive : <strong>Three-path venue discovery</strong> - Google Places is the primary path with proximity-ranked, geocoded results. Tavily and GPT-4o are progressively cheaper fallbacks.</p>
-<p>Positive : <strong>Progressive streaming</strong> - adventures are emitted one by one via SSE as each finishes, so the user sees results immediately rather than waiting for all three.</p>
-<p>Positive : <strong>Fully deployed on GCP</strong> - Cloud Run backend, Firebase Hosting frontend, all secrets in Secret Manager. Deployment is a single PowerShell command.</p>
-<p>Positive : <strong>RAG personalization</strong> - ChromaDB embeddings learn from every saved and rated adventure, improving recommendations over time.</p>
-<h2 is-upgraded>By the Numbers</h2>
-<ul>
-<li><strong>6 active agents</strong> in the pipeline</li>
-<li><strong>~4 seconds</strong> on a warm cache</li>
-<li><strong>90%+ cache hit rate</strong> reducing Tavily API calls</li>
-<li><strong>~97% storage reduction</strong> from lightweight query schema</li>
-<li><strong>2 cities</strong> supported: Boston and New York City</li>
-</ul>
+    </google-codelab-step>
+
+    <google-codelab-step label="Key Takeaways" duration="2">
+      <p>Positive : <strong>6-agent pipeline</strong> - LocationParser, IntentParser, VenueScout, TavilyResearch,
+        RoutingAgent, AdventureCreator. Each is independently testable and optimizable.</p>
+      <p>Positive : <strong>Three-path venue discovery</strong> - Google Places is the primary path with
+        proximity-ranked, geocoded results. Tavily and GPT-4o are progressively cheaper fallbacks.</p>
+      <p>Positive : <strong>Progressive streaming</strong> - adventures are emitted one by one via SSE as each finishes,
+        so the user sees results immediately rather than waiting for all three.</p>
+      <p>Positive : <strong>Fully deployed on GCP</strong> - Cloud Run backend, Firebase Hosting frontend, all secrets
+        in Secret Manager. Deployment is a single PowerShell command.</p>
+      <p>Positive : <strong>RAG personalization</strong> - ChromaDB embeddings learn from every saved and rated
+        adventure, improving recommendations over time.</p>
+      <h2 is-upgraded>By the Numbers</h2>
+      <ul>
+        <li><strong>6 active agents</strong> in the pipeline</li>
+        <li><strong>~4 seconds</strong> on a warm cache</li>
+        <li><strong>90%+ cache hit rate</strong> reducing Tavily API calls</li>
+        <li><strong>~97% storage reduction</strong> from lightweight query schema</li>
+        <li><strong>2 cities</strong> supported: Boston and New York City</li>
+      </ul>
 
 
-      </google-codelab-step>
-    
-      <google-codelab-step label="Resources" duration="1">
-        <h2 is-upgraded>Live Deployment</h2>
-<ul>
-<li><strong>Web app:</strong> https://project-572cd754-7f2b-465c-b68.web.app</li>
-<li><strong>Backend API:</strong> https://miniquest-backend-633153384860.us-east1.run.app</li>
-<li><strong>API docs:</strong> https://miniquest-backend-633153384860.us-east1.run.app/docs</li>
-<li><strong>Health check:</strong> https://miniquest-backend-633153384860.us-east1.run.app/health</li>
-</ul>
-<h2 is-upgraded>References</h2>
-<ul>
-<li><a href="https://langchain-ai.github.io/langgraph/" target="_blank">LangGraph Documentation</a></li>
-<li><a href="https://docs.tavily.com" target="_blank">Tavily API Docs</a></li>
-<li><a href="https://fastapi.tiangolo.com" target="_blank">FastAPI</a></li>
-<li><a href="https://docs.expo.dev/router/introduction/" target="_blank">Expo Router</a></li>
-<li><a href="https://docs.trychroma.com" target="_blank">ChromaDB</a></li>
-<li><a href="https://cloud.google.com/run/docs" target="_blank">GCP Cloud Run</a></li>
-<li><a href="https://firebase.google.com/docs/hosting" target="_blank">Firebase Hosting</a></li>
-</ul>
+    </google-codelab-step>
+
+    <google-codelab-step label="Resources" duration="1">
+      <h2 is-upgraded>Live Deployment</h2>
+      <ul>
+        <li><strong>Web app:</strong> https://project-572cd754-7f2b-465c-b68.web.app</li>
+        <li><strong>Backend API:</strong> https://miniquest-backend-633153384860.us-east1.run.app</li>
+        <li><strong>API docs:</strong> https://miniquest-backend-633153384860.us-east1.run.app/docs</li>
+        <li><strong>Health check:</strong> https://miniquest-backend-633153384860.us-east1.run.app/health</li>
+      </ul>
+      <h2 is-upgraded>References</h2>
+      <ul>
+        <li><a href="https://langchain-ai.github.io/langgraph/" target="_blank">LangGraph Documentation</a></li>
+        <li><a href="https://docs.tavily.com" target="_blank">Tavily API Docs</a></li>
+        <li><a href="https://fastapi.tiangolo.com" target="_blank">FastAPI</a></li>
+        <li><a href="https://docs.expo.dev/router/introduction/" target="_blank">Expo Router</a></li>
+        <li><a href="https://docs.trychroma.com" target="_blank">ChromaDB</a></li>
+        <li><a href="https://cloud.google.com/run/docs" target="_blank">GCP Cloud Run</a></li>
+        <li><a href="https://firebase.google.com/docs/hosting" target="_blank">Firebase Hosting</a></li>
+      </ul>
 
 
-      </google-codelab-step>
-    
+    </google-codelab-step>
+
   </google-codelab>
 
   <script src="https://storage.googleapis.com/claat-public/native-shim.js"></script>
@@ -797,4 +1137,5 @@ python tests/quick_test.py
   <script src="//support.google.com/inapp/api.js"></script>
 
 </body>
+
 </html>
